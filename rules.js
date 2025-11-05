@@ -131,6 +131,7 @@ function new_year(){
 	if (game.turn >= 11) {victory_check_hegemony(); return}
 	log_br()
 	victory_check()
+	log_br()
 	reshuffle(0)
 	reshuffle(1)
 	for (let p = 0; p <= 2; ++p){
@@ -146,6 +147,7 @@ function new_year(){
 	game.turn_order = TURNORDER[roll]
 	log_br()
 	log(`A ${roll} was rolled for initiative.`)
+	log_br()
 	
 	if (game.turn >= 6 && game.turn <= 9 && game.influence[4] !== 10) {
 		influence_country(4, 1)
@@ -155,6 +157,7 @@ function new_year(){
 
 	game.phase = 'production'
 	log(".h2 Production Phase")
+	log_br()
 	make_active(game.turn_order[0])
 	determine_control(game.activeNum)
 	//log_br()
@@ -166,7 +169,6 @@ function new_year(){
 		game.usa_reinforcements_types = [1,3,5,6]
 	} else 
 		game.state = 'production'
-
 }
 
 function end_production(){
