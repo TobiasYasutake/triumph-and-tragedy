@@ -3076,7 +3076,7 @@ states.command = {
 		game.pass_count = 0
 		next_player_command()
 	},
-	confirm_confirm_investment(){
+	confirm_investment(){
 		game.pass_count = 0
 		next_player_command()
 	},
