@@ -1,0 +1,802 @@
+#mapwrap {
+	width: 3400px;
+	height: 2200px;
+	box-shadow: 2px 2px 4px #0006;
+	border: 2px solid black;
+}
+
+#map {
+	position: absolute;
+	width: 3400px;
+	height: 2200px;
+	background-size: cover;
+	background-image: url(map100.jpg);
+	background-color: #ece1a9;
+}
+
+.diplomacy {
+	width: 1700px;
+	height: 200px;
+	background-color: gray;
+	flex-shrink: 0;
+	border: 1px solid black;
+}
+
+.diplomacy .card {
+	position: absolute;
+}
+
+@media (min-resolution: 97dpi) {
+	#map { background-image: url(map150.jpg);}
+}
+
+
+
+path {
+    display: none;
+}
+
+path.action {
+    display:inline;
+    fill:#339933;
+    fill-opacity:0.40;
+    image-rendering:auto;
+    cursor: pointer;
+}
+
+.initiative.highlight {
+	display: inline;
+    fill-opacity: .5;
+	fill: #e5f17e;
+    stroke: #e5f17e;
+    stroke-opacity: 1;
+    stroke-width: 8px;
+    /* stroke-dasharray: 14;
+    stroke-dashoffset: 7; */
+    cursor: auto;
+}
+
+/* COLORS */
+:root {
+	--color-germany-primiary: rgb(120, 120, 120);
+	--color-germany-secondary: rgb(171, 171, 172);
+	--color-germany-tertiary: rgb(188, 184, 184);
+	--color-italy-primiary: rgb(215, 210, 100);
+	--color-italy-secondary: rgb(155, 154, 109);
+	--color-Britain-primiary: rgb(0, 50, 125);
+	--color-Britain-secondary: rgb(27, 131, 191);
+	--color-Britain-tertiary: rgb(75, 147, 189);
+	--color-france-primiary: rgb(110, 170, 200);
+	--color-france-secondary: rgb(113, 178, 201);
+	--color-USA-primiary: rgb(45, 95, 25);
+	--color-USA-secondary: rgb(98, 141, 75);
+	--color-ussr-primiary: rgb(226, 24, 12);
+	--color-ussr-secondary: rgb(240, 78, 55);
+	--color-ussr-tertiary: rgb(240, 145, 132);
+}
+
+
+
+/* BLOCKS */
+
+body.shift .block.known:hover {
+	transform: scale(2) !important;
+	transition: 100ms;
+	z-index: 100;
+}
+
+#battle_table .block {
+	position: relative;
+}
+
+#blocks > .block {
+	position: absolute;
+}
+
+.block {
+	width: 45px;
+	height: 45px;
+	background-size: 100% 100%;
+	border: 2px solid black;
+	box-shadow: 0 0 2px 1px #0002;
+    transition-property: top, left, transform, opacity;
+	transition-duration: 700ms, 700ms, 250ms, 250ms;
+	transition-timing-function: ease, ease, ease, linear;
+}
+
+.block.action{
+	border-color: white;
+}
+.block.selected {
+	border-color: yellow;
+}
+.hit .block.highlight {
+	border-color: black;
+}
+
+.block.moved { filter: grayscale(50%) brightness(90%); }
+
+.block:hover { z-index: 1; }
+
+.block.dead {display: none;}
+
+.block.r1 { transform: rotate(90deg); }
+.block.r2 { transform: rotate(180deg); }
+.block.r3 { transform: rotate(270deg); }
+
+/* Battle blocks */
+
+.battle.block { 
+	opacity: 1; 
+	/* pointer-events: none;  */
+	width: 80px;
+	height: 80px;
+	transition-property: top, left, transform, opacity;
+	transition-duration: 700ms, 700ms, 250ms, 250ms;
+	transition-timing-function: ease, ease, ease, linear;
+}
+
+.battle_set {
+	margin: 5px;
+	width: 80px;
+}
+
+.menu {
+	width: 80px;
+	text-align: center;
+}
+
+.menu img {
+	width: 30px;
+	height: 30px;
+	margin: 5px;
+	display: none;
+}
+
+.menu img.action {
+	display: inline;
+}
+
+/* RESERVES */
+
+.reserves {
+    display: flex;
+    margin-top: 20px;
+}
+.reserves.hidden {
+	display: none;
+}
+
+.reserve {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    background-size: 100% 100%;
+    border: 3px solid black;
+    box-shadow: 0 0 2px 1px #0002;
+    margin: 5px;
+}
+
+.reserve.action {
+	border-color: white;
+	cursor: pointer;
+}
+
+.reserve.selected {
+	border-color: yellow;
+	filter: grayscale(50%) brightness(90%);
+}
+
+.count {
+    position:absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+	color: white;
+}
+
+
+
+/* BLOCK IMAGES */
+
+.block.Britain{background-color: var(--color-Britain-primiary);}
+.block.Germany{background-color: var(--color-germany-primiary);}
+.block.USA {background-color: var(--color-USA-primiary);}
+.block.Italy {background-color: var(--color-italy-primiary);}
+.block.USSR {background-color: var(--color-ussr-primiary);}
+.block.France{background-color: var(--color-france-primiary);}
+
+.block.Germany.Infantry, #reserves_Germany .Infantry {background-image: url(blocks/German_inf.png);}
+.block.Germany.Tank, #reserves_Germany .Tank {background-image: url(blocks/German_tank.png);}
+.block.Germany.Carrier, #reserves_Germany .Carrier {background-image: url(blocks/German_car.png);}
+.block.Germany.Air, #reserves_Germany .Air {background-image: url(blocks/German_air.png);}
+.block.Germany.Fort, #reserves_Germany .Fort {background-image: url(blocks/German_fort.png);}
+.block.Germany.Fleet, #reserves_Germany .Fleet {background-image: url(blocks/German_fleet.png);}
+.block.Germany.Sub, #reserves_Germany .Sub {background-image: url(blocks/German_sub.png);}
+.block.Britain.Infantry, #reserves_Britain .Infantry {background-image: url(blocks/UK_inf.png);}
+.block.Britain.Tank, #reserves_Britain .Tank {background-image: url(blocks/UK_tank.png);}
+.block.Britain.Carrier, #reserves_Britain .Carrier {background-image: url(blocks/UK_car.png);}
+.block.Britain.Air, #reserves_Britain .Air {background-image: url(blocks/UK_air.png);}
+.block.Britain.Fort, #reserves_Britain .Fort {background-image: url(blocks/UK_fort.png);}
+.block.Britain.Fleet, #reserves_Britain .Fleet {background-image: url(blocks/UK_fleet.png);}
+.block.Britain.Sub, #reserves_Britain .Sub {background-image: url(blocks/UK_sub.png);}
+.block.USA.Infantry, #reserves_USA .Infantry {background-image: url(blocks/US_inf.png);}
+.block.USA.Tank, #reserves_USA .Tank {background-image: url(blocks/US_tank.png);}
+.block.USA.Carrier, #reserves_USA .Carrier {background-image: url(blocks/US_car.png);}
+.block.USA.Air, #reserves_USA .Air {background-image: url(blocks/US_air.png);}
+.block.USA.Fort, #reserves_USA .Fort {background-image: url(blocks/US_fort.png);}
+.block.USA.Fleet, #reserves_USA .Fleet {background-image: url(blocks/US_fleet.png);}
+.block.USA.Sub, #reserves_USA .Sub {background-image: url(blocks/US_sub.png);}
+.block.Italy.Infantry, #reserves_Italy .Infantry {background-image: url(blocks/Italian_inf.png);}
+.block.Italy.Tank, #reserves_Italy .Tank {background-image: url(blocks/Italian_tank.png);}
+.block.Italy.Carrier, #reserves_Italy .Carrier {background-image: url(blocks/Italian_car.png);}
+.block.Italy.Air, #reserves_Italy .Air {background-image: url(blocks/Italian_air.png);}
+.block.Italy.Fort, #reserves_Italy .Fort {background-image: url(blocks/Italian_fort.png);}
+.block.Italy.Fleet, #reserves_Italy .Fleet {background-image: url(blocks/Italian_fleet.png);}
+.block.Italy.Sub, #reserves_Italy .Sub {background-image: url(blocks/Italian_sub.png);}
+.block.France.Infantry, #reserves_France .Infantry {background-image: url(blocks/French_inf.png);}
+.block.France.Tank, #reserves_France .Tank {background-image: url(blocks/French_tank.png);}
+.block.France.Carrier, #reserves_France .Carrier {background-image: url(blocks/French_car.png);}
+.block.France.Air, #reserves_France .Air {background-image: url(blocks/French_air.png);}
+.block.France.Fort, #reserves_France .Fort {background-image: url(blocks/French_fort.png);}
+.block.France.Fleet, #reserves_France .Fleet {background-image: url(blocks/French_fleet.png);}
+.block.France.Sub, #reserves_France .Sub {background-image: url(blocks/French_sub.png);}
+.block.USSR.Infantry, #reserves_USSR .Infantry {background-image: url(blocks/USSR_inf.png);}
+.block.USSR.Tank, #reserves_USSR .Tank {background-image: url(blocks/USSR_tank.png);}
+.block.USSR.Carrier, #reserves_USSR .Carrier {background-image: url(blocks/USSR_car.png);}
+.block.USSR.Air, #reserves_USSR .Air {background-image: url(blocks/USSR_air.png);}
+.block.USSR.Fort, #reserves_USSR .Fort {background-image: url(blocks/USSR_fort.png);}
+.block.USSR.Fleet, #reserves_USSR .Fleet {background-image: url(blocks/USSR_fleet.png);}
+.block.USSR.Sub, #reserves_USSR .Sub {background-image: url(blocks/USSR_sub.png);}
+.block.NeutralFort {background-image: url(blocks/Neutral_Fort.png);}
+
+/* TOKENS */
+
+.token {
+	position: absolute;
+	width: 60px;
+	height: 60px;
+	border-radius: 10%;
+	background-size: 100% 100%;
+	border: 1px solid black;
+	box-shadow: 0 0 2px 1px #0002;
+    transition-property: top, left, transform, opacity;
+	transition-duration: 700ms, 700ms, 250ms, 250ms;
+	transition-timing-function: ease, ease, ease, linear;
+}
+
+.token.hide {
+	display: none;
+}
+
+.token.r1 { transform: rotate(-90deg); }
+.token.r2 { transform: rotate(-180deg); }
+.token.r3 { transform: rotate(-270deg); }
+
+/* #tokens:hover .token.pop{transform: translateX(-20px) translateY(-20px); transition: 0.5s;}
+#tokens:hover .token.res{transform: translateX(20px) translateY(20px); transition: 0.5s;}
+.token.pop {z-index: 5;} 
+.token.ind {z-index: 4;} 
+.token.res {z-index: 3;}  */
+
+
+/* Unique Tokens */
+
+#year {background-image: url(tokens/year.jpeg);}
+#phase {background-image: url(tokens/phase.jpeg);}
+
+#usa_reminder.sat {background-image: url(tokens/usa_sat.jpeg); transform: rotate(-180deg);}
+#usa_reminder.neutral {background-image: url(tokens/usa_neutral.jpeg); transform: rotate(-180deg);}
+
+#Axis_ind {background-image: url(tokens/axis_ind.jpeg);}
+#Axis_pop {background-image: url(tokens/axis_pop.jpeg);}
+#Axis_res {background-image: url(tokens/axis_res.jpeg);}
+#Axis_res.pc {background-image: url(tokens/axis_res_peace.jpeg);}
+#Axis_USSR {background-image: url(tokens/rel_axis_ussr_peace.jpeg);}
+#Axis_USSR.dow {background-image: url(tokens/rel_axis_ussr_dow.jpeg);}
+#Axis_West {background-image: url(tokens/rel_axis_west_peace.jpeg);}
+#Axis_West.dow {background-image: url(tokens/rel_axis_west_dow.jpeg);}
+
+#West_ind {background-image: url(tokens/west_ind.jpeg); transform: rotate(-180deg);}
+#West_pop {background-image: url(tokens/west_pop.jpeg); transform: rotate(-180deg);}
+#West_res {background-image: url(tokens/west_res.jpeg); transform: rotate(-180deg);}
+#West_res.pc {background-image: url(tokens/west_res_peace.jpeg); transform: rotate(-180deg);}
+#West_Axis {background-image: url(tokens/rel_west_axis_peace.jpeg); transform: rotate(-180deg);}
+#West_Axis.dow {background-image: url(tokens/rel_west_axis_dow.jpeg); transform: rotate(-180deg);}
+#West_USSR {background-image: url(tokens/rel_west_ussr_peace.jpeg); transform: rotate(-180deg);}
+#West_USSR.dow {background-image: url(tokens/rel_west_ussr_dow.jpeg); transform: rotate(-180deg);}
+
+#USSR_ind {background-image: url(tokens/ussr_ind.jpeg); transform: rotate(-90deg);}
+#USSR_pop {background-image: url(tokens/ussr_pop.jpeg); transform: rotate(-90deg);}
+#USSR_res {background-image: url(tokens/ussr_res.jpeg); transform: rotate(-90deg);}
+#USSR_res.pc {background-image: url(tokens/ussr_res_peace.jpeg); transform: rotate(-90deg);}
+#USSR_Axis {background-image: url(tokens/rel_ussr_axis_peace.jpeg); transform: rotate(-90deg);}
+#USSR_Axis.dow {background-image: url(tokens/rel_ussr_axis_dow.jpeg); transform: rotate(-90deg);}
+#USSR_West {background-image: url(tokens/rel_ussr_west_peace.jpeg); transform: rotate(-90deg);}
+#USSR_West.dow {background-image: url(tokens/rel_ussr_west_dow.jpeg); transform: rotate(-90deg);}
+
+/* Common Tokens */
+.control.Axis {background-image: url(tokens/control_axis.jpeg);}
+.control.West {background-image: url(tokens/control_west.jpeg);}
+.control.USSR {background-image: url(tokens/control_ussr.jpeg);}
+
+.influence.Axis {background-image: url(tokens/influence_axis.jpeg);}
+.influence.West {background-image: url(tokens/influence_west.jpeg);}
+.influence.USSR {background-image: url(tokens/influence_ussr.jpeg);}
+
+.escaped {
+	/* position: absolute; */
+	transform: scale(.55);
+	z-index: 1;
+	margin-left: -6px;
+	margin-top: -2px;
+	background-image: url(tokens/escaped_sub.jpeg);
+}
+
+.blockade {background-image: url(tokens/blockade.jpeg);}
+.blockade_med {background-image: url(tokens/blockade_med.jpeg);}
+
+.peace {background-image: url(tokens/PD_back.jpeg); position: static; margin: 2px;}
+.peace_0 {background-image: url(tokens/PD_0.jpeg); position: static; margin: 2px;}
+.peace_1 {background-image: url(tokens/PD_1.jpeg); position: static; margin: 2px;}
+.peace_2 {background-image: url(tokens/PD_2.jpeg); position: static; margin: 2px;}
+
+
+
+/* CARDS */
+.card.number_1.a, .card.number_2.a, .card.number_3.a, .card.number_4.a,
+.card.number_5.a, .card.number_6.a, .card.number_7.a, .card.number_8.a {background-image: url(cards/A1-8.png);}
+.card.number_9.a, .card.number_10.a, .card.number_11.a, .card.number_12.a,
+.card.number_13.a, .card.number_14.a, .card.number_15.a, .card.number_16.a {background-image: url(cards/A9-16.png);}
+.card.number_17.a, .card.number_18.a, .card.number_19.a, .card.number_20.a,
+.card.number_21.a, .card.number_22.a, .card.number_23.a, .card.number_24.a {background-image: url(cards/A17-24.png);}
+.card.number_25.a, .card.number_26.a, .card.number_27.a, .card.number_28.a,
+.card.number_29.a, .card.number_30.a, .card.number_31.a, .card.number_32.a {background-image: url(cards/A25-32.png);}
+.card.number_33.a, .card.number_34.a, .card.number_35.a, .card.number_36.a,
+.card.number_37.a, .card.number_38.a, .card.number_39.a, .card.number_40.a {background-image: url(cards/A33-40.png);}
+.card.number_41.a, .card.number_42.a, .card.number_43.a, .card.number_44.a,
+.card.number_45.a, .card.number_46.a, .card.number_47.a, .card.number_48.a {background-image: url(cards/A41-48.png);}
+.card.number_49.a, .card.number_50.a, .card.number_51.a, .card.number_52.a,
+.card.number_53.a, .card.number_54.a, .card.number_55.a {background-image: url(cards/A49-55.png);}
+
+.card.number_1.i, .card.number_2.i, .card.number_3.i, .card.number_4.i, 
+.card.number_5.i, .card.number_6.i, .card.number_7.i, .card.number_8.i {background-image: url(cards/I01-08.png);}
+.card.number_9.i, .card.number_10.i, .card.number_11.i, .card.number_12.i, 
+.card.number_13.i, .card.number_14.i, .card.number_15.i, .card.number_16.i {background-image: url(cards/I09-16.png);}
+.card.number_17.i, .card.number_18.i, .card.number_19.i, .card.number_20.i, 
+.card.number_21.i, .card.number_22.i, .card.number_23.i, .card.number_24.i {background-image: url(cards/I17-24.png);}
+.card.number_25.i, .card.number_26.i, .card.number_27.i, .card.number_28.i,
+.card.number_29.i, .card.number_30.i, .card.number_31.i, .card.number_32.i {background-image: url(cards/I25-32.png);}
+.card.number_33.i, .card.number_34.i, .card.number_35.i, .card.number_36.i,
+.card.number_37.i, .card.number_38.i, .card.number_39.i, .card.number_40.i {background-image: url(cards/I33-40.png);}
+.card.number_41.i, .card.number_42.i, .card.number_43.i, .card.number_44.i,
+.card.number_45.i, .card.number_46.i, .card.number_47.i, .card.number_48.i {background-image: url(cards/I41-48.png);}
+.card.number_49.i, .card.number_50.i, .card.number_51.i, .card.number_52.i,
+.card.number_53.i, .card.number_54.i, .card.number_55.i {background-image: url(cards/I49-55.png);}
+
+.card.number_1 {background-position: 0px 0px;}
+.card.number_2 {background-position:-250px 0px;}
+.card.number_3 {background-position:-500px 0px;}
+.card.number_4 {background-position:-750px 0px;}
+.card.number_5 {background-position: 0px 350px;}
+.card.number_6 {background-position:-250px 350px;}
+.card.number_7 {background-position:-500px 350px;}
+.card.number_8 {background-position:-750px 350px;}
+.card.number_9 {background-position: 0px 0px;}
+.card.number_10 {background-position:-250px 0px;}
+.card.number_11 {background-position:-500px 0px;}
+.card.number_12 {background-position:-750px 0px;}
+.card.number_13 {background-position: 0px 350px;}
+.card.number_14 {background-position:-250px 350px;}
+.card.number_15 {background-position:-500px 350px;}
+.card.number_16 {background-position:-750px 350px;}
+.card.number_17 {background-position: 0px 0px;}
+.card.number_18 {background-position:-250px 0px;}
+.card.number_19 {background-position:-500px 0px;}
+.card.number_20 {background-position:-750px 0px;}
+.card.number_21 {background-position: 0px 350px;}
+.card.number_22 {background-position:-250px 350px;}
+.card.number_23 {background-position:-500px 350px;}
+.card.number_24 {background-position:-750px 350px;}
+.card.number_25 {background-position: 0px 0px;}
+.card.number_26 {background-position:-250px 0px;}
+.card.number_27 {background-position:-500px 0px;}
+.card.number_28 {background-position:-750px 0px;}
+.card.number_29 {background-position: 0px 350px;}
+.card.number_30 {background-position:-250px 350px;}
+.card.number_31 {background-position:-500px 350px;}
+.card.number_32 {background-position:-750px 350px;}
+.card.number_33 {background-position: 0px 0px;}
+.card.number_34 {background-position:-250px 0px;}
+.card.number_35 {background-position:-500px 0px;}
+.card.number_36 {background-position:-750px 0px;}
+.card.number_37 {background-position: 0px 350px;}
+.card.number_38 {background-position:-250px 350px;}
+.card.number_39 {background-position:-500px 350px;}
+.card.number_40 {background-position:-750px 350px;}
+.card.number_41 {background-position: 0px 0px;}
+.card.number_42 {background-position:-250px 0px;}
+.card.number_43 {background-position:-500px 0px;}
+.card.number_44 {background-position:-750px 0px;}
+.card.number_45 {background-position: 0px 350px;}
+.card.number_46 {background-position:-250px 350px;}
+.card.number_47 {background-position:-500px 350px;}
+.card.number_48 {background-position:-750px 350px;}
+.card.number_49 {background-position: 0px 0px;}
+.card.number_50 {background-position:-250px 0px;}
+.card.number_51 {background-position:-500px 0px;}
+.card.number_52 {background-position:-750px 0px;}
+.card.number_53 {background-position: 0px 350px;}
+.card.number_54 {background-position:-250px 350px;}
+.card.number_55 {background-position:-500px 350px;}
+
+.card:not(:first-child) {
+	margin-left: -200px;
+}
+
+.card {
+	position: relative;
+	width: 250px;
+	height: 350px;
+	border-radius: 5%; 
+	background-size: 400% 200%;
+	border: 1px solid black;
+	box-shadow: 0 0 3px 3px #0002;
+    transition-property: top, left, transform, opacity;
+	transition-duration: 700ms, 700ms, 250ms, 250ms;
+	transition-timing-function: ease, ease, ease, linear;
+}
+
+.card.action {
+	border-color: white;
+	border-width: 3px;
+	cursor: pointer;
+}
+
+.card.hidden {
+	background-image: url(cards/Card_Back.png); 
+	background-size: 100%, 100%;
+	background-position: 0px 0px;
+}
+
+.card.selected {
+	border-color: yellow;
+	filter: grayscale(50%) brightness(90%);
+}
+
+.card:hover:not(.hidden) {
+	transform: scale(1.2) !important;
+	transition: 100ms;
+	z-index: 100;
+}
+.card.flip:hover:not(.hidden) {
+	transform: rotate(-180deg) scale(1.2) !important;
+	z-index: 100;
+	transition: transform 100ms;
+}
+
+.card.flip { transform: rotate(-180deg); }
+
+.card_button {
+	position: absolute;
+	width: 210px;
+	height: 60px;
+	left: 20px;
+}
+
+.card_button.action {
+	background-color: #339933;
+	opacity:0.40;
+	cursor: pointer;
+	border: 4px solid white;
+	margin-left: -4px;
+	margin-top: -4px;
+	margin-bottom: -4px;
+}
+
+.card_button.top{top: 20px;}
+.card_button.bottom{bottom: 20px;}
+.card.a .card_button.special{top: 20px; height: 95px}
+.card.i .card_button.special{top: 20px; height: 125px}
+
+.command_box {width: 370px; height: 270px;}
+.command_box .card{
+	transform: rotate(-90deg);
+	margin-left: 0px;
+}
+.command_box .card:hover {
+	transform: rotate(-90deg) !important;
+	z-index: auto;
+}
+
+/* LAYOUT */
+
+#draw {
+	display: flex;
+}
+
+.a_draw{display: flex; margin: 20px}
+.i_draw{display: flex; margin: 20px}
+.a_hand{display: flex; margin: 20px}
+.i_hand{display: flex; margin: 20px}
+
+.hand {
+	display: flex;
+	gap: 10px;
+}
+
+.dividends {display: flex; gap: 10px}
+
+
+
+#power_panel_list {
+	padding-top: 5px;
+	background-color: gray;
+	width: clamp(834px, calc(100%), 3448px);
+	padding-bottom: 5px;
+}
+
+.panel {
+	background-color: beige;
+	width: clamp(786px, calc(100% - 48px), 3400px);
+	margin: 24px auto;
+	box-shadow: 2px 2px 4px #0006;
+	border: 1px solid #0008;
+	padding: 4px;
+	display: block;
+}
+
+.panel_header {
+	border: 1px solid #000a;
+	box-shadow: 1px 1px 4px #0003;
+	text-align: center;
+	font-size:x-large;
+	font-weight: 700;
+	padding: 2px 10px;
+}
+
+.panel_body .panel_header {
+	font-size: medium;
+	font-weight: 400;
+}
+
+.panel_body .panel_header {
+	margin-left: 20px;
+	margin-right: 20px;
+}
+
+.panel_body {
+	display: flex;
+	justify-content: start;
+	flex-wrap: wrap;
+	padding: 18px;
+	min-height: 100px;
+	border: 1px solid #0008;
+}
+
+.panel_body .panel_body {
+	margin-left: 20px;
+	margin-right: 20px;
+	margin-bottom: 20px;
+}
+
+.hand_box {
+	width: clamp(750px, calc(100% - 96px), 3400px);
+}
+.reserves_box {
+	width: 750px;
+}
+
+.reserves_box.hidden{
+	display: none;
+}
+
+#USSR .panel_header {
+	background-color: var(--color-ussr-secondary);
+}
+#USSR .panel_body{
+	background-color: var(--color-ussr-tertiary);
+}
+#West .panel_header {
+	background-color: var(--color-Britain-secondary);
+}
+#West .panel_body{
+	background-color: var(--color-Britain-tertiary);
+}
+#Axis .panel_header {
+	background-color: var(--color-germany-secondary);
+}
+#Axis .panel_body{
+	background-color: var(--color-germany-tertiary);
+}
+
+
+/* BATTLES */
+
+#battle_table {
+	position: absolute;
+	scroll-margin: 20px;
+	z-index: 200;
+	box-shadow: 0px 5px 10px 0px rgba(0,0,0,0.5);
+	border: 1px solid black;
+	min-width: 594px;
+	
+}
+
+#battle_table.hidden {
+	display: none;
+}
+
+@media (max-width: 594px) {
+	#battle_table {
+		min-width: 90vw;
+		min-width: 90dvw;
+	}
+}
+
+#battle_header {
+	list-style: none;
+	cursor: n-resize;
+	padding: 2px 8px;
+	line-height: 24px;
+	min-height: 24px;
+	text-align: center;
+	font-weight: bold;
+	font-size: 18px;
+
+	background-repeat: no-repeat;
+	background-position: 100% 50%;
+	background-image: url(images/gui_box_maximize.svg);
+	background-color: rgba(165, 42, 42, 0.637);
+	color: gold;
+}
+
+#battle_table[open] {
+	background-color: #d6c4a9;
+}
+
+#battle_table[open] #battle_header {
+	border-bottom: 1px solid black;
+	background-image: url(images/gui_box_minimize.svg);
+	background-color: brown;
+}
+
+/* COMBAT TABLE */
+
+.player_pool {
+	width: 550px;
+	background-color: #0003;
+	padding: 8px;
+	border-radius: 20px;
+	margin: 14px 14px;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.player_name {
+	color: rgb(31, 27, 23);
+	font-size: 20px;
+	text-align: center;
+	font-family: "Source Serif";
+	padding: 4px;
+}
+
+.table_pool {
+	display: flex;
+	justify-content: center;
+	height: 36px;
+	gap: 12px;
+	align-items: center;
+	margin: 8px;
+}
+
+.die {
+	width: 37px;
+	height: 37px;
+	border-width: 3px;
+	border-style: solid;
+	background-size: 600% 100%;
+	background-repeat: no-repeat;
+	background-image: url(images/die_pale_pips.svg);
+	box-shadow: 0 0 0 1px #333, 1px 2px 3px 1px #0004;
+}
+
+.d0 { display: none; }
+.d1 { background-position: 0% 0; }
+.d2 { background-position: 20% 0; }
+.d3 { background-position: 40% 0; }
+.d4 { background-position: 60% 0; }
+.d5 { background-position: 80% 0; }
+.d6 { background-position: 100% 0; }
+
+.attacker .die {
+	background-color: #c98a89;
+	border-color: #d8a09f #b67473 #b67473 #d8a09f;
+}
+
+.attacker .die.hit {
+	background-color: #9e302f;
+	border-color: #9c3b3a #701d1b #701d1b #9c3b3a;
+	background-image: url(images/die_gold_pips.svg);
+}
+
+.defender .die {
+	background-color: #d1bdb0;
+	border-color: #dbcdc3 #c2aa99 #c2aa99 #dbcdc3;
+}
+
+.defender .die.hit {
+	background-color: #bb957b;
+	border-color: #d6af95 #a18069 #a18069 #d6af95;
+	background-image: url(images/die_gold_pips.svg);
+}
+
+.die.action { box-shadow: 0 0 0 1px #333, 0 0 0px 3px white; }
+
+
+/* LOG */
+
+#log { background-color: whitesmoke; }
+#log .h1 { background-color: thistle;}
+#log .h2 { background-color: lightgray; }
+#log .h3 { background-color: gainsboro; }
+
+#log .h1 { border-top: 1px solid black; border-bottom: 1px solid black; }
+#log .h2 { border-top: 1px solid black; border-bottom: 1px solid black; }
+#log .h3 { border-top: 1px solid black; border-bottom: 1px solid black; }
+
+#log > div { padding-left: 20px; text-indent: -12px; }
+#log .h1 { font-weight: bold; padding-top:2px; padding-bottom:2px; text-align: center; }
+#log .h2 { padding-top:2px; padding-bottom:2px; text-align: center; }
+#log .h3 { padding-top:1px; padding-bottom:1px; text-align: center; }
+
+#log .group { margin: 0 8px }
+#log .group.h4 { text-align: center; padding: 0px; }
+#log .group.h4.ap { background-color: hsl(0, 20%, 80%); }
+#log .group.h4.cp { background-color: hsl(214, 30%, 80%); }
+#log .group.ap { background-color: hsl(0, 20%, 90%) }
+#log .group.cp { background-color: hsl(214, 30%, 90%) }
+
+#log div.i { padding-left: 32px; text-indent: -12px; }
+#log div.ii { padding-left: 44px; text-indent: -12px; }
+
+#log div.bold { font-weight: bold }
+#log div.italic { font-style: italic }
+
+#log .apvp { color: brown; }
+#log .cpvp { color: blue; }
+
+
+
+/* Dice */
+
+#log .die {
+	display: inline-block;
+	vertical-align: -2px;
+	width: 11px;
+	height: 11px;
+	border-radius: 0px;
+	background-size: 600% 100%;
+	background-repeat: no-repeat;
+	padding: revert;
+}
+
+#log .die {
+	background-image: url(images/die_black_pips.svg);
+	background-color: white;
+	border: 1px solid #444;
+}
+
+/* #log .die.cp {
+	background-image: url(pieces/die_black_pips.svg);
+	background-color: lightblue;
+	border: 1px solid #444;
+} */
+
+.d1 { background-position: 0% 0; }
+.d2 { background-position: 20% 0; }
+.d3 { background-position: 40% 0; }
+.d4 { background-position: 60% 0; }
+.d5 { background-position: 80% 0; }
+.d6 { background-position: 100% 0; }
