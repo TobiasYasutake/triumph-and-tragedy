@@ -7,7 +7,6 @@ QA testing:
 USA entry
 Retreats after supply check seems hoaky
 */
-
 "use strict"
 
 const { REGIONS, COLONIES, COUNTRIES, BORDERS, BORDER_TYPES } = require("./data")
@@ -838,7 +837,6 @@ function reserve_add(b){
 }
 function create_cadre(reserve, r){
 	let index = game.block_steps.indexOf(0) //find first dead block
-	let r
 	if(index === -1){
 		game.block_nation.push(Math.floor(reserve/7))
 		game.block_location.push(r)
