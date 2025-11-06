@@ -465,6 +465,7 @@ function cleanup_player_turn(){
 	game.invasion_blocks = []
 	game.raid_retreat_blocks = []
 	game.cannot_von = []
+	game.cannot_war = []
 	next_player_turn()
 }
 
@@ -3151,6 +3152,7 @@ function legal_end_space(b, m, r){
 		(m.move_type && m.move_type === 'sea' && area.type === 'land' && 
 			REGIONS[m.previous_space].type === 'land' && !shares_sea(m.previous_space, r)) ||
 		(m.move_type && m.move_type === 'land' && area.type === 'sea') ||
+		(area.type === 'sea' || set_has(game.cannot_war, game.control[r])) ||
 		(m.land_combat && !ans && 
 			border_limit(m.previous_space, r) <= map_get(game.border_count, get_border_id(m.previous_space, r ), 0) -
 			(REGIONS[m.previous_space].type === 'sea' && has_tech(game.activeNum, 'LSTs'))) || //-1 from the count for invasions
@@ -3281,7 +3283,7 @@ states.movement = {
 	prompt(){
 		view.prompt = `Move units: ${game.count} moves left.`
 		let rel = game.relationship[game.activeNum]
-		if (game.block_moved.length === 0 && (rel.length === 0 || !rel[0] || !rel[1])) view.actions.declare_war = 1
+		//if (game.block_moved.length === 0 && (rel.length === 0 || !rel[0] || !rel[1])) view.actions.declare_war = 1
 		if (game.count === 0) view.actions.end_movement = set_contains(game.aggression_met, game.surprise) ? 1 : 0
 		else {
 			view.actions.end_movement_confirm = set_contains(game.aggression_met, game.surprise) ? 1 : 0
@@ -3322,10 +3324,10 @@ states.movement = {
 		}
 		game.state = "movement_move"
 	},
-	declare_war(){
-		push_undo()
-		game.state = "declare_war"
-	},
+	// declare_war(){
+	// 	push_undo()
+	// 	game.state = "declare_war"
+	// },
 	end_movement(){
 		check_gained_control()
 	},
@@ -3372,8 +3374,10 @@ states.movement_move = {
 		if (c && am && are_enemies(game.activeNum, game.minor_aggressor[COUNTRIES.findIndex(x => x.name === c)])) 
 			set_add(game.gained_control[game.activeNum], COUNTRIES.findIndex(x => x.name === c))
 		if (c && !am && REGIONS[r].type !== 'strait' && is_neutral(c)) arm_minor(c, game.activeNum)
-		if (REGIONS[game.mvmt.previous_space].type === 'strait' && is_neutral(REGIONS[game.mvmt.previous_space].country)) {
-			set_add(game.cannot_von, COUNTRIES.findIndex(x => x.name === REGIONS[game.mvmt.previous_space].country)) 
+		if (REGIONS[game.mvmt.previous_space].type === 'strait') {
+			if (is_neutral(REGIONS[game.mvmt.previous_space].country))
+				set_add(game.cannot_von, COUNTRIES.findIndex(x => x.name === REGIONS[game.mvmt.previous_space].country))
+			else if (!are_enemies(game.activeNum, game.control[game.mvmt.previous_space])) set_add(game.cannot_von, nation_from_faction(game.control[game.mvmt.previous_space]))
 		}
 		if (game.mvmt.must_stop) end_block_move(game.selected)
 	},
@@ -3971,6 +3975,7 @@ function sea_battle_check(f1, f2){ //when war is declared, there needs to be com
 	}
 }
 
+/*
 states.declare_war = {
 	inactive: "movement",
 	prompt(){
@@ -4045,6 +4050,7 @@ states.declare_war = {
 		game.state = "movement"
 	}
 }
+*/
 
 exports.setup = function (seed, scenario, options) {
 	game = {
@@ -4138,6 +4144,9 @@ exports.setup = function (seed, scenario, options) {
 		surprise: [], //used both for battle surprise, and to mark that war has been declared
 		aggression_met: [], //used to meet declaring war
 		cannot_von: [], //used to make sure that you cannot attack a neutral (USA, or if you moved through their strait)
+		cannot_war: [], //used to prevent war on particular faction
+		//the problem with a "cannot war" is that without a declare war button, the game doesn't know if moving into the same sea is a war declaration or not.
+		//It is *much* simpler to declare war at the start.
 
 		influence: [], //-1 for neutral, 0 for axis control, 1-9 for axis points, 10 for west control, 11-19 for points, 20 for ussr control
 		//this means that /10 gets the faction, and %10 gets the point total (with 0 being control)
