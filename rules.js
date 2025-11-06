@@ -1761,7 +1761,7 @@ function three_way(r) {
 	return true
 }
 
-function has_ff(f, type) { //this as written will have problems in a three way battle
+function has_ff(f, type) { //Needs work, this as written will have problems in a three way battle
 	if (f === game.attacker) {
 		let factions = factions_in_region(game.active_battle)
 		for (let faction of factions) if (faction !== f && game.surprise[faction]) return true
@@ -1820,6 +1820,9 @@ function neutral_firing_solution() {
 }
 
 function process_attack(b, c, s) {//block, class, shootnscoot
+	if (game.defender === 3 && faction_of_block(b) === game.attacker && game.target === null){
+		game.state = 'choose_target_battle'
+	}
 	log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} attacks ${CLASSNAME[c]}`)
 	const convoy = c === 4? c = 1 : 0 //both c and convoy should be 1 for a convoy attack
 	const adr = game.block_type[b] === 1 && c === 0 && has_tech(game.activeNum, "AirDefense Radar")? 1 : 0
@@ -2209,7 +2212,6 @@ function check_matching_diplomacy(ac, f){
 	}
 	return false
 }
-
 function special_countries(wild, f) {
 	let cs = [] //countries
 	switch (wild) {
@@ -2304,7 +2306,6 @@ function special_countries(wild, f) {
 	}
 	return cs
 }
-
 function generate_ineligible_countries(){ //for diplomacy
 	//auto include greats, majors (except USA), colonies, and armed minors AND ALBANIA?
 	let ics = ["Germany", "Italy", "Britain", "France", "USSR", "Libya", /*"Canada",*/ "Gibraltar", "India", "Malta", "Middle East", "French North Africa", "Syria", "Albania",] //the Albania question
@@ -2322,7 +2323,6 @@ function generate_ineligible_countries(){ //for diplomacy
 	}
 	return ics
 }
-
 function factory_cost(f){
 	let cost = f+5
 	let victim = 0
@@ -2334,7 +2334,6 @@ function factory_cost(f){
 	if (f === 1 && game.usa_satellite) cost--
 	return cost - victim
 }
-
 function can_make_factory(cards, f){
 	if (game.factory_increase[f] >= 2) return false
 	let factories = 0
@@ -2345,7 +2344,6 @@ function can_make_factory(cards, f){
 	}
 	return false
 }
-
 function generate_ineligible_techs(f){
 	let its = []
 	let techs = game.tech[f]
@@ -2476,7 +2474,7 @@ states.government = {
 	intelligence(ic){//inner card
 		push_undo()
 		game.selected = ic
-		game.state = "intelligence_choose_target"
+		game.state = "choose_target_intelligence"
 	},
 	industry_card(c){
 		if (!game.selected || !Array.isArray(game.selected)) game.selected = [c] 
@@ -2509,318 +2507,6 @@ states.government = {
 			next_player()
 		}
 	},	
-}
-
-//INTELLIGENCE
-function viable_target (f, c){
-	switch (c) {
-	case "Mole": return game.vault[f].length > 0
-	case "Agent": return has_blocks_anywhere(f)
-	case "Sabotage": return game.ind[f] > 0
-	case "Spy Ring":
-	case "Code Break": return (game.hand[f][0].length > 0 || game.hand[f][1].length > 0)
-	case "Coup": return has_influence_anywhere(f)
-	}
-}
-
-function discarded_double_agent() {
-	for (let card of game.discard[1]) {
-		if (ICARDS[card].special && ICARDS[card].special === "Double Agent") return true
-	}
-	return false
-}
-
-function resolve_target(f) {
-	push_undo()
-	log(`The ${game.active} targeted the ${FACTIONS[f]} with ${ICARDS[game.selected].special}`)
-	game.espionage = game.activeNum
-	game.target = f
-	if (discarded_double_agent()){
-		resolve_espionage()
-	} else {
-		clear_undo()
-		game.state = "double_agent"
-		make_active(f)
-	}
-}
-
-states.intelligence_choose_target = {
-	inactive: "take a government action",
-	prompt(){
-		const a = ICARDS[game.selected].special
-		view.prompt = `Who do you wish to target with ${a}?`
-		if (game.activeNum !== 0) view.actions.axis = viable_target(0, a)? 1:0
-		if (game.activeNum !== 1) view.actions.west = viable_target(1, a)? 1:0
-		if (game.activeNum !== 2) view.actions.ussr = viable_target(2, a)? 1:0
-	},
-	axis(){resolve_target(0)},
-	west(){resolve_target(1)},
-	ussr(){resolve_target(2)}
-}
-
-function has_double_agent(faction){
-	const ihand = game.hand[faction][1]
-	for (let i = 0; i < ihand.length; i++) {
-		if (ICARDS[ihand[i]].special && ICARDS[ihand[i]].special === 'Double Agent') return true
-	}
-	return false
-}
-
-function faction_of_selected_intel(){
-	for (let i = 0; i < 3; i++) {
-		const ihand = game.hand[i][1]
-		for (let card of ihand) {
-			if (card === game.selected) return i
-		}
-	}
-}
-
-function state_from_special(s){
-	switch (s) {
-	case "Mole": return "mole"
-	case "Agent": return "agent"
-	case "Sabotage": return "sabotage"
-	case "Spy Ring": return "spy_ring"
-	case "Code Break": return "code_break"
-	case "Coup": return "coup"
-	}
-}
-function cleanup_intel(){
-	make_active(faction_of_selected_intel(game.selected))
-	array_remove_item(game.hand[game.activeNum][1], game.selected)
-	game.discard[1].push(game.selected)
-	game.selected = null
-	game.pass_count = 0
-	game.state = "government"
-	next_player()
-}
-
-function  resolve_espionage(){
-	switch (ICARDS[game.selected].special){
-	case 'Spy Ring': game.draw = spy_ring_steal(game.target); make_active(game.target); break
-	case 'Sabotage': game.ind[game.target] -= 1; log("They lose one industry"); cleanup_intel(); return
-	case 'Mole':
-	case 'Agent':
-	case 'Coup':
-	case 'Code Break': make_active(game.espionage); break
-		
-	}
-	game.state = state_from_special(ICARDS[game.selected].special)
-}
-
-states.double_agent = {
-	inactive: `potentially reverse with double agent`,
-	prompt(){
-		const da = has_double_agent(game.activeNum)
-		view.prompt = da? `Reverse ${ICARDS[game.selected].special} with double agent?` : "No double agent, must pass."
-		view.actions.pass = 1
-		if (da) {
-			const ihand = game.hand[game.activeNum][1]
-			for (let i = 0; i < ihand.length; i++) {
-				if (ICARDS[ihand[i]].special && ICARDS[ihand[i]].special === 'Double Agent') gen_action_intelligence(ihand[i])
-			}
-		}
-	},
-	pass(){
-		clear_undo()
-		resolve_espionage()
-	},
-	intelligence(ic){
-		clear_undo()
-		log("Double Agent reversal!")
-		game.discard[1].push(ic)
-		array_remove_item(game.hand[game.activeNum][1], ic)
-		game.target = game.espionage
-		game.espionage = game.activeNum
-		resolve_espionage()
-	}
-}
-
-function spy_ring_steal(f){
-	const draw = [[],[]]
-	const hand = game.hand[f]
-	let rand = random_bigint(hand[0].length + hand[1].length)
-	if (rand < hand[0].length) 
-		draw[0].push(hand[0].splice(rand,1)[0])
-	else 
-		draw[1].push(hand[1].splice(rand-hand[0].length,1)[0])
-	return draw
-}
-
-states.spy_ring = {
-	inactive: "resolve Spy Ring",
-	prompt(){
-		view.prompt = "Card stolen by Spy Ring."
-		if (game.activeNum === game.espionage) view.actions.draw = 1
-		if (game.activeNum === game.target) view.actions.done = 1
-		view.draw = game.draw
-		//done is to acknowledge and pass turn, draw is to draw. Then figure out who played the card originally, clean up cards and hand, and pass turn.
-	},
-	done(){
-		clear_undo()
-		make_active(game.espionage)
-	},
-	draw(){
-		game.hand[game.activeNum][0].push(... game.draw[0])
-		game.draw[0] = []
-		game.hand[game.activeNum][1].push(... game.draw[1])
-		game.draw[1] = []
-		cleanup_intel()
-	}
-}
-
-states.mole = {
-	inactive: "resolve Mole",
-	prompt(){
-		view.prompt = "View target's vault. May invent a tech using a card from the vault (and Mole)."
-		view.actions.done = 1
-		view.vault[game.target] = game.vault[game.target]
-		const techs = techs_in_vault(game.target)
-		const its = generate_ineligible_techs(game.activeNum)
-		const ihand = game.hand[game.activeNum][1]
-		for (let i = 0; i < ihand.length; i++){
-			const card = ICARDS[ihand[i]]
-			if (card.left && set_has(techs, card.left) && !set_has(its, card.left)) gen_action_technology(ihand[i])
-			if (card.right && set_has(techs, card.right) && !set_has(its, card.right)) gen_action_technology(ihand[i]*-1)
-		}
-	},
-	done(){cleanup_intel()},
-	technology(ic){
-		push_undo()
-		game.state = "government_invent_mole"
-		game.selected = [ic, 31] //31 is the mole. rewriting the selected card.
-	}
-}
-
-states.government_invent_mole = {
-	inactive: "resolve Mole",
-	prompt(){
-		let tech = find_tech(ICARDS[Math.abs(game.selected[0])], ICARDS[31])
-		view.prompt = `Inventing ${tech}: Discard the mole or place inside your vault.`
-		view.vault[game.target] = game.vault[game.target]
-		game.vault[game.activeNum].length >= HANDSIZE[game.activeNum]*2 ? view.actions.vault = 0 : view.actions.vault = 1
-		gen_action_industry(31)
-	},
-	industry_card(c){ //discard card
-		clear_undo()
-		let original_faction
-		for (let i = 0; i < 3; i++){
-			for (let j = 0; j < game.hand[i][1].length; j++){
-				if (game.hand[i][1][j] === 31) original_faction = i
-			}
-		}
-		let tc = game.selected[0] //tech card
-		let side = tc > 0 ? 1 : -1		
-		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
-		let f = game.activeNum
-		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
-		log(`${game.active} has invented ${tech}`)
-		game.tech[f].push(game.hand[f][1].splice(game.hand[f][1].indexOf(Math.abs(tc)), 1)[0]*side)
-		array_remove_item(game.hand[original_faction][1], c)
-		game.discard[1].push(c)
-		game.selected = null
-		game.espionage = null
-		game.target = null
-		game.pass_count = 0
-		game.state = "government"
-		make_active(original_faction)
-		next_player()
-	},
-	vault(){
-		clear_undo()
-		let tech = find_tech(ICARDS[Math.abs(game.selected[0])], ICARDS[31])
-		let f = game.activeNum
-		let original_faction
-		for (let i = 0; i < 3; i++){
-			for (let j = 0; j < game.hand[i][1].length; j++){
-				if (game.hand[i][1][j] === 31) original_faction = i
-			}
-		}
-		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
-		log(`${game.active} has placed a technology in their secret vault.`)
-		game.vault[f].push(...game.selected)
-		array_remove_item(game.hand[f][1], Math.abs(game.selected[0]))
-		array_remove_item(game.hand[original_faction][1], 31)
-		game.state = "acknowledge_mole"
-		make_active(game.target)
-		game.selected = original_faction //used to remember who should be next in turn order
-	}
-}
-
-states.acknowledge_mole = {
-	inactive: "resolve Mole",
-	prompt(){
-		const vault = game.vault[game.espionage]
-		const card = vault[vault.length-2]
-		const tech = card > 0? ICARDS[card].left : ICARDS[card].right
-		view.prompt = `The ${FACTIONS[game.espionage]} has invented ${tech} and placed it in their vault.` 
-		view.actions.done = 1
-		view.vault[game.espionage][vault.length-2] = vault[vault.length-2]
-		view.vault[game.espionage][vault.length-1] = vault[vault.length-1]
-	},
-	done(){
-		make_active(game.selected)
-		game.state = "government"
-		game.selected = null
-		game.espionage = null
-		game.target = null
-		game.pass_count = 0
-		next_player()
-	}
-}
-
-states.agent = {
-	inactive: "resolve Agent",
-	prompt(){
-		view.prompt = `View all blocks of the ${FACTIONS[game.target]} in one region.`
-		if (game.view_region) view.actions.done = 1
-		else for (let i = 0; i < REGIONS.length; i++) {
-			if (contains_faction(i, game.target)) gen_action_region(i)
-		}
-	},
-	region(r) { //Needs work figure out the logic to have this be in the replay file?
-		game.view_region = r
-	},
-	done(){
-		game.view_region = null
-		cleanup_intel()
-	}
-}
-
-states.code_break = {
-	inactive: "resolve Code Break",
-	prompt(){
-		view.prompt = "View target's cards."
-		view.actions.done = 1
-		view.hand[game.target] = game.hand[game.target]		
-	},
-	done(){
-		log(`The ${game.active} viewed the ${FACTIONS[game.target]}'s hand`)
-		cleanup_intel()
-	}
-}
-states.coup = {
-	inactive: "resolve Coup",
-	prompt(){
-		view.prompt = "Choose a country to Coup."
-		view.actions.pass = 1
-		for (let i = 0; i < REGIONS.length; i++) {
-			if (REGIONS[i].type === 'sea') continue
-			const c = COUNTRIES.findIndex(x => x.name === REGIONS[i].country)
-			const v = game.influence[c]
-			if (v !== -1 && Math.floor(v/10) === game.target && v%10 !== 0) gen_action_region(i)
-		}
-	},
-	region(r){
-		const c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
-		game.influence[c] = -1
-		log(`The ${game.active} performed a coup in ${REGIONS[r].country}.`)
-		cleanup_intel()
-	},
-	pass(){
-		log(`The ${game.active} decided to not coup!`)
-		cleanup_intel()
-	}
 }
 
 states.government_wildcard = {
@@ -2943,7 +2629,6 @@ states.government_invent = {
 	}
 }
 
-
 states.government_discard = {
 	inactive: "discard cards down to hand limit",
 	prompt(){
@@ -2976,6 +2661,306 @@ states.government_discard = {
 		handsize_check()
 	}
 }
+
+//INTELLIGENCE
+states.choose_target_intelligence = {
+	inactive: "take a government action",
+	prompt(){
+		const a = ICARDS[game.selected].special
+		view.prompt = `Who do you wish to target with ${a}?`
+		if (game.activeNum !== 0) view.actions.axis = viable_target_intelligence(0, a)? 1:0
+		if (game.activeNum !== 1) view.actions.west = viable_target_intelligence(1, a)? 1:0
+		if (game.activeNum !== 2) view.actions.ussr = viable_target_intelligence(2, a)? 1:0
+	},
+	axis(){resolve_target(0)},
+	west(){resolve_target(1)},
+	ussr(){resolve_target(2)}
+}
+
+function viable_target_intelligence (f, intelligence){
+	switch (intelligence) {
+	case "Mole": return game.vault[f].length > 0
+	case "Agent": return has_blocks_anywhere(f)
+	case "Sabotage": return game.ind[f] > 0
+	case "Spy Ring":
+	case "Code Break": return (game.hand[f][0].length > 0 || game.hand[f][1].length > 0)
+	case "Coup": return has_influence_anywhere(f)
+	}
+}
+function discarded_double_agent() {
+	for (let card of game.discard[1]) {
+		if (ICARDS[card].special && ICARDS[card].special === "Double Agent") return true
+	}
+	return false
+}
+function resolve_target(f) {
+	push_undo()
+	log(`The ${game.active} targeted the ${FACTIONS[f]} with ${ICARDS[game.selected].special}`)
+	game.espionage = game.activeNum
+	game.target = f
+	if (discarded_double_agent()){
+		resolve_espionage()
+	} else {
+		clear_undo()
+		game.state = "double_agent"
+		make_active(f)
+	}
+}
+function has_double_agent(f){
+	const ihand = game.hand[f][1]
+	for (let i = 0; i < ihand.length; i++) {
+		if (ICARDS[ihand[i]].special && ICARDS[ihand[i]].special === 'Double Agent') return true
+	}
+	return false
+}
+function faction_of_selected_intel(){
+	for (let i = 0; i < 3; i++) {
+		const ihand = game.hand[i][1]
+		for (let card of ihand) {
+			if (card === game.selected) return i
+		}
+	}
+}
+function state_from_special(s){
+	switch (s) {
+	case "Mole": return "mole"
+	case "Agent": return "agent"
+	case "Sabotage": return "sabotage"
+	case "Spy Ring": return "spy_ring"
+	case "Code Break": return "code_break"
+	case "Coup": return "coup"
+	}
+}
+function cleanup_intel(){
+	make_active(faction_of_selected_intel(game.selected))
+	array_remove_item(game.hand[game.activeNum][1], game.selected)
+	game.discard[1].push(game.selected)
+	game.selected = null
+	game.pass_count = 0
+	game.state = "government"
+	next_player()
+}
+function  resolve_espionage(){
+	switch (ICARDS[game.selected].special){
+	case 'Spy Ring': game.draw = spy_ring_steal(game.target); make_active(game.target); break
+	case 'Sabotage': game.ind[game.target] -= 1; log("They lose one industry"); cleanup_intel(); return
+	case 'Mole':
+	case 'Agent':
+	case 'Coup':
+	case 'Code Break': make_active(game.espionage); break
+		
+	}
+	game.state = state_from_special(ICARDS[game.selected].special)
+}
+states.double_agent = {
+	inactive: `potentially reverse with double agent`,
+	prompt(){
+		const da = has_double_agent(game.activeNum)
+		view.prompt = da? `Reverse ${ICARDS[game.selected].special} with double agent?` : "No double agent, must pass."
+		view.actions.pass = 1
+		if (da) {
+			const ihand = game.hand[game.activeNum][1]
+			for (let i = 0; i < ihand.length; i++) {
+				if (ICARDS[ihand[i]].special && ICARDS[ihand[i]].special === 'Double Agent') gen_action_intelligence(ihand[i])
+			}
+		}
+	},
+	pass(){
+		clear_undo()
+		resolve_espionage()
+	},
+	intelligence(ic){
+		clear_undo()
+		log("Double Agent reversal!")
+		game.discard[1].push(ic)
+		array_remove_item(game.hand[game.activeNum][1], ic)
+		game.target = game.espionage
+		game.espionage = game.activeNum
+		resolve_espionage()
+	}
+}
+function spy_ring_steal(f){
+	const draw = [[],[]]
+	const hand = game.hand[f]
+	let rand = random_bigint(hand[0].length + hand[1].length)
+	if (rand < hand[0].length) 
+		draw[0].push(hand[0].splice(rand,1)[0])
+	else 
+		draw[1].push(hand[1].splice(rand-hand[0].length,1)[0])
+	return draw
+}
+states.spy_ring = {
+	inactive: "resolve Spy Ring",
+	prompt(){
+		view.prompt = "Card stolen by Spy Ring."
+		if (game.activeNum === game.espionage) view.actions.draw = 1
+		if (game.activeNum === game.target) view.actions.done = 1
+		view.draw = game.draw
+		//done is to acknowledge and pass turn, draw is to draw. Then figure out who played the card originally, clean up cards and hand, and pass turn.
+	},
+	done(){
+		clear_undo()
+		make_active(game.espionage)
+	},
+	draw(){
+		game.hand[game.activeNum][0].push(... game.draw[0])
+		game.draw[0] = []
+		game.hand[game.activeNum][1].push(... game.draw[1])
+		game.draw[1] = []
+		cleanup_intel()
+	}
+}
+states.mole = {
+	inactive: "resolve Mole",
+	prompt(){
+		view.prompt = "View target's vault. May invent a tech using a card from the vault (and Mole)."
+		view.actions.done = 1
+		view.vault[game.target] = game.vault[game.target]
+		const techs = techs_in_vault(game.target)
+		const its = generate_ineligible_techs(game.activeNum)
+		const ihand = game.hand[game.activeNum][1]
+		for (let i = 0; i < ihand.length; i++){
+			const card = ICARDS[ihand[i]]
+			if (card.left && set_has(techs, card.left) && !set_has(its, card.left)) gen_action_technology(ihand[i])
+			if (card.right && set_has(techs, card.right) && !set_has(its, card.right)) gen_action_technology(ihand[i]*-1)
+		}
+	},
+	done(){cleanup_intel()},
+	technology(ic){
+		push_undo()
+		game.state = "government_invent_mole"
+		game.selected = [ic, 31] //31 is the mole. rewriting the selected card.
+	}
+}
+states.government_invent_mole = {
+	inactive: "resolve Mole",
+	prompt(){
+		let tech = find_tech(ICARDS[Math.abs(game.selected[0])], ICARDS[31])
+		view.prompt = `Inventing ${tech}: Discard the mole or place inside your vault.`
+		view.vault[game.target] = game.vault[game.target]
+		game.vault[game.activeNum].length >= HANDSIZE[game.activeNum]*2 ? view.actions.vault = 0 : view.actions.vault = 1
+		gen_action_industry(31)
+	},
+	industry_card(c){ //discard card
+		clear_undo()
+		let original_faction
+		for (let i = 0; i < 3; i++){
+			for (let j = 0; j < game.hand[i][1].length; j++){
+				if (game.hand[i][1][j] === 31) original_faction = i
+			}
+		}
+		let tc = game.selected[0] //tech card
+		let side = tc > 0 ? 1 : -1		
+		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
+		let f = game.activeNum
+		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
+		log(`${game.active} has invented ${tech}`)
+		game.tech[f].push(game.hand[f][1].splice(game.hand[f][1].indexOf(Math.abs(tc)), 1)[0]*side)
+		array_remove_item(game.hand[original_faction][1], c)
+		game.discard[1].push(c)
+		game.selected = null
+		game.espionage = null
+		game.target = null
+		game.pass_count = 0
+		game.state = "government"
+		make_active(original_faction)
+		next_player()
+	},
+	vault(){
+		clear_undo()
+		let tech = find_tech(ICARDS[Math.abs(game.selected[0])], ICARDS[31])
+		let f = game.activeNum
+		let original_faction
+		for (let i = 0; i < 3; i++){
+			for (let j = 0; j < game.hand[i][1].length; j++){
+				if (game.hand[i][1][j] === 31) original_faction = i
+			}
+		}
+		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
+		log(`${game.active} has placed a technology in their secret vault.`)
+		game.vault[f].push(...game.selected)
+		array_remove_item(game.hand[f][1], Math.abs(game.selected[0]))
+		array_remove_item(game.hand[original_faction][1], 31)
+		game.state = "acknowledge_mole"
+		make_active(game.target)
+		game.selected = original_faction //used to remember who should be next in turn order
+	}
+}
+states.acknowledge_mole = {
+	inactive: "resolve Mole",
+	prompt(){
+		const vault = game.vault[game.espionage]
+		const card = vault[vault.length-2]
+		const tech = card > 0? ICARDS[card].left : ICARDS[card].right
+		view.prompt = `The ${FACTIONS[game.espionage]} has invented ${tech} and placed it in their vault.` 
+		view.actions.done = 1
+		view.vault[game.espionage][vault.length-2] = vault[vault.length-2]
+		view.vault[game.espionage][vault.length-1] = vault[vault.length-1]
+	},
+	done(){
+		make_active(game.selected)
+		game.state = "government"
+		game.selected = null
+		game.espionage = null
+		game.target = null
+		game.pass_count = 0
+		next_player()
+	}
+}
+states.agent = {
+	inactive: "resolve Agent",
+	prompt(){
+		view.prompt = `View all blocks of the ${FACTIONS[game.target]} in one region.`
+		if (game.view_region) view.actions.done = 1
+		else for (let i = 0; i < REGIONS.length; i++) {
+			if (contains_faction(i, game.target)) gen_action_region(i)
+		}
+	},
+	region(r) { //Needs work figure out the logic to have this be in the replay file?
+		game.view_region = r
+	},
+	done(){
+		game.view_region = null
+		cleanup_intel()
+	}
+}
+states.code_break = {
+	inactive: "resolve Code Break",
+	prompt(){
+		view.prompt = "View target's cards."
+		view.actions.done = 1
+		view.hand[game.target] = game.hand[game.target]		
+	},
+	done(){
+		log(`The ${game.active} viewed the ${FACTIONS[game.target]}'s hand`)
+		cleanup_intel()
+	}
+}
+states.coup = {
+	inactive: "resolve Coup",
+	prompt(){
+		view.prompt = "Choose a country to Coup."
+		view.actions.pass = 1
+		for (let i = 0; i < REGIONS.length; i++) {
+			if (REGIONS[i].type === 'sea') continue
+			const c = COUNTRIES.findIndex(x => x.name === REGIONS[i].country)
+			const v = game.influence[c]
+			if (v !== -1 && Math.floor(v/10) === game.target && v%10 !== 0) gen_action_region(i)
+		}
+	},
+	region(r){
+		const c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
+		game.influence[c] = -1
+		log(`The ${game.active} performed a coup in ${REGIONS[r].country}.`)
+		cleanup_intel()
+	},
+	pass(){
+		log(`The ${game.active} decided to not coup!`)
+		cleanup_intel()
+	}
+}
+
+
 
 // DRAW
 states.draw_setup = {
@@ -3222,6 +3207,7 @@ function update_battle(r){
 			if (!u) array_remove_item(battle, 2)
 			if (!n) array_remove_item(battle, -1); break
 		case 3: //gone from 2 to 3, and thus the active is the latest
+		//Needs work: theoretically can go from 4 to 3 in the rarest of circumstances, then leave a note for QA testing it.
 			battle.push(game.activeNum); break
 		case 4: throw new Error('A battle should never have 4 factions, neutrals should have converted!') //except in the mythic weird case of a battle at a former colony :D
 		}
@@ -3426,7 +3412,7 @@ states.choose_battle = {
 	}
 }
 
-states.choose_defender = {
+states.choose_defender = { //Needs work to consider neutrals
 	inactive: "choose battles",
 	prompt(){
 		view.prompt = "Determine defender."
@@ -3440,7 +3426,7 @@ states.choose_defender = {
 	axis(){game.defender = 0; pre_battle_setup(game.active_battle)},
 	west(){game.defender = 1; pre_battle_setup(game.active_battle)},
 	ussr(){game.defender = 2; pre_battle_setup(game.active_battle)},
-	both(){game.defender = 3; pre_battle_setup(game.active_battle)},
+	both(){game.defender = 3; pre_battle_setup(game.active_battle)}, //Needs work: game defender should be an array instead of being 3.
 }
 
 states.add_battle_group = {
@@ -3489,7 +3475,7 @@ function add_battle_group(b){
 }
 
 states.battle = {
-	inactive: "battle!",
+	inactive: "battle",
 	prompt(){
 		view.prompt = "Attack or retreat!"
 		const unused_blocks = game.active_battle_blocks.filter(x => !(set_has(game.block_moved, x)) && faction_of_block(x) === game.activeNum)
@@ -3517,6 +3503,23 @@ states.battle = {
 	convoy(b){process_attack(b, 4)},
 	strategic_bombing(b){process_attack_industry(b)},
 	pass_attack(b){set_add(game.block_moved, b), next_player_battle()},
+}
+
+function viable_target_battle (f) {}
+
+states.choose_target_battle = {
+	inactive: "battle",
+	prompt(){
+		const a = ICARDS[game.selected].special
+		view.prompt = `Who do you wish to target with ${a}?`
+		if (game.activeNum !== 0 && viable_target_battle(0)) view.actions.axis = 1
+		if (game.activeNum !== 1 && viable_target_battle(1)) view.actions.west = 1
+		if (game.activeNum !== 2 && viable_target_battle(2)) view.actions.ussr = 1
+		if (viable_target_battle(-1)) view.actions.neutral = 1
+	},
+	axis(){resolve_target(0)},
+	west(){resolve_target(1)},
+	ussr(){resolve_target(2)}
 }
 
 states.damage = {
