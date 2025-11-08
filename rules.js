@@ -417,23 +417,31 @@ function next_player_command(){
 }
 
 function next_player_battle(){
-	clear_undo()
 	//based on the participating blocks, the attacker, the defender(s), tech, surprise, and blocks moved, figure out who's turn it is
-	//in a three way, the attacker determines initiative ties. Screw that. It happens in turn order.
-	
+	//in a three way, the attacker determines initiative ties, but to save on turn activation it will just happen in turn order.
 	if (check_end_battle()) {post_battle_teardown(); return}
 	
 	let unused_blocks = game.active_battle_blocks.filter(x => !(set_has(game.block_moved, x)))
 	if (unused_blocks.length === 0) {
-		if (REGIONS[game.active_battle].type === 'sea') {
+		if (REGIONS[game.active_battle].type === 'sea') { //retreat airplane/subs and then go for another battle
 			game.block_moved = []
 			determine_retreats(game.active_battle, false) //shoooould only catch airplanes that took an action
 			next_player_retreat()
 		}
-		else post_battle_teardown()
+		else post_battle_teardown() //end the combat
 	}
 	else {
 		let type = lowest_type(unused_blocks)
+		if (game.slated_to_attack.length > 0 && game.block_type[game.slated_to_attack[0]] < type) {
+			log("processing delayed attack")
+			let b = game.slate_block_to_attack[0]
+			let t = game.slate_block_to_attack[1]
+			map_remove(game.slate_block_to_attack, game.slate_block_to_attack[0])
+			game.target = t[0]
+			process_attack(b, t[1], t[2])
+			game.target = null
+			return
+		}
 		let fs = factions_with_type(unused_blocks, type)
 		fs.sort((a, b) => { //+1 if defender, +2 if ff
 			let aNum = 0 + (game.attacker !== a) + (has_ff(a, type) ? 2 : 0)
@@ -1293,7 +1301,7 @@ function determine_retreats(r, finished){
 			if (game.block_location[i] === r && !game.sub_hiding[i]) {
 				if (game.block_type[i] === 1 && game.active_battle_blocks.includes(i)) game.must_retreat.push(i)
 				else if (!finished && game.block_type[i] === 3 ) game.may_retreat.push(i)
-				else if (finished && is_ans(i) && game.battle_winner === 3 || faction_of_block(i) === game.battle_winner) game.may_retreat.push(i)
+				else if (finished && is_ans(i) && (Array.isArray(game.battle_winner) || faction_of_block(i) === game.battle_winner)) game.may_retreat.push(i)
 			}
 		}
 	} else {
@@ -1518,8 +1526,8 @@ function pair_has_tech_printed(c1, c2, tech){
 	return false
 }
 
-function has_tech(faction, tech){
-	for (let val of game.tech[faction]){
+function has_tech(f, tech){
+	for (let val of game.tech[f]){
 		let t = val > 0? ICARDS[val].left : ICARDS[Math.abs(val)].right
 		if (t === tech) return true
 	}
@@ -1539,15 +1547,15 @@ function techs_in_vault(f){
 	return techs
 }
 
-function can_reveal_vault(f) {
+function can_battle_reveal_vault(f) {
 	if (has_vault(f) && factions_in_group(game.active_battle_blocks).includes(f)) return true
 	return false
 }
 
-function how_many_other_factions_can_reveal(f){
+function how_many_other_factions_can_battle_reveal(f){
 	let count = 0
 	for (let i = 0; i < 3; i++) {
-		if (i !== f && can_reveal_vault(i) && (i === game.attacker || i === game.defender || game.defender === 3)) count++
+		if (i !== f && can_battle_reveal_vault(i) && (i === game.attacker || i === game.defender) || (Array.isArray(game.defender) && set_has(game.defender, i))) count++
 	}
 	return count
 }
@@ -1733,7 +1741,7 @@ function filter_local_enemy(f){
 	const local_enemy = game.active_battle_blocks.filter(x => {
 		const e = faction_of_block(x)
 		return e !== f && (
-			(f_is_a && (game.defender === -1 || game.defender === e || game.defender === 3)) || 
+			(f_is_a && (game.defender === -1 || game.defender === e || (Array.isArray(game.defender) && set_has(game.defender, e)))) || 
 			(!f_is_a && game.attacker === e)
 		)})
 	return local_enemy
@@ -1753,19 +1761,27 @@ function check_end_battle() {
 	return true
 }
 
-function three_way(r) {
-	for (let i = 0; i < 3; i++){
-		if (!contains_faction(r, i)) return false
+function multiple_enemies(r) {
+	let enemies = 0
+	for (let i = -1; i < 3; i++){ //-1 to include neutrals
+		if (contains_faction(r, i) && (i === -1 || are_enemies(game.activeNum, i))) {
+			if (enemies > 1) return true
+			else enemies += 1
+		}
 	}
-	if (!are_enemies(game.activeNum, game.activeNum +1 %3) || !are_enemies(game.activeNum, game.activeNum +2 %3)) return false
-	return true
+	return false
 }
 
-function has_ff(f, type) { //Needs work, this as written will have problems in a three way battle
+function has_ff(f, type) {
 	if (f === game.attacker) {
-		let factions = factions_in_region(game.active_battle)
-		for (let faction of factions) if (faction !== f && game.surprise[faction]) return true
+		let factions = factions_in_group(game.active_battle_blocks)
+		for (let faction of factions) if (faction !== f && set_has(game.surprise, faction)) return true
 	}
+	return has_ff_from_tech(f, type)
+}
+
+function has_ff_from_tech(f, type) {
+	if (f === -1) return false
 	switch (type) {
 	case 0: return false
 	case 1: return has_tech(f, "Jets")
@@ -1820,9 +1836,13 @@ function neutral_firing_solution() {
 }
 
 function process_attack(b, c, s) {//block, class, shootnscoot
-	if (game.defender === 3 && faction_of_block(b) === game.attacker && game.target === null){
-		game.state = 'choose_target_battle'
+	if (Array.isArray(game.defender) && faction_of_block(b) === game.attacker && game.target === null){
+		push_undo()
+		game.target = [b, c, s]
+		game.state = 'choose_target_battle' //logic where if you are attacking someone with the FF advantage, the attack gets "saved"
+		return
 	}
+	clear_undo()
 	log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} attacks ${CLASSNAME[c]}`)
 	const convoy = c === 4? c = 1 : 0 //both c and convoy should be 1 for a convoy attack
 	const adr = game.block_type[b] === 1 && c === 0 && has_tech(game.activeNum, "AirDefense Radar")? 1 : 0
@@ -1832,7 +1852,7 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 	game.hits = fire(game.block_steps[b]*(1+adr), s? 1 : FIREPOWER[game.block_type[b]][c]+sonar)
 	if (game.hits > 0) {
 		game.hit_class = convoy? 2 : c
-		if (faction_of_block(b) !== -1 && game.defender === -1) {
+		if (faction_of_block(b) !== -1 && (game.defender === -1 || game.target === -1)) {
 			log('The Neutral fort takes the damage.')
 			let block = game.active_battle_blocks.find(x => game.block_nation[x] === 6)
 			do {
@@ -1844,8 +1864,8 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 			next_player_battle()
 		} else {
 			game.state = "damage" 
-			//Needs work, this will break in a 3way
-			make_active(faction_of_block(b) === game.attacker? game.defender : game.attacker)
+			if (faction_of_block(b) !== game.attacker) make_active(game.attacker)
+			else make_active(game.target? game.target : game.defender)
 		}
 	} else if (s) {
 		game.state = "retreat"
@@ -1858,9 +1878,10 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 function pre_battle_setup(r){
 	game.active_battle = r
 	game.attacker = game.activeNum
-	//if 3way then he needs to choose
+	//if multipleenemies then attacker needs to choose
 	if (game.defender === null || game.defender === undefined){
-		if (three_way(r)) {
+		if (multiple_enemies(r)) {
+			game.defender = []
 			game.state = 'choose_defender'
 			return
 		}
@@ -1874,7 +1895,7 @@ function pre_battle_setup(r){
 	
 	//add in attacker
 	if (REGIONS[r].type === 'sea') {
-		if (game.active_battle_blocks.length === 0) { //if it isn't 0, we've been here before.
+		if (game.active_battle_blocks.length === 0) { //if it isn't 0, we've been here before, and should skip.
 			let BGcount = 0
 			let last_group
 			for (let bg in game.battle_groups) {
@@ -1902,7 +1923,7 @@ function pre_battle_setup(r){
 	//add in defender
 	for (let i = 0; i < game.block_location.length; i++) {
 		if (game.block_location[i] === r && !set_has(game.raid_retreat_blocks, i) &&
-			((game.defender === 3 && faction_of_block(i) !== game.attacker) || 
+			((Array.isArray(game.defender) && set_has(game.defender, faction_of_block(i))) || 
 			faction_of_block(i) === game.defender)) game.active_battle_blocks.push(i)
 	}
 
@@ -1914,14 +1935,12 @@ function pre_battle_setup(r){
 
 	game.active_battle = r
 
-	if (can_reveal_vault(game.attacker)) {
+	if (can_battle_reveal_vault(game.attacker)) {
 		game.state = "vault_reveal_battle"
-	} else if (can_reveal_vault(f1)) {
-		clear_undo()
+	} else if (can_battle_reveal_vault(f1)) {
 		game.state = "vault_reveal_battle"
 		make_active(f1)
-	} else if (can_reveal_vault(f2)) {
-		clear_undo()
+	} else if (can_battle_reveal_vault(f2)) {
 		game.state = "vault_reveal_battle"
 		make_active(f2)
 	} else start_battle()
@@ -2668,16 +2687,16 @@ states.choose_target_intelligence = {
 	prompt(){
 		const a = ICARDS[game.selected].special
 		view.prompt = `Who do you wish to target with ${a}?`
-		if (game.activeNum !== 0) view.actions.axis = viable_target_intelligence(0, a)? 1:0
-		if (game.activeNum !== 1) view.actions.west = viable_target_intelligence(1, a)? 1:0
-		if (game.activeNum !== 2) view.actions.ussr = viable_target_intelligence(2, a)? 1:0
+		if (game.activeNum !== 0) view.actions.axis = viable_target(0, a)? 1:0
+		if (game.activeNum !== 1) view.actions.west = viable_target(1, a)? 1:0
+		if (game.activeNum !== 2) view.actions.ussr = viable_target(2, a)? 1:0
 	},
 	axis(){resolve_target(0)},
 	west(){resolve_target(1)},
 	ussr(){resolve_target(2)}
 }
 
-function viable_target_intelligence (f, intelligence){
+function viable_target (f, intelligence){
 	switch (intelligence) {
 	case "Mole": return game.vault[f].length > 0
 	case "Agent": return has_blocks_anywhere(f)
@@ -2959,8 +2978,6 @@ states.coup = {
 		cleanup_intel()
 	}
 }
-
-
 
 // DRAW
 states.draw_setup = {
@@ -3412,21 +3429,25 @@ states.choose_battle = {
 	}
 }
 
-states.choose_defender = { //Needs work to consider neutrals
+states.choose_defender = {
 	inactive: "choose battles",
 	prompt(){
-		view.prompt = "Determine defender."
-		switch(game.activeNum){
-		case 0: view.actions.west = 1; view.actions.ussr = 1; break
-		case 1: view.actions.axis = 1; view.actions.ussr = 1; break
-		case 2: view.actions.axis = 1; view.actions.west = 1; break
-		}
-		view.actions.both = 1
+		view.prompt = "More than one enemy: select all factions you wish to battle."
+		view.actions.done = game.defender.length === 0 ? 0 : 1
+		const r = game.active_battle; const f = game.activeNum
+		if (contains_faction(r, -1)) {view.actions.neutral = set_has(game.defender, -1)? 0 : 1}
+		if (contains_faction(r, 0) && are_enemies(f, 0)) {view.actions.axis = set_has(game.defender, 0)? 0 : 1}
+		if (contains_faction(r, 1) && are_enemies(f, 1)) {view.actions.west = set_has(game.defender, 1)? 0 : 1}
+		if (contains_faction(r, 2) && are_enemies(f, 2)) {view.actions.ussr = set_has(game.defender, 2)? 0 : 1}
 	},
-	axis(){game.defender = 0; pre_battle_setup(game.active_battle)},
-	west(){game.defender = 1; pre_battle_setup(game.active_battle)},
-	ussr(){game.defender = 2; pre_battle_setup(game.active_battle)},
-	both(){game.defender = 3; pre_battle_setup(game.active_battle)}, //Needs work: game defender should be an array instead of being 3.
+	neutral(){push_undo(); set_add(game.defender, -1)},
+	axis(){push_undo(); set_add(game.defender, 0)},
+	west(){push_undo(); set_add(game.defender, 1)},
+	ussr(){push_undo(); set_add(game.defender, 2)},
+	done(){
+		if (game.defender.length === 1) game.defender = game.defender[0]
+		pre_battle_setup(game.active_battle)
+	}
 }
 
 states.add_battle_group = {
@@ -3505,21 +3526,77 @@ states.battle = {
 	pass_attack(b){set_add(game.block_moved, b), next_player_battle()},
 }
 
-function viable_target_battle (f) {}
+function attack_faction (f) {
+	log(`attacker chooses to attack the ${FACTIONS[f]}.`)
+	let b = game.target[0]
+	let c = game.target[1]
+	let s = game.target[2]
+	game.target = f
+	process_attack(b,c,s)
+}
+
+function ff_exception (type) { //returns either the faction that the attacker is NOT surprising but only if... or returns false
+/* This function is to fix a possible mixup when an attacker is declaring their target:
+The mixup happens the attacker might get FF only if they are attacking a certain faction (from surprise!)
+The attacker will lose FF if they do not attack that faction, and might lose priority.
+
+The question is: would losing FF make them lower on the attack order?
+A: They can't lose FF from having tech, so the question is moot
+B: They can't go down if they don't have FF, they are already at the bottom!
+C: Similarly, they wouldn't go down on the order if both defenders have FF, but we can discount this because D is a better test
+D: This only happens if there are units of the same type with lower priority */
+	//A and B
+	if (!has_ff(game.attacker, type) || has_ff_from_tech(game.attacker, type)) return false
+	//defenders with lower priority:
+	const blocks = game.active_battle_blocks.filter(x => game.block_type[x] === type && faction_of_block(x) !== game.attacker && !set_has(game.block_moved, x))
+	if (blocks.length === 0) return false
+	//finally, does the attacker have surprise on both enemies? if not, which one does he NOT have surprise on?
+	for (let i = 0; i < 3; i++) {
+		if (i !== game.attacker && !set_has(game.surprise, i)) return i
+	}
+	return false
+}
+
+function slate_block_to_attack (f) {
+	map_set(game.slated_to_attack, game.target[0], [f, game.target[1], game.target[2]])
+	set_add(game.moved, game.target[0])
+	game.target = null
+	next_player_battle()
+} 
 
 states.choose_target_battle = {
 	inactive: "battle",
 	prompt(){
-		const a = ICARDS[game.selected].special
-		view.prompt = `Who do you wish to target with ${a}?`
-		if (game.activeNum !== 0 && viable_target_battle(0)) view.actions.axis = 1
-		if (game.activeNum !== 1 && viable_target_battle(1)) view.actions.west = 1
-		if (game.activeNum !== 2 && viable_target_battle(2)) view.actions.ussr = 1
-		if (viable_target_battle(-1)) view.actions.neutral = 1
+		view.prompt = "What faction is this block targeting?"
+		const convoy = game.target[1] === 4? 1 : 0
+		const targets = game.active_battle_blocks.filter(x => (
+			faction_of_block(x) !== game.attacker && (
+				(convoy && CLASS[game.block_type[x]] === 2) ||
+				(!convoy && CLASS[game.block_type[x]] === game.target[1])
+			)))
+		for (let d of game.defender) {
+			const viable = set_has(factions_in_group(targets), d)
+			switch (d) {
+			case -1: view.actions.neutral = viable? 1:0; break
+			case 0: if (ff_exception(game.block_type[game.target[0]]) === 0) view.actions.confirm_axis = viable? 1:0
+			else view.actions.axis = viable? 1:0
+				break
+			case 1: if (ff_exception(game.block_type[game.target[0]]) === 1) view.actions.confirm_west = viable? 1:0
+			else view.actions.west = viable? 1:0
+				break
+			case 2: if (ff_exception(game.block_type[game.target[0]]) === 2) view.actions.confirm_ussr = viable? 1:0
+			else view.actions.ussr = viable? 1:0
+				break
+			}
+		}
 	},
-	axis(){resolve_target(0)},
-	west(){resolve_target(1)},
-	ussr(){resolve_target(2)}
+	axis(){attack_faction(0)},
+	west(){attack_faction(1)},
+	ussr(){attack_faction(2)},
+	neutral(){attack_faction(-1)},
+	confirm_axis(){slate_block_to_attack(0)},
+	confirm_west(){slate_block_to_attack(1)},
+	confirm_ussr(){slate_block_to_attack(2)},
 }
 
 states.damage = {
@@ -3763,7 +3840,7 @@ states.vault_reveal_battle = {
 	inactive: "reveal vault tech",
 	prompt(){
 		view.prompt = "You may reveal a tech. Please click on the card you wish to DISCARD of your revealing pair."
-		game.pass_count >= how_many_other_factions_can_reveal(game.activeNum)? view.actions.start_combat = 1 : view.actions.pass = 1
+		game.pass_count >= how_many_other_factions_can_battle_reveal(game.activeNum)? view.actions.start_combat = 1 : view.actions.pass = 1
 		const v = game.vault[game.activeNum]
 		for (let i = 0; i < v.length; i += 2) { //if the pair card has a printed tech, you can discard this card
 			const card1 = ICARDS[Math.abs(v[i])]
@@ -3793,8 +3870,8 @@ states.vault_reveal_battle = {
 		const index = game.turn_order.indexOf(game.activeNum)
 		const f1 = game.turn_order[(index + 1)%3]
 		const f2 = game.turn_order[(index + 2)%3]
-		if (can_reveal_vault(f1)) make_active(f1)
-		else if (can_reveal_vault(f2)) make_active(f2)
+		if (can_battle_reveal_vault(f1)) make_active(f1)
+		else if (can_battle_reveal_vault(f2)) make_active(f2)
 		else throw new Error("tried to pass but no one to pass to")
 	},
 	start_combat(){
@@ -4093,6 +4170,7 @@ exports.setup = function (seed, scenario, options) {
 		battle_groups: {},
 		active_battle_blocks: [], 
 		aggressed_from: [], //a map, using a block as a key, and [previous space, current space] as value
+		slated_to_attack: [], //a map, using a block as a key, and [target faction, class, shootNscoot] as value. Used in the incredibly rare circumstance of FirstFire mixups in multi-combat
 
 		reserves: [8, 8, 2, 8, 6, 8, 16, 2, 3, 1, 2, 4, 2, 6, 6, 4, 2, 3, 6, 3, 6, 3, 3, 1, 1, 4, 2, 6, 2, 4, 1, 1, 4, 4, 4, 6, 6, 2, 2, 4, 8, 16, 8], //only 8 neutral forts?
 

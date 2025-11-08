@@ -821,7 +821,11 @@ function on_update(){
 	action_button("axis", "Axis")
 	action_button("west", "West")
 	action_button("ussr", "USSR")
-	action_button("both", "Both")
+	action_button("neutral", "Neutral")
+
+	confirm_action_button("confirm_axis", "Axis", "You do not have surprise against this target! \nThis block will be slated to attack after they attack. \nAre you sure you want to attack them?")
+	confirm_action_button("confirm_west", "West", "You do not have surprise against this target! \nThis block will be slated to attack after they attack. \nAre you sure you want to attack them?")
+	confirm_action_button("confirm_ussr", "USSR", "You do not have surprise against this target! \nThis block will be slated to attack after they attack. \nAre you sure you want to attack them?")
 
 	action_button("start_combat", "Start combat")
 	action_button("end_combat", "End combat")
