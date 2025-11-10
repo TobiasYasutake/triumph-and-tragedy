@@ -356,7 +356,7 @@ function update_reserves(){
 			let e = ui.reserves[Math.floor(i/7)].children[i%7]
 			e.firstElementChild.innerText = view.reserves[i]
 
-			if ((view.prompt === "Place starting Cadres." || view.prompt.substring(0,16) === "Spend Production" || view.prompt.substring(0,14) === "Gain control of") && view.selected === i) {
+			if ((view.prompt === "Place starting Cadres." || view.prompt.substring(0,16) === "Spend Production" || view.prompt.substring(0,15) === "Gain control of") && view.selected === i) {
 				e.classList.add("selected")
 			} else {e.classList.remove("selected")}
 		}

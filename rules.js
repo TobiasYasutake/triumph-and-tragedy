@@ -409,6 +409,7 @@ function next_player(){
 function next_player_command(){
 	next_player()
 	if (three_consecutive_passes()){
+		clear_undo()
 		start_player_turns()
 	} else if (game.command_card[game.activeNum] || game.phase === "Winter"){
 		game.pass_count += 1
@@ -770,7 +771,8 @@ function contains_enemy_blocks(r, f) { //enemy is used if you need to be enemies
 		if (game.block_location[i] === r && !hiding_sub(i)){
 			const fob = faction_of_block(i)
 			if (fob === f) continue
-			if (fob !== -1){//this function is used for retreats, so all neutral blocks are 'enemies.' you need to end your MOVE in the MOVEMENT phase for intervention
+			if (fob === -1){//this function is used for retreats, so all neutral blocks are 'enemies.' you need to end your MOVE in the MOVEMENT phase for intervention
+				//actually: intervention takes place in the end_movement_step, and only with ground forces, which means that 4ways are easier to do than I thought.
 				//const ma = game.minor_aggressor[COUNTRIES.findIndex(x => x.name === REGIONS[r].country)]
 				//if (!are_enemies(f, ma)) 
 				return true}
@@ -791,6 +793,13 @@ function contains_faction(r, f) {
 	}
 	return false
 }
+function contains_neutral(r) {
+	for (let i = 0; i < game.block_nation.length; i++) {
+		if (game.block_location[i] === r && game.block_nation[6]) return true
+	}
+	return false
+}
+
 function hiding_sub(b){
 	if (game.block_type[b] !== 3) return false
 	for (let i = 0; i < game.sub_hiding.length; i++) if (game.sub_hiding[i] === b) return true
@@ -875,15 +884,14 @@ function convert_neutral_fort(b, reserve){
 	game.reserves[35] += 1
 	reserve_reduce(reserve)
 	game.block_nation[b] = Math.floor(reserve/7)
-	game.block_type[b] = reserve&7
+	game.block_type[b] = reserve%7
 	//if supplanting a neutral fort, the new owner becomes the 'oldest' in the region
 	let r = game.block_location[b]
 	let battle = map_get(game.battle, r, undefined)
 	if (battle && battle[0] === -1) {
-		array_remove_item(map_get(game.battle, game.block_location[b]), game.activeNum)
+		array_remove_item(battle, game.activeNum)
 		battle[0] = game.activeNum
 		if (battle.length === 1) map_remove(game.battle, r)
-		else map_set(game.battle, r, battle)
 	}
 }
 
@@ -1160,7 +1168,7 @@ function process_supply(){
 			log(`${FACTIONS[f]} block in ${REGIONS[r].name} out of supply`)
 			block_reduce(i)
 			const ngs = no_ground_support(r, f)
-			if (ngs) set_add(game.must_retreat, ...ngs)
+			for (let block of ngs) set_add(game.must_retreat, block)
 		}
 	}
 }
@@ -1244,7 +1252,7 @@ function rebase_locations(r, b, retreat) {
 
 	const distance = (game.block_type[b] === 2 || game.block_type[b] === 4 || (game.block_type[b] === 1 && has_tech(f, 'Heavy Bombers'))) ? 3 : 2
 
-	const os = map_get(game.aggressed_from, b, false)[0] //original space
+	const os = map_get(game.aggressed_from, b, false)[0] //original space. Note that false[0] is undefined, not false
 
 	const battles = game.battle_fought //planes may fly through battles, so long as they aren't 'retreating'
 	for (let i = 0; i < game.battle.length; i+=2) set_add(battles, game.battle[i])
@@ -1271,7 +1279,7 @@ function rebase_locations(r, b, retreat) {
 			if (remaining < 0) continue
 			if (!set_has(net, s) &&
 				!(set_has(rss, s)) && !(battle && retreat) &&
-				(space !== r || !retreat || f !== game.attacker || os === false || s === os) && //if you are retreating, the first step must be the original space
+				(space !== r || !retreat || f !== game.attacker || os === undefined || s === os) && //if you are retreating, the first step must be the original space
  				((air || sub || !contains_enemy_blocks(s, f, true)) ||(c && is_neutral(c) && !is_armed_minor(c) && type === 'strait')) && //cannot move through enemy blocks
 				(!c || !is_neutral(c) || is_armed_minor(c) || type === 'strait') && //cannot move through neutral unless armed or strait
  				(air || bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, s))
@@ -1389,7 +1397,7 @@ function conquest_influence(){
 	COLONIES["Italy"].forEach(x => set_add(italian_colonies, COUNTRIES.findIndex(y => y.name === x)))
 	COLONIES["France"].forEach(x => set_add(french_colonies, COUNTRIES.findIndex(y => y.name === x)))
 	COLONIES["Britain"].forEach(x => set_add(british_colonies, COUNTRIES.findIndex(y => y.name === x)))
-	
+
 	for (let c = 0; c < COUNTRIES.length; c++) {
 		const r = REGIONS.findIndex(x => x.name === COUNTRIES[c].capital)
 		const f = game.control[r]
@@ -1407,7 +1415,7 @@ function conquest_influence(){
 			else if (c === 1 || c === 3 || c === 4) defeat_major(c)
 		}
 	}
-
+	determine_control(game.activeNum)
 	update_production()
 }
 
@@ -1555,7 +1563,7 @@ function can_battle_reveal_vault(f) {
 function how_many_other_factions_can_battle_reveal(f){
 	let count = 0
 	for (let i = 0; i < 3; i++) {
-		if (i !== f && can_battle_reveal_vault(i) && (i === game.attacker || i === game.defender) || (Array.isArray(game.defender) && set_has(game.defender, i))) count++
+		if (i !== f && can_battle_reveal_vault(i) && (i === game.attacker || i === game.defender || (Array.isArray(game.defender) && set_has(game.defender, i)))) count++
 	}
 	return count
 }
@@ -1590,6 +1598,9 @@ function faction_of_power(nation){
 	case 5: return 2
 	case 6: return -1
 	}
+}
+function are_rivals(f1, f2) { //two different numbers, both 0, 1, or 2
+	return (f1 !== f2 && f1 >= 0 && f1 <= 2 && f2 >= 0 && f2 <= 2)
 }
 
 function are_enemies(f1, f2, r){
@@ -1669,7 +1680,7 @@ function who_controls_region(r, f){ //control of a location:
 	if (REGIONS[r].type === "sea") return 3
 
 	const country = REGIONS[r].country
-	const c = COUNTRIES.findIndex(country => country.name === country)
+	const c = COUNTRIES.findIndex(x => x.name === country)
 	//if no blocks and great country, faction is the owner
 	if (country === "Germany") return 0
 	if (country === "Britain") return 1
@@ -1765,7 +1776,7 @@ function multiple_enemies(r) {
 	let enemies = 0
 	for (let i = -1; i < 3; i++){ //-1 to include neutrals
 		if (contains_faction(r, i) && (i === -1 || are_enemies(game.activeNum, i))) {
-			if (enemies > 1) return true
+			if (enemies === 1) return true
 			else enemies += 1
 		}
 	}
@@ -1836,7 +1847,7 @@ function neutral_firing_solution() {
 }
 
 function process_attack(b, c, s) {//block, class, shootnscoot
-	if (Array.isArray(game.defender) && faction_of_block(b) === game.attacker && game.target === null){
+	if (game.target === null && Array.isArray(game.defender) && faction_of_block(b) === game.attacker){
 		push_undo()
 		game.target = [b, c, s]
 		game.state = 'choose_target_battle' //logic where if you are attacking someone with the FF advantage, the attack gets "saved"
@@ -1865,7 +1876,7 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 		} else {
 			game.state = "damage" 
 			if (faction_of_block(b) !== game.attacker) make_active(game.attacker)
-			else make_active(game.target? game.target : game.defender)
+			else make_active(game.target === null? game.defender : game.target)
 		}
 	} else if (s) {
 		game.state = "retreat"
@@ -1873,6 +1884,7 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 	} else (
 		next_player_battle()
 	)
+	game.target = null
 }
 
 function pre_battle_setup(r){
@@ -3145,25 +3157,30 @@ function first_block_in(b, r){
 
 function legal_end_space(b, m, r){
 	const ans = is_ans(b)
-	const area = REGIONS[r]
-	const c = area.country ? COUNTRIES.findIndex(x => x.name === area.country) : false
-	if ( m.moves > m.max_moves*2 || 
+	const region = REGIONS[r]
+	const c = region.country ? COUNTRIES.findIndex(x => x.name === region.country) : false
+	const ctrl = game.control[r]
+	const f = game.activeNum
+	let all_enemies = true
+	for (let x of factions_in_region(r)) if (are_rivals(f, x) && !are_enemies(f, x)) all_enemies = false
+
+	if ( m.moves > m.max_moves*2 || //Can move at most double
 		(m.strategic_move && !m.strategic_possible) ||
-		(m.aggression && !m.aggression_possible) ||
-		(m.move_type && m.move_type === 'sea' && area.type === 'land' && 
+		(m.aggression && (!m.aggression_possible || (region.type !== 'sea' && !all_enemies))) || //must be enemies with all (except neutrals) in land combat
+		(m.move_type && m.move_type === 'sea' && region.type === 'land' &&  //Sea must move via coast or sea
 			REGIONS[m.previous_space].type === 'land' && !shares_sea(m.previous_space, r)) ||
-		(m.move_type && m.move_type === 'land' && area.type === 'sea') ||
-		(m.land_combat && !ans && 
+		(m.move_type && m.move_type === 'land' && region.type === 'sea') || //Land cannot move to Sea
+		(m.land_combat && !ans && //Border limits
 			border_limit(m.previous_space, r) <= map_get(game.border_count, get_border_id(m.previous_space, r ), 0) -
-			(REGIONS[m.previous_space].type === 'sea' && has_tech(game.activeNum, 'LSTs'))) || //-1 from the count for invasions
-		(area.country && is_neutral(area.country) && (
-			//(area.country === 'USA' && game.activeNum !== 0 && !are_enemies(0, 1)) ||
-			(c && set_has(game.cannot_von, c)) ||
-			(game.influence[c]%10 === 2 && (Math.floor(game.influence[c])/10 === game.activeNum || are_enemies(game.activeNum, Math.floor(game.influence[c]/10)))))) ||
-		(m.sea_combat && !ans) ||
+			(REGIONS[m.previous_space].type === 'sea' && has_tech(f, 'LSTs'))) || //-1 from the count for invasions
+		(region.country && is_neutral(region.country) && ( //neutrals
+			(c && set_has(game.cannot_von, c)) || //some you cannot von
+			(game.influence[c]%10 === 2 && (Math.floor(game.influence[c])/10 === f || are_enemies(f, Math.floor(game.influence[c]/10)))))) || //at war with patron
+		(m.sea_combat && !ans) || //convoys cannot attack
 		(ans && ans_illegal(r, b)) ||
-		(game.block_type[b] === 1 && (game.control[r] !== game.activeNum || area.type === 'sea') && (m.strategic_move || REGIONS[m.origin_space].type === 'sea')) ||
-		(game.block_type[b] === 1 && area.type === 'sea' && REGIONS[m.origin_space].type === 'sea') ||
+		(region.type !== 'sea' && are_rivals(f, ctrl) && !are_enemies(f, ctrl)) ||
+		(game.block_type[b] === 1 && (ctrl !== f || region.type === 'sea') && (m.strategic_move || REGIONS[m.origin_space].type === 'sea')) ||
+		(game.block_type[b] === 1 && region.type === 'sea' && REGIONS[m.origin_space].type === 'sea') ||
 		(game.phase === "Winter" && c !== 5) //5 === ussr
 	) return false
 	return true
@@ -3174,26 +3191,28 @@ function update_mvmt(b, m, r){
 	const rb = contains_rival_blocks(r, game.activeNum)
 	const bt = can_hit_industry(b, r) //bombing target
 	const c = area.country ? COUNTRIES.findIndex(x => x.name === area.country) : false
+	const ctrl = game.control[r]
+	const f = game.activeNum
 	m.moves += area.ocean ? 2 : 1
 	m.previous_space = game.block_location[b]
 	if (!m.move_type) {
 		if (area.type === 'sea') {m.move_type = 'sea'; m.max_moves = 2}
 		else if (area.type === 'land') m.move_type = 'land'
-		if (REGIONS[m.previous_space].type === 'strait' && game.control[m.previous_space] !== game.activeNum && !are_enemies(game.activeNum, game.control[m.previous_space], m.previous_space)) {m.move_type = 'sea'; m.max_moves = 2}
+		if (REGIONS[m.previous_space].type === 'strait' && game.control[m.previous_space] !== f && !are_enemies(f, game.control[m.previous_space], m.previous_space)) {m.move_type = 'sea'; m.max_moves = 2}
 	} 
-	m.aggression = (game.control[r] === game.activeNum || game.control[r] === 3) ? 0 : 1
+	m.aggression = (ctrl === f || ctrl === 3) ? 0 : 1
 	if (m.moves > m.max_moves) m.strategic_move = 1
-	if ((game.control[r] !== game.activeNum && game.control[r] !== 3) || 
-		contains_hiding_enemy_sub(r, game.activeNum)) m.strategic_possible = 0
-	if (area.type === 'strait' && game.activeNum !== game.control[r] && !is_neutral(area.country) && 
-		!are_enemies(game.activeNum, game.control[r], r)) m.aggression_possible = 0
+	if ((ctrl !== f && ctrl !== 3) || 
+		contains_hiding_enemy_sub(r, f)) m.strategic_possible = 0
+	if (area.type === 'strait' && f !== ctrl && !is_neutral(area.country) && 
+		!are_enemies(f, ctrl, r)) m.aggression_possible = 0
 	if ((m.moves >= m.max_moves && m.strategic_possible === 0) || (m.moves >= m.max_moves*2) || //out of moves
 		(m.move_type && m.move_type === 'sea' && area.type === 'land') ||
 		(m.move_type && m.move_type === 'land' && area.type === 'sea') ||
 		(c && area.type !== 'strait' && set_has(game.cannot_von, c)) || //must stop and illegal stop if.
 		(game.phase === "Winter" && c !== 5) || //5 === ussr
 		(rb && (game.block_type[b] !== 1 && game.block_type[b] !== 3) && //rival pieces && not plane, sub
-		((area.type !== 'strait' && area.type !== 'sea') || are_enemies(game.activeNum, game.control[r]) || 
+		((area.type !== 'strait' && area.type !== 'sea') || are_enemies(f, ctrl) || 
 		(area.country && is_armed_minor(area.country))))) m.must_stop = 1
 	if ((rb || bt) && m.aggression) area.type === 'sea' ? m.sea_combat = 1 : m.land_combat = 1
 	else {m.sea_combat = 0; m.land_combat = 0}
@@ -3223,10 +3242,16 @@ function update_battle(r){
 			if (!w) array_remove_item(battle, 1)
 			if (!u) array_remove_item(battle, 2)
 			if (!n) array_remove_item(battle, -1); break
-		case 3: //gone from 2 to 3, and thus the active is the latest
-		//Needs work: theoretically can go from 4 to 3 in the rarest of circumstances, then leave a note for QA testing it.
+		case 3: //gone from 2 to 3, and active is the latest, OR gone from 4 to 3, and need to remove.
+			if (a+w+u+n >= battle.length) battle.push(game.activeNum)
+			else {
+				if (!a) array_remove_item(battle, 0) 
+				if (!w) array_remove_item(battle, 1)
+				if (!u) array_remove_item(battle, 2)
+				if (!n) array_remove_item(battle, -1)
+			} break
+		case 4: //gone from 3 to 4, and thus the active is the latest
 			battle.push(game.activeNum); break
-		case 4: throw new Error('A battle should never have 4 factions, neutrals should have converted!') //except in the mythic weird case of a battle at a former colony :D
 		}
 		map_set(game.battle, r, battle)
 	}
@@ -3265,10 +3290,14 @@ function end_block_move(b){
 		if (first_block_in(b, r) && (contains_rival_blocks(r, game.activeNum) || can_hit_industry(b))) set_add(game.battle_required, r)
 		if (can_hit_industry(b) && !map_has(game.battle, r)) map_set(game.battle, r, [game.control[r], game.activeNum]) //for bombing specifically, make it a battle so you don't conquere with air
 		if (game.block_type[b] !== 1 && !contains_enemy_blocks(r, game.activeNum) && set_has(game.battle_required, r)) {set_delete(game.battle_required, r); map_remove(game.battle, r)} //for bombing specifically, remove 
-		if (game.control[r] !== -1) set_add(game.aggression_met, game.control[r])
-		else {
-			set_add(game.aggression_met, COUNTRIES.findIndex(c => c.name === REGIONS[r].country))
-			if (!is_armed_minor(REGIONS[r].country)) arm_minor(REGIONS[r].country, game.activeNum)
+		const fs = factions_in_region(r)
+		if (fs.length === 0 && game.control[r] !== -1) set_add(game.aggression_met, game.control[r])
+		else for (let f of fs) {
+			if (f !== game.activeNum) set_add(game.aggression_met, f)
+		}
+		if (is_neutral(REGIONS[r].country) && !is_armed_minor(REGIONS[r].country)) {
+			set_add(game.aggression_met, COUNTRIES.findIndex(c => c.name === REGIONS[r].country)) 
+			arm_minor(REGIONS[r].country, game.activeNum)
 		}
 	}
 
@@ -3372,7 +3401,7 @@ states.movement_move = {
 		}	
 		const c = REGIONS[r].country
 		const am = is_armed_minor(c)
-		if (c && am && are_enemies(game.activeNum, game.minor_aggressor[COUNTRIES.findIndex(x => x.name === c)])) 
+		if (c && contains_neutral(r) && are_enemies(game.activeNum, game.minor_aggressor[COUNTRIES.findIndex(x => x.name === c)])) 
 			set_add(game.gained_control[game.activeNum], COUNTRIES.findIndex(x => x.name === c))
 		if (c && !am && REGIONS[r].type !== 'strait' && is_neutral(c)) arm_minor(c, game.activeNum)
 		if (REGIONS[game.mvmt.previous_space].type === 'strait' && is_neutral(REGIONS[game.mvmt.previous_space].country)) {
@@ -3411,7 +3440,7 @@ states.choose_battle = {
 							break
 						}
 					}
-				} else if (map_has(game.battle, i)){
+				} else if (map_has(game.battle, i) && set_has(factions_in_region(i), game.activeNum)){
 					gen_action_region(i)
 					battle_posible = true
 				}
@@ -4220,6 +4249,9 @@ exports.setup = function (seed, scenario, options) {
 		aggression_met: [], //used to meet declaring war
 		cannot_von: [], //used to make sure that you cannot attack a neutral (USA, or if you moved through their strait)
 
+		espionage: null, //used to hold what spy card is being used
+		target: null, //used to choose who you are attacking, both with intelligence cards and multi way battle
+
 		influence: [], //-1 for neutral, 0 for axis control, 1-9 for axis points, 10 for west control, 11-19 for points, 20 for ussr control
 		//this means that /10 gets the faction, and %10 gets the point total (with 0 being control)
 		minor_aggressor: [], //a sparse array used to record who attacked what minor, based on the COUNTRY index
@@ -4817,8 +4849,9 @@ function map_remove(map, key) {
 		else if (key > x)
 			a = m + 1
 		else{
-			for (x += 2; x < map.length; ++x)
-				map[x-2] = map[x]
+			let start = (m<<1) + 2
+			for (let i = start; i < map.length; ++i)
+				map[i-2] = map[i]
 			map.length = map.length - 2
 			return true
 		}
