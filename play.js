@@ -793,7 +793,7 @@ function on_update(){
 	action_button("draw", "Draw Cards")
 	action_button("pass", "Pass")
 	action_button("next", "Next")
-	action_button("done", "Done")
+	
 	action_button("draw_action_card", "Draw Action Card")
 	action_button("draw_investment_card", "Draw Investment Card")
 
@@ -830,6 +830,7 @@ function on_update(){
 	action_button("start_combat", "Start combat")
 	action_button("end_combat", "End combat")
 
+	action_button("done", "Done")
 	action_button("undo", "Undo")
 	action_button("reveal", "Reveal")
 	action_button("vault", "Place in Vault")

@@ -1176,7 +1176,7 @@ function process_supply(){
 function no_ground_support(r, f) { //this is only used after the supply check: ground support for battles uses different logic
 	const ans = []
 	for (let i = 0; i < game.block_location.length; i++) {
-		if (game.block_lcation[i] === r && faction_of_block(i) === f) {
+		if (game.block_location[i] === r && faction_of_block(i) === f) {
 			if (is_ans(i)) set_add(ans, i)
 			else return false
 		}
@@ -1332,11 +1332,15 @@ function next_player_retreat(){
 	const group = object_copy(game.must_retreat)
 	group.push(...game.may_retreat)
 	const fs = factions_in_group(group)
-	if (fs.length === 0) {//either start another sea combat round or end the battle
-		if (game.defender === null) 
-			if (game.attacker === null) next_season(true)  //if attacker and defender are null then this is during the supply check phase
-			else end_battle()
-		else new_sea_combat_round()
+	if (fs.length === 0) {//either start another sea combat round or end the battle OR force an entire new combat at sea
+		const fsr = factions_in_region(game.active_battle)
+		if (game.defender !== null) new_sea_combat_round()
+		else if (game.attacker === null) next_season(true)  //if attacker and defender are null then this is during the supply check phase
+		else if (fsr.length >= 2 && are_enemies(fsr[0], fsr[1])){
+			log(`The ${game.attacker} have defeated one enemy, but now needs to fight the other.`)
+			create_emergency_battle_group() //will end up either in prebattle setup, or choose battlegroup
+		}
+		else end_battle()
 		return
 	}
 	fs.sort((a, b) => {
@@ -1347,6 +1351,33 @@ function next_player_retreat(){
 	)
 	game.state = 'choose_retreat'
 	make_active(fs[0])
+}
+
+function create_emergency_battle_group() {//the attacker needs to fight another sea battle immediately, and so the units that just survived the battle are still active blocks
+	const f = game.attacker
+	const r = game.active_battle
+	const bgb = [] //battle group blocks
+	let BGcount = 0
+	let last_group
+	for (let bg in game.battle_groups) {
+		if (bg%1000 === r) {
+			BGcount++ 
+			last_group = bg
+			for (let b of game.battle_groups[bg]) set_add(bgb, b) //for every battle group still remaining, they are 'waiting in the wings' as it were
+		}
+	}
+	for (let i = 0; i < game.block_location.length; i++) //remake the attacker's battleblocks.
+		if (game.block_location[i] === r && faction_of_block[i] === f && !set_has(bgb, i))
+			game.active_battle_blocks.push(i)
+	if (BGcount === 1) {
+		game.active_battle_blocks.push(...game.battle_groups[last_group])
+		delete game.battle_groups[last_group]
+	}
+	else if (BGcount > 1) { //Craig said that another battlegroup gets added to the main 
+		game.state = "add_battle_group"
+		return
+	} 
+	pre_battle_setup(game.active)
 }
 
 
@@ -1890,7 +1921,7 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 function pre_battle_setup(r){
 	game.active_battle = r
 	game.attacker = game.activeNum
-	//if multipleenemies then attacker needs to choose
+	//if multiple enemies then attacker needs to choose
 	if (game.defender === null || game.defender === undefined){
 		if (multiple_enemies(r)) {
 			game.defender = []
@@ -1914,14 +1945,14 @@ function pre_battle_setup(r){
 				if (bg%1000 === r) {BGcount++; last_group = bg}
 			}
 			if (BGcount === 0) throw new Error("No battle groups found!?!")
-			if (BGcount > 1) {
-				game.state = "add_battle_group"
-				return
-			} 
-			else {
+			else if (BGcount === 1) {
 				game.active_battle_blocks.push(...game.battle_groups[last_group])
 				delete game.battle_groups[last_group]
 			}
+			else if (BGcount > 1) {
+				game.state = "add_battle_group"
+				return
+			} 
 		}
 	} else {
 		for (let i = 0; i < game.block_location.length; i++) {
@@ -3461,13 +3492,16 @@ states.choose_battle = {
 states.choose_defender = {
 	inactive: "choose battles",
 	prompt(){
-		view.prompt = "More than one enemy: select all factions you wish to battle."
-		view.actions.done = game.defender.length === 0 ? 0 : 1
-		const r = game.active_battle; const f = game.activeNum
-		if (contains_faction(r, -1)) {view.actions.neutral = set_has(game.defender, -1)? 0 : 1}
-		if (contains_faction(r, 0) && are_enemies(f, 0)) {view.actions.axis = set_has(game.defender, 0)? 0 : 1}
-		if (contains_faction(r, 1) && are_enemies(f, 1)) {view.actions.west = set_has(game.defender, 1)? 0 : 1}
-		if (contains_faction(r, 2) && are_enemies(f, 2)) {view.actions.ussr = set_has(game.defender, 2)? 0 : 1}
+		const sea = REGIONS[game.active_battle].type === 'sea'
+		const usd = game.defender.length === 0 //unselected defender
+		const r = game.active_battle
+		const f = game.activeNum
+		view.prompt = sea? "More than one enemy: select all factions you wish to battle." : "More than one enemy: select faction you wish to battle first."
+		view.actions.done = usd ? 0 : 1
+		if (!sea && contains_faction(r, -1)) {view.actions.neutral = set_has(game.defender, -1)? 0 : 1}
+		if (contains_faction(r, 0) && are_enemies(f, 0)) {view.actions.axis = (set_has(game.defender, 0) || (sea && !usd)) ? 0 : 1}
+		if (contains_faction(r, 1) && are_enemies(f, 1)) {view.actions.west = (set_has(game.defender, 1) || (sea && !usd)) ? 0 : 1}
+		if (contains_faction(r, 2) && are_enemies(f, 2)) {view.actions.ussr = (set_has(game.defender, 2) || (sea && !usd)) ? 0 : 1}
 	},
 	neutral(){push_undo(); set_add(game.defender, -1)},
 	axis(){push_undo(); set_add(game.defender, 0)},
