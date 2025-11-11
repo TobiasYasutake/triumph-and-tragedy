@@ -421,9 +421,9 @@ function next_player_battle(){
 	//based on the participating blocks, the attacker, the defender(s), tech, surprise, and blocks moved, figure out who's turn it is
 	//in a three way, the attacker determines initiative ties, but to save on turn activation it will just happen in turn order.
 	if (check_end_battle()) {post_battle_teardown(); return}
-	
-	let unused_blocks = game.active_battle_blocks.filter(x => !(set_has(game.block_moved, x)))
-	if (unused_blocks.length === 0) {
+	const s = game.slated_to_attack
+	const unused_blocks = game.active_battle_blocks.filter(x => !(set_has(game.block_moved, x)))
+	if (unused_blocks.length === 0 && s.length === 0) {
 		if (REGIONS[game.active_battle].type === 'sea') { //retreat airplane/subs and then go for another battle
 			game.block_moved = []
 			determine_retreats(game.active_battle, false) //shoooould only catch airplanes that took an action
@@ -432,24 +432,22 @@ function next_player_battle(){
 		else post_battle_teardown() //end the combat
 	}
 	else {
-		let type = lowest_type(unused_blocks)
-		if (game.slated_to_attack.length > 0 && game.block_type[game.slated_to_attack[0]] < type) {
-			log("processing delayed attack")
-			let b = game.slate_block_to_attack[0]
-			let t = game.slate_block_to_attack[1]
-			map_remove(game.slate_block_to_attack, game.slate_block_to_attack[0])
+		const type = lowest_type(unused_blocks)
+		const fs = factions_with_type(unused_blocks, type)
+		fs.sort((a, b) => { //+1 if defender, +2 if ff
+			const aNum = 0 + (game.attacker !== a) + (has_ff(a, type) ? 2 : 0)
+			const bNum = 0 + (game.attacker !== b) + (has_ff(b, type) ? 2 : 0)
+			return bNum - aNum
+		})
+		if (s.length > 0 && (type === -1 || type > game.block_type[s[0]])) {
+			log("Processing delayed attack")
+			const b = s[0]
+			const t = s[1]
+			map_remove(s, s[0])
 			game.target = t[0]
 			process_attack(b, t[1], t[2])
 			game.target = null
-			return
-		}
-		let fs = factions_with_type(unused_blocks, type)
-		fs.sort((a, b) => { //+1 if defender, +2 if ff
-			let aNum = 0 + (game.attacker !== a) + (has_ff(a, type) ? 2 : 0)
-			let bNum = 0 + (game.attacker !== b) + (has_ff(b, type) ? 2 : 0)
-			return bNum - aNum
-		})
-		if (fs[0] === -1) {
+		} else if (fs[0] === -1) {
 			neutral_firing_solution()
 		} else {
 			game.state = 'battle'
@@ -714,7 +712,7 @@ function number_of_blocks_in_region(region, block) {
 }
 function factions_in_region(region) {
 	let factions = []
-	for (let i = 0; i < 3; i++) {
+	for (let i = -1; i < 3; i++) {
 		if (contains_faction(region, i)) factions.push(i)
 	}
 	return factions
@@ -904,11 +902,12 @@ function remove_block(b){
 	game.block_type[b] = null
 	set_delete(game.active_battle_blocks, b)
 	set_delete(game.block_moved, b)
-	//array_remove_item(game.may_retreat, block)
-	//array_remove_item(game.must_retreat, block)
+	//set_delete(game.may_retreat, b)
+	//set_delete(game.must_retreat, b)
 	set_delete(game.sub_hiding, b)
 	set_delete(game.invasion_blocks, b)
 	set_delete(game.raid_retreat_blocks, b)
+	map_remove(game.slated_to_attack, b)
 	for (const group in game.battle_groups) {
 		array_remove_item(game.battle_groups[group], b)
 	}
@@ -1394,7 +1393,7 @@ function is_neutral(country) {
 }
 
 function is_armed_minor(country) {
-	const c = COUNTRIES.findIndex(x => x.name === country)
+	const c = typeof country === 'string'? COUNTRIES.findIndex(x => x.name === country) : country
 	return set_has(game.armed_minors, c)
 }
 
@@ -1485,6 +1484,7 @@ function arm_minor(country, f) {
 function defeat_minor(c) {
 	log(`${COUNTRIES[c].name} has been defeated.`)
 	set_delete(game.armed_minors, c)
+	game.minor_aggressor[c] = null
 	for (let i = 0; i < game.block_location.length; i++) {
 		if (game.block_nation[i] === 6 && REGIONS[game.block_location[i]].country === c) remove_block[i]
 	}
@@ -2369,19 +2369,16 @@ function special_countries(wild, f) {
 	return cs
 }
 function generate_ineligible_countries(){ //for diplomacy
-	//auto include greats, majors (except USA), colonies, and armed minors AND ALBANIA?
-	let ics = ["Germany", "Italy", "Britain", "France", "USSR", "Libya", /*"Canada",*/ "Gibraltar", "India", "Malta", "Middle East", "French North Africa", "Syria", "Albania",] //the Albania question
+	//auto include greats, majors (except USA), colonies, and armed minors AND ALBANIA? Is a set, so alphabetical
+	let ics = ["Albania", "Britain", /*"Canada",*/ "France", "French North Africa", "Germany", "Gibraltar", "India", "Italy", "Libya", "Malta", "Middle East",	"Syria", "USSR"]
 	for (let i = 0; i < game.influence.length; i++) {
 		if (game.influence[i]%10 === 0) {
 			set_add(ics, COUNTRIES[i].name)
 		}
 	}
 	//armed minors
-	for (let i = 0; i < game.block_nation.length; i++){ //Needs work: an armed minor can have no fort in the capital due to raids
-		//use the game.armed_minors set
-		if (game.block_nation[i] === 6) { //any blocks at all imply an armed minor, because taking the capital *should* remove all neutral forts
-			set_add(ics, REGIONS[game.block_location[i]].country) //this *shouldn't* throw an error because a neutral block will never be at sea.
-		}
+	for (let i = 13; i < game.influence.length; i++){ //13 is the first possible minor country: Afghanistan
+		if (set_has(game.armed_minors, i)) set_add(ics, COUNTRIES[i].country)
 	}
 	return ics
 }
@@ -3322,13 +3319,13 @@ function end_block_move(b){
 		if (can_hit_industry(b) && !map_has(game.battle, r)) map_set(game.battle, r, [game.control[r], game.activeNum]) //for bombing specifically, make it a battle so you don't conquere with air
 		if (game.block_type[b] !== 1 && !contains_enemy_blocks(r, game.activeNum) && set_has(game.battle_required, r)) {set_delete(game.battle_required, r); map_remove(game.battle, r)} //for bombing specifically, remove 
 		const fs = factions_in_region(r)
+		const c = REGIONS[r].country ? COUNTRIES.findIndex(x => x.name === REGIONS[r].country) : undefined
 		if (fs.length === 0 && game.control[r] !== -1) set_add(game.aggression_met, game.control[r])
-		else for (let f of fs) {
+		else for (let f of fs) 
 			if (f !== game.activeNum) set_add(game.aggression_met, f)
-		}
-		if (REGIONS[r].country && is_neutral(REGIONS[r].country) && !is_armed_minor(REGIONS[r].country)) {
+		if (c && is_neutral(c)) {
 			set_add(game.aggression_met, COUNTRIES.findIndex(c => c.name === REGIONS[r].country)) 
-			arm_minor(REGIONS[r].country, game.activeNum)
+			if (!is_armed_minor(c)) arm_minor(REGIONS[r].country, game.activeNum)
 		}
 	}
 
@@ -3621,8 +3618,9 @@ D: This only happens if there are units of the same type with lower priority */
 }
 
 function slate_block_to_attack (f) {
+	log(`The ${FACTIONS[game.attacker]} are attacking against the faction they don't have surprise First Fire against.`)
 	map_set(game.slated_to_attack, game.target[0], [f, game.target[1], game.target[2]])
-	set_add(game.moved, game.target[0])
+	set_add(game.block_moved, game.target[0])
 	game.target = null
 	next_player_battle()
 } 
@@ -4481,7 +4479,7 @@ exports.view = function (state, player) {
 		battle_blocks: game.active_battle_blocks,
 		battle_required: game.battle_required,
 	}
-	if (game.defender === null || game.state === "choose_defender" || game.previous_state === "choose_defender") view.battle = null
+	if (game.defender === null || factions_in_group(game.active_battle_blocks).length < 2) view.battle = null
 	mask_blocks(playerNum)
 
 	if (game.state === "game_over") {
