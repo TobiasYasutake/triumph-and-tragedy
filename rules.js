@@ -1336,7 +1336,7 @@ function next_player_retreat(){
 		const fsr = factions_in_region(game.active_battle)
 		if (game.defender !== null) new_sea_combat_round()
 		else if (game.attacker === null) next_season(true)  //if attacker and defender are null then this is during the supply check phase
-		else if (fsr.length >= 2 && are_enemies(fsr[0], fsr[1])){
+		else if (REGIONS[game.active_battle].type === 'sea' && fsr.length >= 2 && are_enemies(fsr[0], fsr[1])){
 			log(`The ${game.attacker} have defeated one enemy, but now needs to fight the other.`)
 			create_emergency_battle_group() //will end up either in prebattle setup, or choose battlegroup
 		}
@@ -1377,7 +1377,7 @@ function create_emergency_battle_group() {//the attacker needs to fight another 
 		game.state = "add_battle_group"
 		return
 	} 
-	pre_battle_setup(game.active)
+	pre_battle_setup(game.active_battle)
 }
 
 
@@ -3326,7 +3326,7 @@ function end_block_move(b){
 		else for (let f of fs) {
 			if (f !== game.activeNum) set_add(game.aggression_met, f)
 		}
-		if (is_neutral(REGIONS[r].country) && !is_armed_minor(REGIONS[r].country)) {
+		if (REGIONS[r].country && is_neutral(REGIONS[r].country) && !is_armed_minor(REGIONS[r].country)) {
 			set_add(game.aggression_met, COUNTRIES.findIndex(c => c.name === REGIONS[r].country)) 
 			arm_minor(REGIONS[r].country, game.activeNum)
 		}
@@ -3496,7 +3496,7 @@ states.choose_defender = {
 		const usd = game.defender.length === 0 //unselected defender
 		const r = game.active_battle
 		const f = game.activeNum
-		view.prompt = sea? "More than one enemy: select all factions you wish to battle." : "More than one enemy: select faction you wish to battle first."
+		view.prompt = sea? "More than one enemy: select faction you wish to battle first." : "More than one enemy: select all factions you wish to battle."
 		view.actions.done = usd ? 0 : 1
 		if (!sea && contains_faction(r, -1)) {view.actions.neutral = set_has(game.defender, -1)? 0 : 1}
 		if (contains_faction(r, 0) && are_enemies(f, 0)) {view.actions.axis = (set_has(game.defender, 0) || (sea && !usd)) ? 0 : 1}
@@ -3663,9 +3663,10 @@ states.choose_target_battle = {
 }
 
 states.damage = {
-	inactive: "battle",
+	inactive: "take damage",
 	prompt() {
-		view.prompt = "Assign damage."
+		const hit = game.hits === 1? " hit left." : " hits left." 
+		view.prompt = "Assign damage: " + game.hits + hit
 		const targets = game.active_battle_blocks.filter(x => faction_of_block(x) === game.activeNum && 
 			CLASS[game.block_type[x]] === game.hit_class)
 		const high = highest_step(targets)
@@ -4480,7 +4481,7 @@ exports.view = function (state, player) {
 		battle_blocks: game.active_battle_blocks,
 		battle_required: game.battle_required,
 	}
-	if (game.defender === null) view.battle = null
+	if (game.defender === null || game.state === "choose_defender" || game.previous_state === "choose_defender") view.battle = null
 	mask_blocks(playerNum)
 
 	if (game.state === "game_over") {
