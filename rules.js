@@ -4441,6 +4441,7 @@ exports.view = function (state, player) {
 		selected: game.selected,
 		count: game.count,
 		turn_order: findTurnOrderIndex(game.turn_order),
+		turn_order_roles: game.turn_order,
 
 		// PLAYER INFORMATION
 		draw: mask_draw(playerNum),

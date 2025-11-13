@@ -690,6 +690,28 @@ function update_initiative() {
 	document.getElementById(`Initiative_${view.turn_order}`).classList.add("highlight")
 }
 
+function update_turn_order_display() {
+	if (view.turn_order_roles) {
+		let roles_div = document.getElementById("roles")
+		if (roles_div) {
+			let role_elements = []
+			for (let faction_index of view.turn_order_roles) {
+				let faction_name = FACTIONS[faction_index]
+				faction_name = faction_name
+				let role_id = "role_" + faction_name
+				let role_element = document.getElementById(role_id)
+				if (role_element) {
+					role_elements.push(role_element)
+				}
+			}
+			roles_div.innerHTML = ""
+			for (let element of role_elements) {
+				roles_div.appendChild(element)
+			}
+		}
+	}
+}
+
 function hoist_faction() {
 	let ppl = document.getElementById("power_panel_list")
 	ppl.insertBefore(document.getElementById(`${view.player}`), document.getElementById("Axis"))
@@ -850,6 +872,7 @@ function on_update(){
 
 	hoist_faction()
 	process_actions()
+	update_turn_order_display()
 }
 
 function on_reply(what, response){}

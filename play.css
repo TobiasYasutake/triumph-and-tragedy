@@ -14,6 +14,13 @@
 	background-color: #ece1a9;
 }
 
+/* COLORS */
+
+#role_West { background-color: lightskyblue }
+#role_Axis { background-color: lightgrey }
+#role_USSR { background-color: #f88}
+
+
 .diplomacy {
 	width: 1700px;
 	height: 200px;
