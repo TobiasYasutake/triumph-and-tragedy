@@ -3865,7 +3865,7 @@ states.vault_reveal = {
 		if (typeof inactive === "function")
 			return inactive()
 		else
-			return `Waiting for ${game.active} to ${inactive}`
+			return `Waiting for ${game.active} to ${inactive}.`
 	},
 	prompt(){
 		view.prompt = "Revealing a tech. Please click on the card you wish to DISCARD of your revealing pair."
@@ -4188,6 +4188,41 @@ states.declare_war = {
 	}
 }
 
+// === REMOVE PIECES (VOLUNTARILY) ===
+
+function action_remove_pieces() {
+	push_undo()
+	game.previous_state = game.state
+	game.state = "remove_pieces"
+	log_br()
+}
+
+states.remove_pieces = {
+	inactive() {
+		let inactive = states[game.previous_state]?.inactive || game.state
+		if (typeof inactive === "function")
+			return inactive()
+		else
+			return `Waiting for ${game.active} to ${inactive}.`
+	},
+	prompt() {
+		view.prompt = "Remove blocks from the map."
+		for (let i = 0; i < game.block_location.length; i++){
+			if (faction_of_block(i) === game.activeNum) gen_action_block(i)
+		}
+		view.actions.done = 1
+	},
+	block(b) {
+		log(game.active + " removed a block from " + game.block_location[b])
+		remove_block(b)
+	},
+	done() {
+		game.state = game.previous_state
+		game.previous_state = null
+		//logic to not break a million things
+	},
+}
+
 exports.setup = function (seed, scenario, options) {
 	game = {
 		seed: seed,
@@ -4482,7 +4517,7 @@ exports.view = function (state, player) {
 	}
 	if (game.defender === null || factions_in_group(game.active_battle_blocks).length < 2) view.battle = null
 	mask_blocks(playerNum)
-
+	
 	if (game.state === "game_over") {
 		view.prompt = game.victory
 		view.vault = game.vault
@@ -4499,6 +4534,7 @@ exports.view = function (state, player) {
 			view.prompt = `Waiting for ${game.active} to ${inactive}.`
 	} else {
 		view.actions = {}
+		view.actions.remove_pieces = 1
 		if (states[game.state]){
 			states[game.state].prompt()
 			if (has_vault(game.activeNum) && game.state !== "vault_reveal" && game.state !== "vault_reveal_battle" && game.state !== "double_agent") {
@@ -4543,6 +4579,7 @@ exports.action = function (state, _player, action, arg) {
 			game.previous_state = game.state
 			game.state = "vault_reveal"
 		}
+		else if (action === "remove_pieces") action_remove_pieces()
 		else
 			throw new Error("Invalid action: " + action)
 	}
