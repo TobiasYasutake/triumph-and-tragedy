@@ -4188,16 +4188,23 @@ states.declare_war = {
 	}
 }
 
-// === REMOVE PIECES (VOLUNTARILY) ===
+// === REMOVE BLOCKS AND INFLUENCE (VOLUNTARILY) ===
 
-function action_remove_pieces() {
+function action_remove_blocks() {
 	push_undo()
 	game.previous_state = game.state
-	game.state = "remove_pieces"
+	game.state = "remove_blocks"
 	log_br()
 }
 
-states.remove_pieces = {
+function action_remove_influence() {
+	push_undo()
+	game.previous_state = game.state
+	game.state = "remove_influence"
+	log_br()
+}
+
+states.remove_blocks = {
 	inactive() {
 		let inactive = states[game.previous_state]?.inactive || game.state
 		if (typeof inactive === "function")
@@ -4213,8 +4220,40 @@ states.remove_pieces = {
 		view.actions.done = 1
 	},
 	block(b) {
-		log(game.active + " removed a block from " + game.block_location[b])
+		log(`${game.active} removed a block from ${game.block_location[b]}.`)
 		remove_block(b)
+	},
+	done() {
+		game.state = game.previous_state
+		game.previous_state = null
+		//logic to not break a million things
+	},
+}
+
+states.remove_influence = {
+	inactive() {
+		let inactive = states[game.previous_state]?.inactive || game.state
+		if (typeof inactive === "function")
+			return inactive()
+		else
+			return `Waiting for ${game.active} to ${inactive}.`
+	},
+	prompt() {
+		view.prompt = "Remove influence from the map."
+		for (let i = 0; i < game.influence.length; i++){
+			if (game.influence[i]%10 !== 0 && Math.floor(game.influence[i]/10) === game.activeNum){
+				const country = COUNTRIES[i].name
+				for (let r = 0; r < REGIONS.length; r++) if (REGIONS[r].country && REGIONS[r].country === country) gen_action_region(r)
+			}
+		}
+		view.actions.done = 1
+	},
+	region(r) {
+		const country = REGIONS[r].country
+		const c = COUNTRIES.findIndex(x => x.name === country)
+		log(`${game.active} removed an influence from ${country}.`)
+		if (game.influence[c]%10 === 1) game.influence[c] = -1
+		else game.influence[c] -= 1
 	},
 	done() {
 		game.state = game.previous_state
@@ -4534,7 +4573,8 @@ exports.view = function (state, player) {
 			view.prompt = `Waiting for ${game.active} to ${inactive}.`
 	} else {
 		view.actions = {}
-		view.actions.remove_pieces = 1
+		view.actions.remove_blocks = 1
+		view.actions.remove_influence = 1
 		if (states[game.state]){
 			states[game.state].prompt()
 			if (has_vault(game.activeNum) && game.state !== "vault_reveal" && game.state !== "vault_reveal_battle" && game.state !== "double_agent") {
@@ -4579,7 +4619,8 @@ exports.action = function (state, _player, action, arg) {
 			game.previous_state = game.state
 			game.state = "vault_reveal"
 		}
-		else if (action === "remove_pieces") action_remove_pieces()
+		else if (action === "remove_blocks") action_remove_blocks()
+		else if (action === "remove_influence") action_remove_influence()
 		else
 			throw new Error("Invalid action: " + action)
 	}
