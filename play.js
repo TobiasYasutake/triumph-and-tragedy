@@ -810,6 +810,32 @@ function escape_text(text) { //copied from POG
 	return text
 }
 
+function action_menu_item(action) {
+	let menu = document.getElementById(action + "_menu")
+	if (view.actions && action in view.actions) {
+		menu.classList.toggle("hide", false)
+		menu.classList.toggle("disabled", view.actions[action] === 0)
+		return 1
+	} else {
+		menu.classList.toggle("hide", true)
+		return 0
+	}
+}
+
+function action_menu(menu, action_list) {
+	let x = 0
+	for (let action of action_list)
+		x |= action_menu_item(action)
+	menu.classList.toggle("hide", !x)
+}
+
+function update_action_menu(){
+	action_menu(document.getElementById("negotiate_menu"), [
+		"remove_blocks",
+		"remove_influence",
+		"ping",
+	])
+}
 
 function on_update(){
 	action_button("draw", "Draw Cards")
@@ -853,6 +879,7 @@ function on_update(){
 	action_button("end_combat", "End combat")
 
 	action_button("done", "Done")
+	action_button("resume", "Resume")
 	action_button("undo", "Undo")
 	action_button("reveal", "Reveal")
 	action_button("vault", "Place in Vault")
@@ -873,6 +900,7 @@ function on_update(){
 	hoist_faction()
 	process_actions()
 	update_turn_order_display()
+	update_action_menu()
 }
 
 function on_reply(what, response){}

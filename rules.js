@@ -2037,6 +2037,7 @@ var view
 
 //SETUP
 states.setup = {
+	disable_negotiation: true,
 	inactive: "Setup",
 	prompt(){
 		view.prompt = "Place starting Cadres."
@@ -3860,6 +3861,7 @@ states.blockade = { //Craig said that blockades should just be an acknowledgemen
 }
 
 states.vault_reveal = {
+	disable_negotiation: true,
 	inactive() {
 		let inactive = states[game.previous_state]?.inactive || game.state
 		if (typeof inactive === "function")
@@ -4205,6 +4207,7 @@ function action_remove_influence() {
 }
 
 states.remove_blocks = {
+	disable_negotiation: true,
 	inactive() {
 		let inactive = states[game.previous_state]?.inactive || game.state
 		if (typeof inactive === "function")
@@ -4231,6 +4234,7 @@ states.remove_blocks = {
 }
 
 states.remove_influence = {
+	disable_negotiation: true,
 	inactive() {
 		let inactive = states[game.previous_state]?.inactive || game.state
 		if (typeof inactive === "function")
@@ -4259,6 +4263,63 @@ states.remove_influence = {
 		game.state = game.previous_state
 		game.previous_state = null
 		//logic to not break a million things
+	},
+}
+
+// === PING ===
+
+function action_ping() {
+	if (!game.ping)
+		game.ping = { save_activeNum: game.activeNum, save_state: game.state }
+	game.state = "ping"
+}
+
+states.ping = {
+	disable_negotiation: true,
+	inactive: "Ping",
+	prompt() {
+		view.prompt = "Ping which faction to respond to chat?"
+		if (game.activeNum !== 0)
+			view.actions.axis = 1
+		if (game.activeNum !== 1)
+			view.actions.west = 1
+		if (game.activeNum !== 2)
+			view.actions.ussr = 1
+		view.actions.undo = 1
+	},
+	axis() {
+		game.active = FACTIONS[0]
+		game.activeNum = 0
+		game.state = "pong"
+	},
+	west() {
+		game.active = FACTIONS[1]
+		game.activeNum = 1
+		game.state = "pong" 
+	},
+	ussr() {
+		game.active = FACTIONS[2]
+		game.activeNum = 2
+		game.state = "pong"
+	},
+	undo() {
+		states.pong.resume()
+	},
+}
+
+states.pong = {
+	disable_negotiation: true,
+	inactive: "Ping",
+	prompt() {
+		view.prompt = FACTIONS[game.ping.save_activeNum] + " has requested your response in chat."
+		view.actions.resume = 1
+		view.actions.undo = 0
+	},
+	resume() {
+		game.activeNum = game.ping.save_activeNum
+		game.active = FACTIONS[game.ping.save_activeNum]
+		game.state = game.ping.save_state
+		delete game.ping
 	},
 }
 
@@ -4573,12 +4634,15 @@ exports.view = function (state, player) {
 			view.prompt = `Waiting for ${game.active} to ${inactive}.`
 	} else {
 		view.actions = {}
-		view.actions.remove_blocks = 1
-		view.actions.remove_influence = 1
 		if (states[game.state]){
 			states[game.state].prompt()
 			if (has_vault(game.activeNum) && game.state !== "vault_reveal" && game.state !== "vault_reveal_battle" && game.state !== "double_agent") {
 				view.actions.reveal_vault = 1
+			}
+			if (!states[game.state].disable_negotiation){
+				view.actions.remove_blocks = 1
+				view.actions.remove_influence = 1
+				view.actions.ping = 1
 			}
 		}
 		else
@@ -4619,8 +4683,12 @@ exports.action = function (state, _player, action, arg) {
 			game.previous_state = game.state
 			game.state = "vault_reveal"
 		}
-		else if (action === "remove_blocks") action_remove_blocks()
-		else if (action === "remove_influence") action_remove_influence()
+		else if (action === "remove_blocks") 
+			action_remove_blocks()
+		else if (action === "remove_influence") 
+			action_remove_influence()
+		else if (action === "ping")
+			action_ping(arg)
 		else
 			throw new Error("Invalid action: " + action)
 	}
