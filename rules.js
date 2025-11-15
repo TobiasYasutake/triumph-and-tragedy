@@ -1086,6 +1086,16 @@ function determine_blockades(){
 	}
 	game.blockade_possible = blockade_possible
 	game.blockade_transafrica_possible = blockade_transafrica_possible
+	let bp = game.blockade_possible
+	let btp = game.blockade_transafrica_possible 
+	if (bp.length === 0 && btp.length === 0) {
+		log('No blockades possible.')
+		next_season()
+	} else {
+		game.state = 'blockade'
+		make_active(game.turn_order[2])
+		next_blockades(true)
+	}
 }
 
 function start_blockades(){
@@ -1098,16 +1108,16 @@ function start_blockades(){
 		log_br()
 		log("Blockade:")
 		determine_blockades()
-		let bp = game.blockade_possible
-		let btp = game.blockade_transafrica_possible 
-		if (bp.length === 0 && btp.length === 0) {
-			log('No blockades possible.')
-			next_season()
-		} else {
-			game.state = 'blockade'
-			make_active(game.turn_order[2])
-			next_blockades(true)
-		}
+		// let bp = game.blockade_possible
+		// let btp = game.blockade_transafrica_possible 
+		// if (bp.length === 0 && btp.length === 0) {
+		// 	log('No blockades possible.')
+		// 	next_season()
+		// } else {
+		// 	game.state = 'blockade'
+		// 	make_active(game.turn_order[2])
+		// 	next_blockades(true)
+		// }
 	}
 }
 
@@ -2813,6 +2823,7 @@ function  resolve_espionage(){
 	game.state = state_from_special(ICARDS[game.selected].special)
 }
 states.double_agent = {
+	disable_vault: 1,
 	inactive: `potentially reverse with double agent`,
 	prompt(){
 		const da = has_double_agent(game.activeNum)
@@ -3397,6 +3408,7 @@ states.movement = {
 }
 
 states.movement_move = {
+	disable_remove_block: 1,
 	inactive: "move units",
 	prompt(){
 		view.prompt = `Move units: ${game.count} moves left.`
@@ -3447,6 +3459,7 @@ states.movement_move = {
 
 // COMBAT
 states.choose_battle = {
+	disable_remove_block: 1,
 	inactive: "choose battles",
 	prompt(){
 		view.prompt = "Choose where to battle next."
@@ -3488,6 +3501,7 @@ states.choose_battle = {
 }
 
 states.choose_defender = {
+	disable_remove_block: 1,
 	inactive: "choose battles",
 	prompt(){
 		const sea = REGIONS[game.active_battle].type === 'sea'
@@ -3512,6 +3526,7 @@ states.choose_defender = {
 }
 
 states.add_battle_group = {
+	disable_remove_block: 1,
 	inactive: "choose battles",
 	prompt(){
 		view.prompt = "Add a battle group."
@@ -3557,6 +3572,7 @@ function add_battle_group(b){
 }
 
 states.battle = {
+	disable_remove_block: 1,
 	inactive: "battle",
 	prompt(){
 		view.prompt = "Attack or retreat!"
@@ -3627,6 +3643,7 @@ function slate_block_to_attack (f) {
 } 
 
 states.choose_target_battle = {
+	disable_remove_block: 1,
 	inactive: "battle",
 	prompt(){
 		view.prompt = "What faction is this block targeting?"
@@ -3662,6 +3679,7 @@ states.choose_target_battle = {
 }
 
 states.damage = {
+	disable_remove_block: 1,
 	inactive: "take damage",
 	prompt() {
 		const hit = game.hits === 1? " hit left." : " hits left." 
@@ -3701,6 +3719,7 @@ ReBase (exception: Escaped Subs may
 not ReBase). */
 
 states.choose_retreat = {
+	disable_remove_block: 1,
 	inactive: "retreat or rebase",
 	prompt(){
 		//if game.defender === null then this was end of combat
@@ -3744,6 +3763,7 @@ states.choose_retreat = {
 }
 
 states.retreat = {
+	disable_remove_block: 1,
 	//if game.defender === null then this was end of combat
 	//if game.must === null then this is an action
 	//if neither then this is a sub escape/airplain at the end of a sea battle forced rebase
@@ -3812,8 +3832,10 @@ states.retreat = {
 states.blockade = { //Craig said that blockades should just be an acknowledgement, and that blockades aren't optional. 
 	inactive: "Blockade",
 	prompt(){
+		const done = game.blockade_possible.length === 0 && game.blockade_transafrica_possible.length === 0
 		view.prompt = "Mark Blockades."
-		view.actions.mark_all = 1
+		view.actions.mark_all = done ? 0:1
+		view.actions.done = done ? 1:0
 		//view.actions.pass = 1
 		//Needs work
 		//determine which regions could be blockades
@@ -3835,6 +3857,7 @@ states.blockade = { //Craig said that blockades should just be an acknowledgemen
 	// 	else throw new Error ('')
 	// },
 	mark_all(){
+		push_undo()
 		for (let i = game.blockade_possible.length -1; i >= 0; i--) {
 			let tp = trade_partner(game.blockade_possible[i])
 			if (tp !== game.activeNum) {
@@ -3853,15 +3876,15 @@ states.blockade = { //Craig said that blockades should just be an acknowledgemen
 				
 			}
 		}
-		next_blockades(false)
 	},
-	// pass(){
-	// 	next_blockades(false)
-	// }
+	done(){
+		next_blockades(false)
+	}
 }
 
 states.vault_reveal = {
-	disable_negotiation: true,
+	disable_negotiation: 1,
+	disable_vault: 1,
 	inactive() {
 		let inactive = states[game.previous_state]?.inactive || game.state
 		if (typeof inactive === "function")
@@ -3901,6 +3924,8 @@ states.vault_reveal = {
 }
 
 states.vault_reveal_battle = {
+	disable_remove_block: 1,
+	disable_vault: 1,
 	inactive: "reveal vault tech",
 	prompt(){
 		view.prompt = "You may reveal a tech. Please click on the card you wish to DISCARD of your revealing pair."
@@ -4207,7 +4232,8 @@ function action_remove_influence() {
 }
 
 states.remove_blocks = {
-	disable_negotiation: true,
+	disable_negotiation: 1,
+	disable_vault: 1,
 	inactive() {
 		let inactive = states[game.previous_state]?.inactive || game.state
 		if (typeof inactive === "function")
@@ -4220,21 +4246,26 @@ states.remove_blocks = {
 		for (let i = 0; i < game.block_location.length; i++){
 			if (faction_of_block(i) === game.activeNum) gen_action_block(i)
 		}
-		view.actions.done = 1
+		view.actions.done = game.deleted_something? 1 : 0
 	},
 	block(b) {
 		log(`${game.active} removed a block from ${game.block_location[b]}.`)
+		game.deleted_something = 1
 		remove_block(b)
 	},
 	done() {
+		push_undo()
 		game.state = game.previous_state
 		game.previous_state = null
+		delete game.deleted_something
 		//logic to not break a million things
+		if (game.state === "blockade") determine_blockades()
 	},
 }
 
 states.remove_influence = {
-	disable_negotiation: true,
+	disable_negotiation: 1,
+	disable_vault: 1,
 	inactive() {
 		let inactive = states[game.previous_state]?.inactive || game.state
 		if (typeof inactive === "function")
@@ -4250,18 +4281,21 @@ states.remove_influence = {
 				for (let r = 0; r < REGIONS.length; r++) if (REGIONS[r].country && REGIONS[r].country === country) gen_action_region(r)
 			}
 		}
-		view.actions.done = 1
+		view.actions.done = game.deleted_something? 1 : 0
 	},
 	region(r) {
 		const country = REGIONS[r].country
 		const c = COUNTRIES.findIndex(x => x.name === country)
 		log(`${game.active} removed an influence from ${country}.`)
+		game.deleted_something = 1
 		if (game.influence[c]%10 === 1) game.influence[c] = -1
 		else game.influence[c] -= 1
 	},
 	done() {
+		push_undo()
 		game.state = game.previous_state
 		game.previous_state = null
+		delete game.deleted_something
 		//logic to not break a million things
 	},
 }
@@ -4275,7 +4309,8 @@ function action_ping() {
 }
 
 states.ping = {
-	disable_negotiation: true,
+	disable_negotiation: 1,
+	disable_vault: 1,
 	inactive: "Ping",
 	prompt() {
 		view.prompt = "Ping which faction to respond to chat?"
@@ -4307,13 +4342,26 @@ states.ping = {
 	},
 }
 
+function previous_state_disable(type){
+	if (game) {
+		const state = game.ping.save_state 
+		if (type === 'block' && states[state].disable_remove_block) return 1
+		if (type === 'influence' && states[state].disable_remove_influence) return 1
+		if (type === 'vault' && states[state].disable_vault) return 1
+	}
+	return 0
+}
+
 states.pong = {
-	disable_negotiation: true,
+	disable_ping: 1,
 	inactive: "Ping",
 	prompt() {
 		view.prompt = FACTIONS[game.ping.save_activeNum] + " has requested your response in chat."
 		view.actions.resume = 1
-		view.actions.undo = 0
+		view.actions.undo = last_undo_same_player()? 1 : 0
+		view.drb = previous_state_disable('block')
+		view.dri = previous_state_disable('influence')
+		view.dv = previous_state_disable('vault')
 	},
 	resume() {
 		game.activeNum = game.ping.save_activeNum
@@ -4636,13 +4684,12 @@ exports.view = function (state, player) {
 		view.actions = {}
 		if (states[game.state]){
 			states[game.state].prompt()
-			if (has_vault(game.activeNum) && game.state !== "vault_reveal" && game.state !== "vault_reveal_battle" && game.state !== "double_agent") {
+			if ((!states[game.state].disable_vault) && !view.dv && has_vault(game.activeNum)) /*game.state !== "vault_reveal" && game.state !== "vault_reveal_battle" && game.state !== "double_agent"*/
 				view.actions.reveal_vault = 1
-			}
 			if (!states[game.state].disable_negotiation){
-				view.actions.remove_blocks = 1
-				view.actions.remove_influence = 1
-				view.actions.ping = 1
+				if (!states[game.state].disable_remove_block && !view.drb) view.actions.remove_blocks = 1
+				if (!states[game.state].disable_remove_influence && !view.dri) view.actions.remove_influence = 1
+				if (!states[game.state].disable_ping) view.actions.ping = 1
 			}
 		}
 		else
@@ -4771,6 +4818,13 @@ function log_br() {
 
 function clear_undo() {
 	game.undo.length = 0
+}
+
+function last_undo_same_player() {
+	if (game.undo.length > 0) {
+		return game.undo[game.undo.length -1].activeNum === game.activeNum
+	}
+	return false
 }
 
 function push_undo() {
