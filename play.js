@@ -63,6 +63,7 @@ function faction_of_block(b){
 }
 
 const ui = {
+	map: document.getElementById("map"),
 	prompt: document.getElementById("prompt"),
 	status: document.getElementById("status"),
 	header: document.querySelector("header"),
@@ -910,15 +911,15 @@ function on_reply(what, response){}
 
 function toggle_pieces() {
 	// Cycle between showing everything, only pieces, and nothing.
-	let hidden_pieces = ui.pieces_element.classList.contains("hide")
-	let hidden_markers = ui.markers_element.classList.contains("hide")
-	if (hidden_pieces && hidden_markers) {
-		ui.pieces_element.classList.remove("hide")
-		ui.markers_element.classList.remove("hide")
-	} else if (hidden_pieces) {
-		ui.markers_element.classList.add("hide")
+	let hidden_blocks = ui.blocks_element.classList.contains("hide")
+	let hidden_tokens = ui.tokens_element.classList.contains("hide")
+	if (hidden_blocks && hidden_tokens) {
+		ui.blocks_element.classList.remove("hide")
+		ui.tokens_element.classList.remove("hide")
+	} else if (hidden_blocks) {
+		ui.tokens_element.classList.add("hide")
 	} else {
-		ui.pieces_element.classList.add("hide")
+		ui.blocks_element.classList.add("hide")
 	}
 }
 
