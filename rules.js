@@ -793,7 +793,7 @@ function contains_faction(r, f) {
 }
 function contains_neutral(r) {
 	for (let i = 0; i < game.block_nation.length; i++) {
-		if (game.block_location[i] === r && game.block_nation[6]) return true
+		if (game.block_location[i] === r && game.block_nation[i] === 6) return true
 	}
 	return false
 }
@@ -1439,6 +1439,7 @@ function conquest_influence(){
 	COLONIES["Britain"].forEach(x => set_add(british_colonies, COUNTRIES.findIndex(y => y.name === x)))
 
 	for (let c = 0; c < COUNTRIES.length; c++) {
+		if (COUNTRIES[c].name === 'Albania') continue //Albania cannot be conquered because it doesn't have a capital
 		const r = REGIONS.findIndex(x => x.name === COUNTRIES[c].capital)
 		const f = game.control[r]
 		if (f === -1 || game.influence[c] === f*10 || map_has(game.battle, r)) continue
