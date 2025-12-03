@@ -259,7 +259,10 @@ function update_blocks(){
 			e.className = "block"
 		}
 		e.classList.remove("dead")
+		e.classList.remove("NeutralFort")
+		e.classList.remove("Fort")
 		e.classList.toggle("moved", view.block_moved.includes(i))
+		e.classList.toggle("selected", ((Array.isArray(view.selected) && view.selected.includes(i)) || view.selected === i))
 		e.classList.add(NATIONS[view.block_nation[i]])
 		if (!areas[view.block_location[i]]) areas[view.block_location[i]] = []
 		areas[view.block_location[i]].push(i)

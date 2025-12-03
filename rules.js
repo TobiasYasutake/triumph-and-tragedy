@@ -1242,7 +1242,8 @@ function retreat_locations(r, b) {
 			!(set_has(rss, space)) && //c: [Defenders only] Areas from which the Enemy Engaged them that Player Turn
 			(os === space || os === false) && //d: [Attackers only] Any area other than the one from which they Engaged into the Battle, if they Engaged that Turn
 			(is_ans(b) || (//e: [Ground units only] Sea Areas, unless they are Friendly-occupied. Also: border limits
-				c !== 3 && 
+				c === 3 &&
+				contains_faction(space, game.activeNum) &&
 				border_limit(space, r) >= map_get(game.border_count, get_border_id(space, r ), 0) -
 				(REGIONS[space].type === 'sea' && has_tech(f, 'LSTs'))//-1 from the count for invasions
 			)) && 
@@ -1343,8 +1344,8 @@ function next_player_retreat(){
 	const fs = factions_in_group(group)
 	if (fs.length === 0) {//either start another sea combat round or end the battle OR force an entire new combat at sea
 		const fsr = factions_in_region(game.active_battle)
-		if (game.defender !== null) new_sea_combat_round()
-		else if (game.attacker === null) next_season(true)  //if attacker and defender are null then this is during the supply check phase
+		if (game.attacker === null) next_season(true)  //if attacker is null then this is during the supply check phase
+		else if (game.defender !== null && set_has(fsr, game.defender)) new_sea_combat_round() //defender should be null for all land battles by this point.
 		else if (REGIONS[game.active_battle].type === 'sea' && fsr.length >= 2 && are_enemies(fsr[0], fsr[1])){
 			log(`The ${game.attacker} have defeated one enemy, but now needs to fight the other.`)
 			create_emergency_battle_group() //will end up either in prebattle setup, or choose battlegroup
@@ -1709,12 +1710,12 @@ function determine_control(f){
 
 function who_controls_region(r, f){ //control of a location: 
 	if (map_has(game.battle, r)) return map_get(game.battle, r)[0] //The first to own blocks in a contested area.
-	//If it isn't contested, who has a block there that isn't a hiding sub? From the perspective of the activeNum, rival boats don't count
+	//If it isn't contested, who has a block there that isn't a hiding sub? From the perspective of the activeNum, self and rival boats don't count
 	for (let i = 0; i < game.block_location.length; i++){ 
 		if (game.block_location[i] === r) {
 			let fob = faction_of_block(i)
 			if (REGIONS[r].type === "sea" && f === undefined) throw new Error("A faction is a required param for any check that could include a sea")
-			if (REGIONS[r].type === "sea" && (f !== fob && !are_enemies(f, fob)) || hiding_sub(i)) continue
+			if (REGIONS[r].type === "sea" && (f === fob || !are_enemies(f, fob)) || hiding_sub(i)) continue
 			return fob
 		}
 	}
@@ -3165,14 +3166,14 @@ function unit_move_type(b) {
 	}
 }
 
-function strategic_possible(b) { //not if disengaging
+function strategic_possible(b) { //not if disengaging, caught elsewhere
 	if (game.block_type[b] === 1 && REGIONS[game.block_location[b]].type === 'sea' ||
 		contains_hiding_enemy_sub(game.block_location[b])
 	) return 0 //not air at sea, not if enemy sub hiding in location
 	return 1
 }
 
-function aggression_possible(b){ //not if disengaging
+function aggression_possible(b){ //not if disengaging, caught elsewhere
 	if ((ACARDS[game.command_card[game.activeNum]].season !== game.phase && game.phase !== 'Winter') || //not with emergency command
 		(game.block_type[b] === 1 && REGIONS[game.block_location[b]].type === 'sea')) //not air at sea
 		return 0
@@ -3245,8 +3246,8 @@ function update_mvmt(b, m, r){
 	if (m.moves > m.max_moves) m.strategic_move = 1
 	if ((ctrl !== f && ctrl !== 3) || 
 		contains_hiding_enemy_sub(r, f)) m.strategic_possible = 0
-	if (area.type === 'strait' && f !== ctrl && !is_neutral(area.country) && 
-		!are_enemies(f, ctrl, r)) m.aggression_possible = 0
+	// if (area.type === 'strait' && f !== ctrl && !is_neutral(area.country) && 
+	// 	!are_enemies(f, ctrl, r)) m.aggression_possible = 0
 	if ((m.moves >= m.max_moves && m.strategic_possible === 0) || (m.moves >= m.max_moves*2) || //out of moves
 		(m.move_type && m.move_type === 'sea' && area.type === 'land') ||
 		(m.move_type && m.move_type === 'land' && area.type === 'sea') ||
@@ -3342,6 +3343,9 @@ function end_block_move(b){
 		}
 	}
 
+	//if (c && contains_neutral(r) && !is_ans(game.selected) && are_enemies(game.activeNum, game.minor_aggressor[COUNTRIES.findIndex(x => x.name === c)])) 
+	//	set_add(game.gained_control[game.activeNum], COUNTRIES.findIndex(x => x.name === c)) //moved to its proper place, needs modification.
+
 	game.selected = null
 	game.mvmt = {}
 	game.count -= 1
@@ -3384,7 +3388,7 @@ states.movement = {
 			land_combat: 0,
 			sea_combat: 0,
 		}
-		if (game.control[game.block_location[b]] !== 3 && coexisting_blocks(game.block_location[b])) {
+		if (game.control[game.block_location[b]] !== 3 && contains_enemy_blocks(game.block_location[b], game.activeNum)) {
 			game.mvmt.disengage = 1
 			game.mvmt.strategic_possible = 0
 			game.mvmt.aggression_possible = 0
@@ -3443,8 +3447,8 @@ states.movement_move = {
 		}	
 		const c = REGIONS[r].country
 		const am = is_armed_minor(c)
-		if (c && contains_neutral(r) && are_enemies(game.activeNum, game.minor_aggressor[COUNTRIES.findIndex(x => x.name === c)])) 
-			set_add(game.gained_control[game.activeNum], COUNTRIES.findIndex(x => x.name === c))
+		// if (c && contains_neutral(r) && !is_ans(game.selected) && are_enemies(game.activeNum, game.minor_aggressor[COUNTRIES.findIndex(x => x.name === c)])) 
+		// 	set_add(game.gained_control[game.activeNum], COUNTRIES.findIndex(x => x.name === c)) This only happens if you END your move WITH GROUND in the spot
 		if (c && !am && REGIONS[r].type !== 'strait' && is_neutral(c)) arm_minor(c, game.activeNum)
 		if (REGIONS[game.mvmt.previous_space].type === 'strait' && is_neutral(REGIONS[game.mvmt.previous_space].country)) {
 			set_add(game.cannot_von, COUNTRIES.findIndex(x => x.name === REGIONS[game.mvmt.previous_space].country)) 
@@ -3534,22 +3538,21 @@ states.add_battle_group = {
 		view.actions.done = game.selected? 1 : 0
 		if (game.selected === null) {
 			for (let group in game.battle_groups) {
+				if (group%1000 !== game.active_battle) continue
 				for (let block of game.battle_groups[group]) {
-					if (faction_of_block(block) === game.activeNum) gen_action_block(block)
+					if (!set_has(game.active_battle_blocks, block)) gen_action_block(block)
 				}
 			}
 		}
 	},
 	block(b){
 		push_undo()
-		game.selected = b
-		game.block_moved = game.battle_groups[find_battle_group(b)]
+		game.selected = game.battle_groups[find_battle_group(b)]
 	},
 	done(){
 		clear_undo()
 		add_battle_group(game.selected)
 		game.selected = null
-		game.block_moved = []
 		if (factions_in_group(game.active_battle_blocks).length === 1) pre_battle_setup(game.active_battle)
 		else {
 			game.state = 'battle'
@@ -3566,8 +3569,8 @@ function find_battle_group(b) {
 	}
 }
 
-function add_battle_group(b){
-	let bg = find_battle_group(b)
+function add_battle_group(bg){
+	bg = find_battle_group(bg[0])
 	game.active_battle_blocks.push(...game.battle_groups[bg])
 	delete game.battle_groups[bg]
 }
