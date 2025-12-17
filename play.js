@@ -870,6 +870,8 @@ function on_update(){
 		"You still have left over comand points! \nAre you sure you want to end movement?"
 	)
 	action_button("declare_war", "Declare War")
+	action_button("partition", "Declare Partition")
+	action_button("intervention", "Declare Intervension")
 	action_button("axis", "Axis")
 	action_button("west", "West")
 	action_button("ussr", "USSR")

@@ -3357,8 +3357,8 @@ states.movement = {
 	inactive: "move units",
 	prompt(){
 		view.prompt = `Move units: ${game.count} moves left.`
-		let rel = game.relationship[game.activeNum]
-		if (game.block_moved.length === 0 && (rel.length === 0 || !rel[0] || !rel[1])) view.actions.declare_war = 1
+		//let rel = game.relationship[game.activeNum]
+		if (game.block_moved.length === 0 /*&& (rel.length === 0 || !rel[0] || !rel[1])*/) view.actions.declare_war = 1
 		if (game.count === 0) view.actions.end_movement = set_contains(game.aggression_met, game.surprise) ? 1 : 0
 		else {
 			view.actions.end_movement_confirm = set_contains(game.aggression_met, game.surprise) ? 1 : 0
@@ -4147,7 +4147,7 @@ function sea_battle_check(f1, f2){ //when war is declared, there needs to be com
 states.declare_war = {
 	inactive: "movement",
 	prompt(){
-		view.prompt = "Who do you wish to declare war on?"
+		view.prompt = "Declare War or Violation of Neutrality."
 		let aw = are_enemies(0,1)
 		let au = are_enemies(0,2)
 		let wu = are_enemies(1,2)
@@ -4156,6 +4156,15 @@ states.declare_war = {
 		case 1: if (!aw) view.actions.axis = 1; if (!wu) view.actions.ussr = 1; break
 		case 2: if (!au) view.actions.axis = 1; if (!wu) view.actions.west = 1; break
 		}
+		for (let i = 0; i < REGIONS.length; i++) {
+			if (REGIONS[i].type === 'sea') continue
+			const country = REGIONS[i].country
+			const c = COUNTRIES.findIndex(x => x.name === country)
+			if (is_neutral(c) && !is_armed_minor(c)) gen_action_region(i)
+		}
+		//if there are armed minors that you are not the aggressor of
+		view.actions.partition = 1
+		view.actions.intervention = 1
 	},
 	axis(){
 		push_undo()
@@ -4216,7 +4225,34 @@ states.declare_war = {
 		sea_battle_check(game.activeNum, 2)
 		determine_control(game.activeNum)
 		game.state = "movement"
+	},
+	partition(){
+		push_undo()
+		game.state = "partition"
+	},
+	intervention(){
+		push_undo()
+		game.state = "intervention"
+	},
+	region(r){
+		arm_minor(REGIONS[r].country, game.activeNum)
 	}
+}
+
+states.partition = {
+	//armed minor countries that are not your enemy
+	inactive: "movement",
+	prompt(){
+		view.prompt = "Declare War or Violation of Neutrality."
+	},
+}
+
+states.intervention = {
+	//armed minor countries that are your enemy's enemy.
+	inactive: "movement",
+	prompt(){
+		view.prompt = "Declare War or Violation of Neutrality."
+	},
 }
 
 // === REMOVE BLOCKS AND INFLUENCE (VOLUNTARILY) ===
