@@ -745,15 +745,10 @@ function lowest_type(blocks){
 	return lf
 }
 
-function contains_rival_blocks(r, f) { //enemy is used if you need to be enemies with the block to 'count'
+function contains_rival_blocks(r, f) { //enemy is used if you need to be enemies with the block to 'count' REWORK
 	for (let i = 0; i < game.block_location.length; i++) {
 		if (game.block_location[i] === r && !hiding_sub(i)){
-			const fob = faction_of_block(i)
-			if (fob === f) continue
-			if (fob !== -1) return true
-			//we are dealing with a minor block. Return true UNLESS the minor aggressor is enemies with the faction
-			const ma = game.minor_aggressor[COUNTRIES.findIndex(x => x.name === REGIONS[r].country)]
-			if (!are_enemies(f, ma)) return true
+			if (faction_of_block(i) !== f) return true
 		}
 	}
 
@@ -771,8 +766,6 @@ function contains_enemy_blocks(r, f) { //enemy is used if you need to be enemies
 			if (fob === f) continue
 			if (fob === -1){//this function is used for retreats, so all neutral blocks are 'enemies.' you need to end your MOVE in the MOVEMENT phase for intervention
 				//actually: intervention takes place in the end_movement_step, and only with ground forces, which means that 4ways are easier to do than I thought.
-				//const ma = game.minor_aggressor[COUNTRIES.findIndex(x => x.name === REGIONS[r].country)]
-				//if (!are_enemies(f, ma)) 
 				return true}
 			else if (are_enemies(f, fob)) return true
 		}
@@ -1482,8 +1475,8 @@ function arm_minor(country, f) {
 			if (pop > 0) game.block_steps[create_cadre(42, i)] = pop
 		}
 	}
-	//mark who is the aggressor
-	game.minor_aggressor[c] = f
+	//mark the aggressor
+	game.minor_aggressor[c] = f === 3 ? [] : [f]
 	if (f !== 3) { //this doesn't happen for revolting minor colonies
 		set_add(game.surprise, c)
 		game.peace_eligible[f] = 0
@@ -1496,7 +1489,7 @@ function arm_minor(country, f) {
 function defeat_minor(c) {
 	log(`${COUNTRIES[c].name} has been defeated.`)
 	set_delete(game.armed_minors, c)
-	game.minor_aggressor[c] = null
+	game.minor_aggressor[c] = undefined
 	for (let i = 0; i < game.block_location.length; i++) {
 		if (game.block_nation[i] === 6 && REGIONS[game.block_location[i]].country === c) remove_block[i]
 	}
@@ -1650,8 +1643,9 @@ function are_enemies(f1, f2, r){
 	if (f1 === -1 || f2 === -1)	{
 		if (r === undefined) return false
 		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
-		if (f1 === -1) return game.minor_aggressor[c] === f2
-		if (f2 === -1) return game.minor_aggressor[c] === f1
+		if (game.minor_aggressor[c] === undefined) return false
+		if (f1 === -1) return game.minor_aggressor[c].includes(f2)
+		if (f2 === -1) return game.minor_aggressor[c].includes(f1)
 	}
 	if (f1 === f2 || //you are not your own enemy
 		f1 === 3 || f2 === 3 || //you are not enemies at sea with rivals
@@ -1666,6 +1660,13 @@ function are_enemies(f1, f2, r){
 	} else {//west ussr
 		return game.relationship[1][1]? true : false
 	}
+}
+
+function enemy_in_group(f, es) {
+	for (let e of es) {
+		if (are_enemies(f, e)) return true
+	}
+	return false
 }
 
 function is_rival_capital(r, f) {
@@ -3197,6 +3198,18 @@ function first_block_in(b, r){
 	return true
 }
 
+function all_enemies_or_intervention(r, p){
+	const c = REGIONS[r].country ? COUNTRIES.findIndex(x => x.name === REGIONS[r].country) : false
+	const fs = factions_in_region(r)
+	set_add(fs, game.control[r])
+	for (let f of fs) {
+		if (f === p) continue //not counting yourself of course
+		if (f === -1 && c && game.intervention_required.includes(c)) continue
+		if (!are_enemies(f, p, r)) return false
+	}
+	return true
+}
+
 function legal_end_space(b, m, r){
 	const ans = is_ans(b)
 	const region = REGIONS[r]
@@ -3235,13 +3248,17 @@ function update_mvmt(b, m, r){
 	const c = area.country ? COUNTRIES.findIndex(x => x.name === area.country) : false
 	const ctrl = game.control[r]
 	const f = game.activeNum
-	m.moves += area.ocean ? 2 : 1
+	const ae = all_enemies_or_intervention(r, f)
+	
+	m.moves += area.ocean ? 2 : 1 
 	m.previous_space = game.block_location[b]
+	
 	if (!m.move_type) {
 		if (area.type === 'sea') {m.move_type = 'sea'; m.max_moves = 2}
 		else if (area.type === 'land') m.move_type = 'land'
 		if (REGIONS[m.previous_space].type === 'strait' && game.control[m.previous_space] !== f && !are_enemies(f, game.control[m.previous_space], m.previous_space)) {m.move_type = 'sea'; m.max_moves = 2}
 	} 
+
 	m.aggression = (ctrl === f || ctrl === 3) ? 0 : 1
 	if (m.moves > m.max_moves) m.strategic_move = 1
 	if ((ctrl !== f && ctrl !== 3) || 
@@ -3333,18 +3350,10 @@ function end_block_move(b){
 		if (can_hit_industry(b) && !map_has(game.battle, r)) map_set(game.battle, r, [game.control[r], game.activeNum]) //for bombing specifically, make it a battle so you don't conquere with air
 		if (game.block_type[b] !== 1 && !contains_enemy_blocks(r, game.activeNum) && set_has(game.battle_required, r)) {set_delete(game.battle_required, r); map_remove(game.battle, r)} //for bombing specifically, remove 
 		const fs = factions_in_region(r)
-		const c = REGIONS[r].country ? COUNTRIES.findIndex(x => x.name === REGIONS[r].country) : undefined
-		if (fs.length === 0 && game.control[r] !== -1) set_add(game.aggression_met, game.control[r])
+		if (fs.length === 1 && game.control[r] !== -1) set_add(game.aggression_met, game.control[r])
 		else for (let f of fs) 
 			if (f !== game.activeNum) set_add(game.aggression_met, f)
-		if (c && is_neutral(c)) {
-			set_add(game.aggression_met, COUNTRIES.findIndex(c => c.name === REGIONS[r].country)) 
-			if (!is_armed_minor(c)) arm_minor(REGIONS[r].country, game.activeNum)
-		}
 	}
-
-	//if (c && contains_neutral(r) && !is_ans(game.selected) && are_enemies(game.activeNum, game.minor_aggressor[COUNTRIES.findIndex(x => x.name === c)])) 
-	//	set_add(game.gained_control[game.activeNum], COUNTRIES.findIndex(x => x.name === c)) //moved to its proper place, needs modification.
 
 	game.selected = null
 	game.mvmt = {}
@@ -3359,7 +3368,7 @@ states.movement = {
 		view.prompt = `Move units: ${game.count} moves left.`
 		//let rel = game.relationship[game.activeNum]
 		if (game.block_moved.length === 0 /*&& (rel.length === 0 || !rel[0] || !rel[1])*/) view.actions.declare_war = 1
-		if (game.count === 0) view.actions.end_movement = set_contains(game.aggression_met, game.surprise) ? 1 : 0
+		if (game.count === 0) view.actions.end_movement = (set_contains(game.aggression_met, game.surprise) && set_contains(game.intervention_required, game.gained_control[game.activeNum])) ? 1 : 0
 		else {
 			view.actions.end_movement_confirm = set_contains(game.aggression_met, game.surprise) ? 1 : 0
 			for (let i = 0; i < game.block_nation.length; i++) {
@@ -3446,10 +3455,7 @@ states.movement_move = {
 			}
 		}	
 		const c = REGIONS[r].country
-		const am = is_armed_minor(c)
-		// if (c && contains_neutral(r) && !is_ans(game.selected) && are_enemies(game.activeNum, game.minor_aggressor[COUNTRIES.findIndex(x => x.name === c)])) 
-		// 	set_add(game.gained_control[game.activeNum], COUNTRIES.findIndex(x => x.name === c)) This only happens if you END your move WITH GROUND in the spot
-		if (c && !am && REGIONS[r].type !== 'strait' && is_neutral(c)) arm_minor(c, game.activeNum)
+
 		if (REGIONS[game.mvmt.previous_space].type === 'strait' && is_neutral(REGIONS[game.mvmt.previous_space].country)) {
 			set_add(game.cannot_von, COUNTRIES.findIndex(x => x.name === REGIONS[game.mvmt.previous_space].country)) 
 		}
@@ -4163,8 +4169,8 @@ states.declare_war = {
 			if (is_neutral(c) && !is_armed_minor(c)) gen_action_region(i)
 		}
 		//if there are armed minors that you are not the aggressor of
-		view.actions.partition = 1
-		view.actions.intervention = 1
+		view.actions.partition = partition_list(game.activeNum)? 1 : 0
+		view.actions.intervention = intervention_list(game.activeNum)? 1 : 0
 	},
 	axis(){
 		push_undo()
@@ -4235,24 +4241,77 @@ states.declare_war = {
 		game.state = "intervention"
 	},
 	region(r){
+		push_undo()
 		arm_minor(REGIONS[r].country, game.activeNum)
+		game.state = "movement"
 	}
 }
 
+function partition_list(f) { //armed minor countries that are not your enemy
+	const list = []
+	for (let i = 0; i < game.influence.length; i++){
+		//clause for already declared partition/intervetion countries
+		if (game.minor_aggressor[i] && !game.minor_aggressor[i].includes(f) &&
+			!set_has(game.intervention_required, i) && !set_has(game.surprise, i) //clause for already declared partition/intervetion countries
+		) list.push(COUNTRIES[i].name)
+	}
+	return list.length === 0? false : list
+}
+
+function intervention_list(f) { //armed minor countries that are your enemy's enemy.
+	const list = []
+	for (let i = 0; i < game.influence.length; i++){
+		
+		if (game.minor_aggressor[i] && !game.minor_aggressor[i].includes(f) && enemy_in_group(f, game.minor_aggressor[i]) &&
+			!set_has(game.intervention_required, i) && !set_has(game.surprise, i) //clause for already declared partition/intervetion countries
+		) list.push(COUNTRIES[i].name)
+	}
+	return list.length === 0? false : list
+}
+
 states.partition = {
-	//armed minor countries that are not your enemy
 	inactive: "movement",
 	prompt(){
-		view.prompt = "Declare War or Violation of Neutrality."
+		view.prompt = "Declare Partition."
+		view.actions.done = 1
+		const list = partition_list(game.activeNum)
+		for (let i = 0; i < REGIONS.length; i++) {
+			if (REGIONS[i].country && list.includes(REGIONS[i].country)) {
+				gen_action_region(i)
+			}
+		}
 	},
+	region(r){
+		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
+		log(`The ${game.active} have declared a partition of ${REGIONS[r].country}. They are now enemies.`)
+		game.minor_aggressor[c].push(game.activeNum)
+		set_add(game.surprise, c)
+	},
+	done(){
+		game.state = 'movement'
+	}
 }
 
 states.intervention = {
-	//armed minor countries that are your enemy's enemy.
 	inactive: "movement",
 	prompt(){
-		view.prompt = "Declare War or Violation of Neutrality."
+		view.prompt = "Declare Intervention."
+		view.actions.done = 1
+		const list = intervention_list(game.activeNum)
+		for (let i = 0; i < REGIONS.length; i++) {
+			if (REGIONS[i].country && list.includes(REGIONS[i].country)) {
+				gen_action_region(i)
+			}
+		}
 	},
+	region(r){
+		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
+		log(`The ${game.active} have declared an intervetion of ${REGIONS[r].country}, which becomes its satelite.`)
+		set_add(game.intervention_required, c)
+	},
+	done(){
+		game.state = 'movement'
+	}
 }
 
 // === REMOVE BLOCKS AND INFLUENCE (VOLUNTARILY) ===
@@ -4473,6 +4532,7 @@ exports.setup = function (seed, scenario, options) {
 		diplomacy: [[], [], []], //the value of the card, -1 if flipped.
 		control: [],
 		gained_control: [[], [], []], //countries gained control of during diplomacy
+		intervention_required: [],
 		
 		peace_eligible: [1, 1, 1], 
 		peace_dividend: [[], [], []], //first element is eligibility, other elements are the chits?
@@ -4510,7 +4570,8 @@ exports.setup = function (seed, scenario, options) {
 
 		influence: [], //-1 for neutral, 0 for axis control, 1-9 for axis points, 10 for west control, 11-19 for points, 20 for ussr control
 		//this means that /10 gets the faction, and %10 gets the point total (with 0 being control)
-		minor_aggressor: [], //a sparse array used to record who attacked what minor, based on the COUNTRY index
+		minor_aggressor: [], //a sparse array used to record who attacked what minor, based on the COUNTRY index 
+		//needs to be a sparse array of arrays unfortunately, as multiple factions can be an aggressor of a minor
 		armed_minors: [], //this is needed in the rare case that a fort is killed by non-ground units!
 
 		defeated_major_powers: [], //major powers are Italy, France, and USA 
