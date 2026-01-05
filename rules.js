@@ -4080,7 +4080,10 @@ states.gain_control = {
 				country_done = false
 		}
 		if (country_done) {
-			array_remove_item(game.gained_control[game.activeNum], COUNTRIES.findIndex(c => country === c.name))
+			const c = COUNTRIES.findIndex(x => country === x.name)
+			array_remove_item(game.gained_control[game.activeNum], c)
+			set_delete(game.armed_minors, c)
+			game.minor_aggressor[c] = undefined
 		}
 		if (game.gained_control[game.activeNum].length === 0){
 			game.selected = null
