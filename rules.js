@@ -4076,8 +4076,10 @@ states.gain_control = {
 		let country = REGIONS[game.block_location[b]].country
 		let country_done = true //if none of the regions in a country have a neutral, remove it! 
 		for (let i = 0; i < game.block_location.length; i++) {
-			if (game.block_nation[i] === 6 && REGIONS[game.block_location[i]].country === country) 
+			if (game.block_nation[i] === 6 && REGIONS[game.block_location[i]].country === country) {
 				country_done = false
+				break
+			}
 		}
 		if (country_done) {
 			const c = COUNTRIES.findIndex(x => country === x.name)
@@ -4254,11 +4256,19 @@ function partition_list(f) { //armed minor countries that are not your enemy
 }
 
 function intervention_list(f) { //armed minor countries that are your enemy's enemy.
+
+	function still_has_blocks(country) { // this is needed in the incredibly rare case where a neutral has been raided and has no blocks. No blocks = no reason to intervine.
+		for (let i = 0; i < game.block_location.length; i++) {
+			if (game.block_nation[i] === 6 && REGIONS[game.block_location[i]].country === country) return true
+		}
+		return false
+	}
+
 	const list = []
 	for (let i = 0; i < game.influence.length; i++){
-		
 		if (game.minor_aggressor[i] && !game.minor_aggressor[i].includes(f) && enemy_in_group(f, game.minor_aggressor[i]) &&
-			!set_has(game.intervention_required, i) && !set_has(game.surprise, i) //clause for already declared partition/intervetion countries
+			!set_has(game.intervention_required, i) && !set_has(game.surprise, i) && //clause for already declared partition/intervetion countries
+			still_has_blocks(COUNTRIES[i].name)
 		) list.push(COUNTRIES[i].name)
 	}
 	return list.length === 0? false : list
