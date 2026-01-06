@@ -471,6 +471,7 @@ function cleanup_player_turn(){
 	game.battle_raid = []
 	game.invasion_blocks = []
 	game.raid_retreat_blocks = []
+	game.intervention_required = []
 	//game.cannot_von = []
 	next_player_turn()
 }
