@@ -3227,17 +3227,35 @@ function update_battle(r){
 states.movement = {
 	inactive: "move units",
 	prompt(){
-		view.prompt = `Move units: ${game.count} left.`
+		const dec = set_no_intersect(game.surprise, game.aggression_met)
+		const int = set_no_intersect(game.intervention_required, game.gained_control[game.activeNum])
+		const move = game.count === 1? "move" : "moves"
+		let message = ''
+
+		if (dec.length !== 0) {
+			message += "Still must attack"
+			for (let c = 0; c < dec.length; c++){
+				if (dec[c] > 2) message += ` ${COUNTRIES[dec[c]].name}`
+				else message += ` ${FACTIONS[dec[c]]}`
+				if (c === dec.length -1) message += '.'
+				else message += ','
+			}
+		} 
+		if (int.length !== 0) {
+			message += " Still must intervene in"
+			for (let c = 0; c < dec.length; c++){
+				message += ` ${COUNTRIES[int[c]].name}`
+				if (c === dec.length -1) message += '.'
+				else message += ','
+			}
+		}
+		view.prompt = `Move units: ${game.count} ${move} left. ${message}`
+		
+
 		if (game.block_moved.length === 0) view.actions.declare_war = 1
-		if (game.count === 0) view.actions.end_movement = (
-			set_contains(game.aggression_met, game.surprise) && 
-			set_contains(game.intervention_required, game.gained_control[game.activeNum])
-		) ? 1 : 0
+		if (game.count === 0) view.actions.end_movement = dec.length === 0 && int.length === 0 ? 1 : 0
 		else {
-			view.actions.end_movement_confirm = (
-				set_contains(game.aggression_met, game.surprise) && 
-				set_contains(game.intervention_required, game.gained_control[game.activeNum])
-			) ? 1 : 0
+			view.actions.end_movement_confirm = dec.length === 0 && int.length === 0 ? 1 : 0
 			for (let i = 0; i < game.block_nation.length; i++) {
 				if (game.block_type[i] === 0) continue
 				if (set_has(game.block_moved, i)) continue
@@ -3292,7 +3310,30 @@ states.movement_move = {
 	disable_remove_block: 1,
 	inactive: "move units",
 	prompt(){
-		view.prompt = `Move units: ${game.count} left.`
+		const dec = set_no_intersect(game.surprise, game.aggression_met)
+		const int = set_no_intersect(game.intervention_required, game.gained_control[game.activeNum])
+		const move = game.count === 1? "move" : "moves"
+		let message = ''
+
+		if (dec.length !== 0) {
+			message += "Still must attack "
+			for (let c = 0; c < dec.length; c++){
+				if (c > 2) message += ` ${COUNTRIES[c].name}`
+				else message += ` ${FACTIONS[c]}`
+				if (c === dec.length) message += '.'
+				else message += ','
+			}
+		} 
+		if (int.length !== 0) {
+			message += " Still must intervene in"
+			for (let c = 0; c < dec.length; c++){
+				message += ` ${COUNTRIES[c].name}`
+				if (c === dec.length) message += '.'
+				else message += ','
+			}
+		}
+		view.prompt = `Move units: ${game.count} ${move} left. ${message}`
+
 		const spaces = BORDERS[game.block_location[game.selected]]
 		if (legal_end_space(game.selected, game.mvmt, game.block_location[game.selected])) gen_action_block(game.selected) 
 		else view.prompt = "This unit cannot end its move here."
@@ -3344,7 +3385,7 @@ function end_block_move(b){
 	}
 	set_delete(game.sub_hiding, b)
 
-	if (c && set_has(game.intervention_required, c) && !is_ans(b)) set_add (game.gain_control, c)
+	if (c && set_has(game.intervention_required, c) && !is_ans(b)) set_add (game.gained_control[game.activeNum], c)
 
 	if (game.mvmt.sea_combat || contains_hiding_enemy_sub(r)) {
 		const opr = o*1000000 + p*1000 +r //battle groups: original space, previous space, current space
@@ -4160,7 +4201,7 @@ states.declare_war = {
 			if (REGIONS[i].type === 'sea') continue
 			const c = COUNTRIES.findIndex(x => x.name === REGIONS[i].country)
 			if (is_neutral(c) && !is_armed_minor(c) && 
-			(c !== 4 || game.activeNum === 0) && //no violating America (unless Axis)
+			(c !== 4 || (game.activeNum === 0 && are_enemies(0, 1))) && //no violating America (unless Axis and at war with the West)
 			(game.influence[c]%10 !== 2 || Math.floor(game.influence[c]/10) === game.activeNum || //no violating countries with 2 influence, unless you are the patron...
 				are_enemies(Math.floor(game.influence[c]/10), game.activeNum)) //...or you are at war with the patron.
 			) gen_action_region(i) 
@@ -4171,6 +4212,7 @@ states.declare_war = {
 	},
 	axis(){
 		push_undo()
+		log(`The ${game.active} have declared war on the Axis.`)
 		game.peace_eligible[game.activeNum] = 0
 		game.peace_eligible[0] = 0
 		set_add(game.surprise, 0)
@@ -4191,6 +4233,7 @@ states.declare_war = {
 	},
 	west(){
 		push_undo()
+		log(`The ${game.active} have declared war on the West.`)
 		game.peace_eligible[game.activeNum] = 0
 		game.peace_eligible[1] = 0
 		set_add(game.surprise, 1)
@@ -4211,6 +4254,7 @@ states.declare_war = {
 	},
 	ussr(){
 		push_undo()
+		log(`The ${game.active} have declared war on the USSR.`)
 		set_add(game.surprise, 2)
 		game.peace_eligible[game.activeNum] = 0
 		game.peace_eligible[2] = 0
@@ -4239,6 +4283,7 @@ states.declare_war = {
 	},
 	region(r){
 		push_undo()
+		log(`The ${game.active} declares a VoN`)
 		arm_minor(REGIONS[r].country, game.activeNum)
 		game.state = "movement"
 	}
@@ -4257,7 +4302,7 @@ function partition_list(f) { //armed minor countries that are not your enemy
 
 function intervention_list(f) { //armed minor countries that are your enemy's enemy.
 
-	function still_has_blocks(country) { // this is needed in the incredibly rare case where a neutral has been raided and has no blocks. No blocks = no reason to intervine.
+	function still_has_blocks(country) { // this is needed in the incredibly rare case where a neutral has been raided and has no blocks. No blocks = no reason to intervene.
 		for (let i = 0; i < game.block_location.length; i++) {
 			if (game.block_nation[i] === 6 && REGIONS[game.block_location[i]].country === country) return true
 		}
@@ -4278,7 +4323,6 @@ states.partition = {
 	inactive: "movement",
 	prompt(){
 		view.prompt = "Declare Partition."
-		view.actions.done = 1
 		const list = partition_list(game.activeNum)
 		for (let i = 0; i < REGIONS.length; i++) {
 			if (REGIONS[i].country && list.includes(REGIONS[i].country)) {
@@ -4287,21 +4331,19 @@ states.partition = {
 		}
 	},
 	region(r){
+		push_undo()
 		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
 		log(`The ${game.active} have declared a partition of ${REGIONS[r].country}. They are now enemies.`)
 		game.minor_aggressor[c].push(game.activeNum)
 		set_add(game.surprise, c)
-	},
-	done(){
 		game.state = 'movement'
-	}
+	},
 }
 
 states.intervention = {
 	inactive: "movement",
 	prompt(){
 		view.prompt = "Declare Intervention."
-		view.actions.done = 1
 		const list = intervention_list(game.activeNum)
 		for (let i = 0; i < REGIONS.length; i++) {
 			if (REGIONS[i].country && list.includes(REGIONS[i].country)) {
@@ -4310,13 +4352,12 @@ states.intervention = {
 		}
 	},
 	region(r){
+		push_undo()
 		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
-		log(`The ${game.active} have declared an intervetion of ${REGIONS[r].country}, which becomes its satelite.`)
+		log(`The ${game.active} have declared an intervetion of ${REGIONS[r].country}, which will becomes its satelite.`)
 		set_add(game.intervention_required, c)
-	},
-	done(){
 		game.state = 'movement'
-	}
+	},
 }
 
 // === REMOVE BLOCKS AND INFLUENCE (VOLUNTARILY) ===
@@ -4537,7 +4578,7 @@ exports.setup = function (seed, scenario, options) {
 		diplomacy: [[], [], []], //the value of the card, -1 if flipped.
 		control: [],
 		gained_control: [[], [], []], //countries gained control of during diplomacy
-		intervention_required: [], //set of countries that the active player *must* intervine in this movement
+		intervention_required: [], //set of countries that the active player *must* intervene in this movement
 		
 		peace_eligible: [1, 1, 1], 
 		peace_dividend: [[], [], []], //first element is eligibility, other elements are the chits?
@@ -5116,6 +5157,14 @@ function set_intersect(one, two) {
 	let set = []
 	for (let item of one)
 		if (set_has(two, item))
+			set_add(set, item)
+	return set
+}
+
+function set_no_intersect(one, two) {
+	let set = []
+	for (let item of one)
+		if (!set_has(two, item))
 			set_add(set, item)
 	return set
 }
