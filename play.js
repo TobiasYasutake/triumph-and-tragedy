@@ -210,6 +210,13 @@ on_init()
 
 
 /* UPDATE UI */
+
+function reserve_select(){
+	return 	(view.prompt === "Place starting Cadres." || 
+		view.prompt.substring(0,16) === "Spend Production" || 
+		view.prompt.substring(0,15) === "Gain control of")
+}
+
 function layout_blocks(area, blocks){
 	//sort the blocks
 	let w = area.width ? area.width : 3 //should be based on region
@@ -262,7 +269,7 @@ function update_blocks(){
 		e.classList.remove("NeutralFort")
 		e.classList.remove("Fort")
 		e.classList.toggle("moved", view.block_moved.includes(i))
-		e.classList.toggle("selected", ((Array.isArray(view.selected) && view.selected.includes(i)) || view.selected === i))
+		e.classList.toggle("selected", (!reserve_select() && ((Array.isArray(view.selected) && view.selected.includes(i)) || view.selected === i)))
 		e.classList.add(NATIONS[view.block_nation[i]])
 		if (!areas[view.block_location[i]]) areas[view.block_location[i]] = []
 		areas[view.block_location[i]].push(i)
@@ -360,7 +367,7 @@ function update_reserves(){
 			let e = ui.reserves[Math.floor(i/7)].children[i%7]
 			e.firstElementChild.innerText = view.reserves[i]
 
-			if ((view.prompt === "Place starting Cadres." || view.prompt.substring(0,16) === "Spend Production" || view.prompt.substring(0,15) === "Gain control of") && view.selected === i) {
+			if (reserve_select() && view.selected === i) {
 				e.classList.add("selected")
 			} else {e.classList.remove("selected")}
 		}
