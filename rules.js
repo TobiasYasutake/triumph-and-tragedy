@@ -1144,8 +1144,9 @@ function process_supply(){
 			if (block_reduce(i)) {
 				const ngs = no_ground_support(r, f)
 				if (ngs) {
-				game.must_retreat = game.must_retreat ?? []
-				for (let block of ngs) set_add(game.must_retreat, block) //Needs Work QA testing
+					game.must_retreat = game.must_retreat ?? []
+					game.may_retreat = game.may_retreat ?? []
+					for (let block of ngs) set_add(game.must_retreat, block)
 				}
 			}			
 		}
@@ -1313,11 +1314,11 @@ function determine_retreats(r, finished){
 
 function next_player_retreat(){
 	const group = object_copy(game.must_retreat)
-	if (game.may_retreat) group.push(...game.may_retreat)
+	group.push(...game.may_retreat)
 	const fs = factions_in_group(group)
 	if (fs.length === 0) {//either start another sea combat round or end the battle OR force an entire new combat at sea
 		const fsr = factions_in_region(game.active_battle)
-		if (game.attacker === null) {game.must_retreat = null; next_season(true)}  //if attacker is null then this is during the supply check phase
+		if (game.attacker === null) {game.must_retreat = null; game.may_retreat = null; next_season(true)}  //if attacker is null then this is during the supply check phase
 		else if (game.defender !== null && set_has(fsr, game.defender)) new_sea_combat_round() //defender should be null for all land battles by this point.
 		else if (REGIONS[game.active_battle].type === 'sea' && fsr.length >= 2 && are_enemies(fsr[0], fsr[1])){
 			log(`The ${game.attacker} have defeated one enemy, but now needs to fight the other.`)
