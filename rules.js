@@ -166,7 +166,7 @@ function new_year(){
 
 	if (game.activeNum === 1 && game.usa_satellite && game.usa_reinforcements > 0 && game.usa_reinforcements < 4) {
 		game.state = 'production_usa'
-		game.usa_reinforcements_types = [1,3,5,6]
+		game.usa_reinforcements_types = [1,4,5,6]
 	} else 
 		game.state = 'production'
 }
@@ -201,7 +201,7 @@ function end_production(){
 
 			if (game.activeNum === 1 && game.usa_satellite && game.usa_reinforcements > 0 && game.usa_reinforcements < 4) {
 				game.state = 'production_usa'
-				game.usa_reinforcements_types = [1,3,5,6]
+				game.usa_reinforcements_types = [1,4,5,6]
 			} else 
 				game.state = 'production'
 		}
@@ -514,7 +514,7 @@ function usa_violation(){
 	usa_satellite()
 	game.usa_reinforcements = 1
 	set_add(game.gained_control[1], 4)
-	game.usa_reinforcements_types = [1,3,5,6]
+	game.usa_reinforcements_types = [1,4,5,6]
 }
 
 function usa_satellite(){
@@ -1216,8 +1216,7 @@ function retreat_locations(r, b) {
 			!(set_has(rss, space)) && //c: [Defenders only] Areas from which the Enemy Engaged them that Player Turn
 			(os === space || os === false) && //d: [Attackers only] Any area other than the one from which they Engaged into the Battle, if they Engaged that Turn
 			(is_ans(b) || (//e: [Ground units only] Sea Areas, unless they are Friendly-occupied. Also: border limits
-				c === 3 &&
-				contains_faction(space, game.activeNum) &&
+				(c === 3 && contains_faction(space, game.activeNum)) ||
 				border_limit(space, r) >= map_get(game.border_count, get_border_id(space, r ), 0) -
 				(REGIONS[space].type === 'sea' && has_tech(f, 'LSTs'))//-1 from the count for invasions
 			)) && 

@@ -214,7 +214,8 @@ on_init()
 function reserve_select(){
 	return 	(view.prompt === "Place starting Cadres." || 
 		view.prompt.substring(0,16) === "Spend Production" || 
-		view.prompt.substring(0,15) === "Gain control of")
+		view.prompt.substring(0,15) === "Gain control of" ||
+		view.prompt.substring(0,21) === "Place free USA blocks")
 }
 
 function layout_blocks(area, blocks){
