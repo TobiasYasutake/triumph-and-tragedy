@@ -2221,8 +2221,10 @@ states.production_usa = {
 	prompt(){
 		let message = ""
 		for (let type of game.usa_reinforcements_types){
-			message += ` ${TYPE[type]}`
-			gen_action_reserve(type+28)
+			if (game.reserves[type+28] !== 0) {
+				message += ` ${TYPE[type]}`
+				gen_action_reserve(type+28)
+			}
 		}
 		if (message === "") {
 			message = "finished."
@@ -2248,6 +2250,7 @@ states.production_usa = {
 	},
 	done(){
 		push_undo()
+		delete game.usa_reinforcements_types
 		game.state = 'production'
 	}
 }
