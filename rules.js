@@ -1237,7 +1237,7 @@ function rebase_locations(r, b, retreat) {
 
 	const os = map_get(game.aggressed_from, b, false)[0] //original space. Note that false[0] is undefined, not false
 
-	const battles = game.battle_fought //planes may fly through battles, so long as they aren't 'retreating'
+	const battles = object_copy(game.battle_fought) //planes may fly through battles, so long as they aren't 'retreating'
 	for (let i = 0; i < game.battle.length; i+=2) set_add(battles, game.battle[i])
 	for (let r of game.battle_raid) set_delete(battles, r) //raids don't block retreats
 
