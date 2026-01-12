@@ -1196,7 +1196,7 @@ function retreat_locations(r, b) {
 	const f = faction_of_block(b)
 	const os = map_get(game.aggressed_from, b, [false])[0] //original space
 
-	const battles = game.battle_fought
+	const battles = object_copy(game.battle_fought)
 	for (let i = 0; i < game.battle.length; i+=2) set_add(battles, game.battle[i])
 	for (let r of game.battle_raid) set_delete(battles, r)
 
