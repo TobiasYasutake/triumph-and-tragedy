@@ -1216,7 +1216,7 @@ function retreat_locations(r, b) {
 			!(set_has(rss, space)) && //c: [Defenders only] Areas from which the Enemy Engaged them that Player Turn
 			(os === space || os === false) && //d: [Attackers only] Any area other than the one from which they Engaged into the Battle, if they Engaged that Turn
 			(is_ans(b) || (//e: [Ground units only] Sea Areas, unless they are Friendly-occupied. Also: border limits
-				(c === 3 && contains_faction(space, game.activeNum)) ||
+				(c !== 3 || contains_faction(space, game.activeNum)) &&
 				border_limit(space, r) >= map_get(game.border_count, get_border_id(space, r ), 0) -
 				(REGIONS[space].type === 'sea' && has_tech(f, 'LSTs'))//-1 from the count for invasions
 			)) && 
@@ -3853,6 +3853,7 @@ states.retreat = {
 		game.block_location[b] = r
 		set_delete(game.active_battle_blocks, b)
 		
+		if (game.battle_raid.includes(r)) set_add(game.raid_retreat_blocks, b)
 		if (is_ans(b)) {
 			set_delete(game.sub_hiding, b)
 			if (game.may_retreat !== null) {
