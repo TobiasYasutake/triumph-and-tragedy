@@ -1193,6 +1193,10 @@ function check_supply(f) {
 //RETREATS AND REBASES
 function retreat_locations(r, b) {
 	const spaces = []
+	const ans = is_ans(b)
+
+	if (!ans && REGIONS[r].type === 'sea') return spaces //convoys cannot retreat
+
 	const f = faction_of_block(b)
 	const os = map_get(game.aggressed_from, b, [false])[0] //original space
 
@@ -1215,15 +1219,14 @@ function retreat_locations(r, b) {
 			!(set_has(battles, space)) && //b: Areas that contained Battles (other than Raids) that Player Turn [Raids do not block Retreats]
 			!(set_has(rss, space)) && //c: [Defenders only] Areas from which the Enemy Engaged them that Player Turn
 			(os === space || os === false) && //d: [Attackers only] Any area other than the one from which they Engaged into the Battle, if they Engaged that Turn
-			(is_ans(b) || (//e: [Ground units only] Sea Areas, unless they are Friendly-occupied. Also: border limits
+			(ans|| (//e: [Ground units only] Sea Areas, unless they are Friendly-occupied. Also: border limits
 				(c !== 3 || contains_faction(space, game.activeNum)) &&
 				border_limit(space, r) >= map_get(game.border_count, get_border_id(space, r ), 0) -
 				(REGIONS[space].type === 'sea' && has_tech(f, 'LSTs'))//-1 from the count for invasions
 			)) && 
-			(!is_ans(b) || game.block_type[b] === 1 || (bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, r)))//f: [NS only] Costal lines
+			(!ans || game.block_type[b] === 1 || (bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, r)))//f: [NS only] Costal lines
 		) spaces.push(space)
 	}
-
 	return spaces
 }
 
@@ -2792,6 +2795,8 @@ function cleanup_intel(){
 	array_remove_item(game.hand[game.activeNum][1], game.selected)
 	game.discard[1].push(game.selected)
 	game.selected = null
+	game.target = null
+	game.espionage = null
 	game.pass_count = 0
 	game.state = "government"
 	next_player()
