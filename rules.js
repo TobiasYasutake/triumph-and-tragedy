@@ -153,7 +153,7 @@ function new_year(){
 		influence_country(4, 1)
 		if (game.influence[4] === 13) usa_satellite()
 	}
-	game.usa_reinforcements = +1
+	game.usa_reinforcements += 1
 
 	game.phase = 'production'
 	log(".h2 Production Phase")
@@ -548,7 +548,7 @@ function victory_check(){// if someone has 25 vps (remember to count hidden vps 
 	for (let i = 0; i < 3; i++) {
 		vps[i] *= 2 //capitals are worth 2 points
 		vps[i] += determine_production(i)
-		vps[i] -= minus_war_vps(i)
+		vps[i] += minus_war_vps(i)
 		public_points[i] = vps[i]
 		for (let div of game.peace_dividend[i])
 			vps[i] += div
@@ -566,7 +566,7 @@ function victory_check_atomic(f, b){
 }
 
 function victory_check_hegemony(){
-	log ("the war is over: whoever has the most points wins")
+	log ("The game is over: the winner is whoever has the most points!")
 	const vps = captured_capitals()
 	for (let i = 0; i < 3; i++) {
 		vps[i] *= 2 //capitals are worth 2 points
@@ -690,7 +690,7 @@ function is_max_steps(b){
 function is_engaged(b) {
 	const r = game.block_location[b]
 	for (let i = 0; i < game.battle.length; i += 2) {
-		if (game.battles[i] === r) return true
+		if (game.battle[i] === r) return true
 	}
 	return false
 }
@@ -2215,6 +2215,7 @@ states.production = {
 	},
 	end_production_confirm(){
 		clear_undo()
+		game.count = 0
 		end_production()
 	}
 }
@@ -2918,14 +2919,16 @@ states.government_invent_mole = {
 		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
 		log(`${game.active} has invented ${tech}`)
 		game.tech[f].push(game.hand[f][1].splice(game.hand[f][1].indexOf(Math.abs(tc)), 1)[0]*side)
+		
+		//slightly modified version of cleanup_intel()
+		make_active(original_faction)
 		array_remove_item(game.hand[original_faction][1], c)
 		game.discard[1].push(c)
 		game.selected = null
-		game.espionage = null
 		game.target = null
+		game.espionage = null
 		game.pass_count = 0
 		game.state = "government"
-		make_active(original_faction)
 		next_player()
 	},
 	vault(){
@@ -2960,12 +2963,13 @@ states.acknowledge_mole = {
 		view.vault[game.espionage][vault.length-1] = vault[vault.length-1]
 	},
 	done(){
+		//slightly modified version of cleanup_intel()
 		make_active(game.selected)
-		game.state = "government"
 		game.selected = null
-		game.espionage = null
 		game.target = null
+		game.espionage = null
 		game.pass_count = 0
+		game.state = "government"
 		next_player()
 	}
 }
@@ -2979,6 +2983,8 @@ states.agent = {
 		}
 	},
 	region(r) { //Needs work figure out the logic to have this be in the replay file?
+		clear_undo()
+		log(`The ${game.active} viewed the blocks in ${REGIONS[r].name}`)
 		game.view_region = r
 	},
 	done(){
