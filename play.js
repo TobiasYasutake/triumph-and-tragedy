@@ -290,7 +290,7 @@ function update_blocks(){
 
 /* BATTLE */
 function update_battle() {
-	if (view.battle) {
+	if (view.battle !== null) {
 		ui.battle_table.classList.remove("hidden")
 		ui.battle_header.innerText = `Battle in ${REGIONS[view.battle].name}`
 		ui.attacker.innerHTML = ""

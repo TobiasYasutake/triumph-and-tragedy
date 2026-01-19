@@ -1,12 +1,5 @@
 /* TODO
 Other check phases?
-Remove blocks in negotiation
-3 way combat
-
-QA testing:
-USA entry
-Retreats after supply check seems hoaky
-Convoys
 */
 "use strict"
 
@@ -566,7 +559,7 @@ function victory_check_atomic(f, b){
 }
 
 function victory_check_hegemony(){
-	log ("The game is over: the winner is whoever has the most points!")
+	log ("The game is over: the winner is the faction with the most points!")
 	const vps = captured_capitals()
 	for (let i = 0; i < 3; i++) {
 		vps[i] *= 2 //capitals are worth 2 points
@@ -696,10 +689,8 @@ function is_engaged(b) {
 }
 function highest_step(blocks){
 	if (blocks.length === 0) return -1
-	let hf = 0 //highest found
-	//const list = []
+	let hf = 0 
 	for (const block of blocks) hf = hf < game.block_steps[block] ? game.block_steps[block] : hf
-	//for (const block of blocks) if (game.block_steps[block] === hf) list.push(block)
 	return hf
 }
 function number_of_blocks_in_region(region, block) {
@@ -1143,7 +1134,7 @@ function process_supply(){
 			log(`${FACTIONS[f]} block in ${REGIONS[r].name} out of supply`)
 			if (block_reduce(i)) {
 				const ngs = no_ground_support(r, f)
-				if (ngs) {
+				if (ngs && REGIONS[r].type !== 'sea' && game.control[r] !== f) {
 					game.must_retreat = game.must_retreat ?? []
 					game.may_retreat = game.may_retreat ?? []
 					for (let block of ngs) set_add(game.must_retreat, block)
@@ -1335,6 +1326,8 @@ function next_player_retreat(){
 		return game.turn_order.indexOf(a) - game.turn_order.indexOf(b)
 	}
 	)
+	//this is needed in case the retreat happens during the supply check
+	if (game.attacker === null) determine_control(fs[0])
 	game.state = 'choose_retreat'
 	make_active(fs[0])
 }
