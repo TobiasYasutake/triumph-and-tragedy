@@ -20,7 +20,7 @@ const FACTIONS = [
 	"Axis", 
 	"West", 
 	"USSR"
-]
+] 
 
 const CAPITALS = [
 	"Berlin", 
