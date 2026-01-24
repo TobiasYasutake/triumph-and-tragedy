@@ -20,6 +20,9 @@
 #role_Axis { background-color: lightgrey }
 #role_USSR { background-color: #f88}
 
+#chat_text .West { background-color: lightskyblue}
+#chat_text .Axis { background-color: lightgrey}
+#chat_text .USSR { background-color: #f88}
 
 .diplomacy {
 	width: 1700px;
