@@ -264,7 +264,14 @@ function check_gained_control() {
 }
 
 function next_season(skip_supply){ //Spring Summer blockade Fall Winter
-	if (!skip_supply) process_supply()
+	if (!skip_supply) {
+		process_supply()
+		if (game.oos_loss.length > 0) {
+			game.state = 'supply_loss'
+			next_supply_loss()
+			return
+		}
+	}
 	if (game.must_retreat && game.must_retreat.length > 0) {
 		next_player_retreat()
 	}
@@ -1109,6 +1116,16 @@ function enemy_blockades_possible(f){
 }
 
 //SUPPLY
+function next_supply_loss() {
+	const fs = factions_in_group(game.oos_loss)
+	for (let i = 0; i < 3; i++){
+		if (fs.includes(game.turn_order[i])) {
+			make_active(game.turn_order[i])
+			return
+		}
+	}
+}
+
 function adjacent_to_supply(supply, b) {
 	const r = game.block_location[b]
 	if (r === null) return false
@@ -1125,23 +1142,26 @@ function process_supply(){
 	const ussr_supply = game.relationship[2].length === 0? false : check_supply(2)
 	if (!axis_supply && !west_supply && !ussr_supply) return
 	const s = [axis_supply, west_supply, ussr_supply]
+	const oos = []
 	for (let i = 0; i < game.block_location.length; i++){
 		const f = faction_of_block(i)
 		const r = game.block_location[i]
 		if (s[f] && is_inf_or_tank(i) && !adjacent_to_supply(s[f], i) && 
 			(game.phase !== 'Winter' || (REGIONS[r].country && REGIONS[r].country === 'USSR'))) //only units inside Russia during winter
-		{
-			log(`${FACTIONS[f]} block in ${REGIONS[r].name} out of supply`)
-			if (block_reduce(i)) {
-				const ngs = no_ground_support(r, f)
-				if (ngs && REGIONS[r].type !== 'sea' && game.control[r] !== f) {
-					game.must_retreat = game.must_retreat ?? []
-					game.may_retreat = game.may_retreat ?? []
-					for (let block of ngs) set_add(game.must_retreat, block)
-				}
-			}			
-		}
+			oos.push(i)
+		// {
+		// 	log(`${FACTIONS[f]} block in ${REGIONS[r].name} out of supply`)
+		// 	if (block_reduce(i)) {
+		// 		const ngs = no_ground_support(r, f)
+		// 		if (ngs && REGIONS[r].type !== 'sea' && game.control[r] !== f) {
+		// 			game.must_retreat = game.must_retreat ?? []
+		// 			game.may_retreat = game.may_retreat ?? []
+		// 			for (let block of ngs) set_add(game.must_retreat, block)
+		// 		}
+		// 	}			
+		// }
 	}
+	game.oos_loss = oos
 }
 
 function no_ground_support(r, f) { //this is only used after the supply check: ground support for battles uses different logic
@@ -3916,25 +3936,62 @@ states.blockade = { //Craig said that blockades should just be an acknowledgemen
 		push_undo()
 		for (let i = game.blockade_possible.length -1; i >= 0; i--) {
 			let tp = trade_partner(game.blockade_possible[i])
-			if (tp !== game.activeNum) {
-				let r = game.blockade_possible[i]
-				set_add(game.blockade, game.blockade_possible.splice(i, 1)[0])
-				game.blockaded_pop[tp] += REGIONS[r].pop
-				game.blockaded_res[tp] += REGIONS[r].res
-			}
+			//if (tp !== game.activeNum) {
+			let r = game.blockade_possible[i]
+			set_add(game.blockade, game.blockade_possible.splice(i, 1)[0])
+			game.blockaded_pop[tp] += REGIONS[r].pop
+			game.blockaded_res[tp] += REGIONS[r].res
+			//}
 		}
 		for (let i = game.blockade_transafrica_possible.length -1; i >= 0; i--) {
 			let tp = trade_partner(game.blockade_transafrica_possible[i])
-			if (tp !== game.activeNum) {
-				let r = game.blockade_transafrica_possible[i]
-				set_add(game.blockade_transafrica, game.blockade_transafrica_possible.splice(i, 1)[0])
-				game.blockaded_res[tp] += REGIONS[r].res - (REGIONS[r].tres ?? 0)
+			//if (tp !== game.activeNum) {
+			let r = game.blockade_transafrica_possible[i]
+			set_add(game.blockade_transafrica, game.blockade_transafrica_possible.splice(i, 1)[0])
+			game.blockaded_res[tp] += REGIONS[r].res - (REGIONS[r].tres ?? 0)
 				
-			}
+			//}
 		}
 	},
 	done(){
 		next_blockades(false)
+	}
+}
+
+states.supply_loss = {
+	disable_negotiation: 1,
+	disable_vault: 1,
+	inactive: "suffer supply loss",
+	prompt() {
+		view.prompt = "Suffer supply loss for ground forces."
+		const blocks = game.oos_loss.filter(x => faction_of_block(x) === game.activeNum)
+		view.actions.done = blocks.length > 0? 0:1
+		const regions = []
+		for (let b of blocks) {
+			gen_action_block(b)
+			set_add(regions, REGIONS[game.block_location[b]].name)
+		}
+		if (regions.length > 0) for (let r of regions) {
+			view.prompt += ` ${r}`
+		}
+	},
+	block(b) {
+		const r = game.block_location[b]
+		log(`${game.active} reduced block in ${REGIONS[r].name}`)
+		set_delete(game.oos_loss, b)
+		if (block_reduce(b)) {
+			const ngs = no_ground_support(r, game.activeNum)
+			if (ngs && ngs.length > 0 && REGIONS[r].type !== 'sea' && game.control[r] !== game.activeNum) {
+				log(`${game.active} ANS blocks without ground support must retreat.`)
+				game.must_retreat = game.must_retreat ?? []
+				game.may_retreat = game.may_retreat ?? []
+				for (let block of ngs) set_add(game.must_retreat, block)
+			}
+		}
+	},
+	done(){
+		if (game.oos_loss.length === 0) game.must_retreat? next_player_retreat() : next_season(true)
+		else next_supply_loss()
 	}
 }
 
@@ -4577,6 +4634,7 @@ exports.setup = function (seed, scenario, options) {
 		active_battle_blocks: [], 
 		aggressed_from: [], //a map, using a block as a key, and [previous space, current space] as value
 		slated_to_attack: [], //a map, using a block as a key, and [target faction, class, shootNscoot] as value. Used in the incredibly rare circumstance of FirstFire mixups in multi-combat
+		oos_loss: [],
 
 		reserves: [8, 8, 2, 8, 6, 8, 16, 2, 3, 1, 2, 4, 2, 6, 6, 4, 2, 3, 6, 3, 6, 3, 3, 1, 1, 4, 2, 6, 2, 4, 1, 1, 4, 4, 4, 6, 6, 2, 2, 4, 8, 16, 8], //only 8 neutral forts?
 
