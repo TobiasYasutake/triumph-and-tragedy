@@ -2601,7 +2601,7 @@ states.government_wildcard = {
 		update_production()
 
 		let s = ACARDS[game.selected].special
-		log(`${game.active} uses ${s} to affect ${COUNTRIES[c].name}.`)
+		log(`${game.active} uses ${s} to influence ${COUNTRIES[c].name}.`)
 		if (s === "Foreign Aid") {
 			game.ind[game.activeNum] -= 1
 			log("They lose one industry.")
