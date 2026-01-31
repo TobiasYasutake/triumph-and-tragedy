@@ -4809,7 +4809,7 @@ function mask_dividends(player) {
 }
 
 function mask_reserves(player) {
-	let n
+	let n = []
 	switch (player) {
 	case 0: n = [0] 
 		if(!set_has(game.defeated_major_powers, 1)) n.push(1); break
