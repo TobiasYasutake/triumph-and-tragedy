@@ -1140,6 +1140,7 @@ function process_supply(){
 	const axis_supply = game.relationship[0].length === 0? false : check_supply(0)
 	const west_supply = game.relationship[1].length === 0? false : check_supply(1)
 	const ussr_supply = game.relationship[2].length === 0? false : check_supply(2)
+	game.oos_loss = []
 	if (!axis_supply && !west_supply && !ussr_supply) return
 	const s = [axis_supply, west_supply, ussr_supply]
 	const oos = []
