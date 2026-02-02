@@ -417,7 +417,7 @@ const ACARDS = [
     {
 		"deck": "Action",
 		"number": 48,
-		"special": "Isoationism",
+		"special": "Isolationism",
         "season": "Fall",
         "initiative": "H",
         "value": 8
