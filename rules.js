@@ -2445,6 +2445,7 @@ states.government = {
 		const f = game.activeNum
 		view.prompt = "Perform an action or pass."
 		view.actions.pass = 1
+		view.actions.configure_autopass = 1
 		if (game.selected && Array.isArray(game.selected) && can_make_factory(game.selected, f)){
 			view.actions.build_factory = 1
 		}
@@ -2570,6 +2571,10 @@ states.government = {
 		log(`${game.active} has built a factory using the following cards: ${cards}.`)
 		game.selected = null
 		next_player()
+	},
+	configure_autopass(){
+		if (!game.autopass) game.autopass = [[],[],[]]
+		game.state = "autopass"
 	},
 	pass(){
 		game.selected = null
@@ -4589,6 +4594,97 @@ states.pong = {
 		delete game.ping
 	},
 }
+
+// === Autopass ===
+function translate_conditions(f){
+	if (game.autopass[f].length === 0) return "None."
+	let message = ""
+	for (let c of game.autopass[f]) {
+		if (c.type === "handsize") {
+			message += `${FACTIONS[c.target]} has ${c.value} or less cards, OR `
+		}
+		if (c.type === "influence") {
+			message += `${FACTIONS[c.target]} will have ${c.value} or more influence in ${c.country}, OR `
+		}
+	}
+	message = message.slice(0, message.length - 5) + "."
+	return message
+}
+
+states.autopass = {
+	disable_negotiation: 1,
+	disable_vault: 1,
+	inactive: "take a government action",
+	prompt() {
+		const conditions = translate_conditions(game.activeNum)
+		view.prompt = "Will Autopass UNLESS: " + conditions
+		view.actions.resume = 1
+		view.actions.create = 1
+		view.actions.clear = game.autopass[game.activeNum].length > 0? 1 : 0
+	},
+	resume() {
+		game.state = "government"
+	},
+	create() {
+		push_undo()
+		game.state = "create_autopass"
+	},
+	clear() {
+		game.autopass[game.activeNum] = []
+	}
+}
+
+states.create_autopass = {
+	disable_negotiation: 1,
+	disable_vault: 1,
+	inactive: "take a government action",
+	prompt() {
+		const f = game.activeNum
+		if (game.autopass_target === undefined) {
+			view.prompt = "Creating autopass condition: first pick a faction..."
+			if (f !== 0) view.actions.axis = 1
+			if (f !== 1) view.actions.west = 1
+			if (f !== 2) view.actions.ussr = 1
+		}
+		else if (game.autopass_type === undefined) {
+			view.prompt = `${FACTIONS[game.autopass_target]} chosen. Next choose condition - Handsize or Influence?`
+			view.actions.handsize = 1
+			view.actions.influences = 1
+		}
+		else if (game.autopass_type === "handsize") {
+			view.prompt = `How many cards should the ${FACTIONS[game.autopass_target]} have (at most) to stop auto passing?`
+			let max = game.hand[game.autopass_target][0].length + game.hand[game.autopass_target][1].length
+			view.actions.value = view.actions.value ?? []
+			for (let i = 1; i <= max; ++i)
+				view.actions.value.push(i)
+		}
+		else if (game.autopass_type === "influence") {
+			view.prompt = "Not built out yet. Please Undo."
+		}
+	},
+	axis(){push_undo(); game.autopass_target = 0},
+	west(){push_undo(); game.autopass_target = 1},
+	ussr(){push_undo(); game.autopass_target = 2},
+	handsize() {
+		push_undo()
+		game.autopass_type = "handsize"
+	},
+	influences() {push_undo(); game.autopass_type = "influence"},
+	value(v) {
+		clear_undo()
+		if (game.autopass_type === "handsize") {
+			game.autopass[game.activeNum].push({
+				target: game.autopass_target,
+				type: game.autopass_type,
+				value: v
+			})
+			delete game.autopass_target
+			delete game.autopass_type
+			game.state = "autopass"
+		}
+	}
+}
+
 
 exports.setup = function (seed, scenario, options) {
 	game = {
