@@ -853,6 +853,7 @@ function on_update(){
 	action_button("draw", "Draw Cards")
 	action_button("pass", "Pass")
 	action_button("next", "Next")
+	action_button("configure_autopass", "Configure Autopass")
 	
 	action_button("draw_action_card", "Draw Action Card")
 	action_button("draw_investment_card", "Draw Investment Card")
@@ -893,6 +894,8 @@ function on_update(){
 	action_button("end_combat", "End combat")
 
 	action_button("done", "Done")
+	action_button("create", "Create")
+	action_button("clear", "Clear")
 	action_button("resume", "Resume")
 	action_button("undo", "Undo")
 	action_button("reveal", "Reveal")
@@ -903,6 +906,12 @@ function on_update(){
 	action_button("reveal_vault", 'Reveal tech from vault')
 	action_button("escape", "Sub Escape!")
 	action_button("no_valid_retreats", "No valid retreat location")
+
+	action_button("handsize", "Handsize")
+	action_button("influences", "Influence")
+
+	for (let v = 20; v >= 0; --v) //axis start with 14 cards, and have 11 industry at start, so theoretic high card count is 25, but that should basically never happen.
+		action_button_with_argument("value", v, v)
 
 	update_blocks()
 	update_reserves()
