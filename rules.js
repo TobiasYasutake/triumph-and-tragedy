@@ -404,6 +404,16 @@ function next_player(){
 	clear_undo()
 	let index = game.turn_order.indexOf(game.activeNum)
 	make_active(game.turn_order[(index + 1)%3])
+
+	if (game.state === "government" && game.autopass && !autopass_conditions_met(game.activeNum)) {
+		log(`${game.active} auto passed.`)
+		game.pass_count += 1
+		if (three_consecutive_passes()) {
+			handsize_check()
+		} else {
+			next_player()
+		}
+	}
 }
 
 function next_player_command(){
@@ -4601,14 +4611,38 @@ function translate_conditions(f){
 	let message = ""
 	for (let c of game.autopass[f]) {
 		if (c.type === "handsize") {
-			message += `${FACTIONS[c.target]} has ${c.value} or less cards, OR `
+			message += `${FACTIONS[c.target]} have ${c.value} or less cards, OR `
 		}
 		if (c.type === "influence") {
-			message += `${FACTIONS[c.target]} will have ${c.value} or more influence in ${c.country}, OR `
+			message += `${FACTIONS[c.target]} have ${c.value} or more influence in ${c.country}, OR `
 		}
 	}
 	message = message.slice(0, message.length - 5) + "."
 	return message
+}
+
+function autopass_conditions_met(f){
+	if (game.autopass[f].length === 0) return true
+	for (let c of game.autopass[f]) {
+		if (c.type === "handsize" && 
+			game.hand[c.target][0].length + 
+			game.hand[c.target][1].length <= 
+			c.value) return true
+		
+		if (c.type === "influence"){
+			const inf = game.influence[COUNTRIES.findIndex(x => x.name === c.country)]
+			let val = inf >= 0 ? inf%10 : 0 //current influence
+			if (Math.floor(inf/10) === c.target) val *= -1 //flip to negative if not the target
+			for (let i = 0; i < 3; i++){
+				for (let card of game.diplomacy[i]) {
+					const country = card > 0? ACARDS[card].left : ACARDS[Math.abs(card)].right
+					if (country === c.country) val += c.target === i? 1 : -1
+				}
+			}
+			if (c.value <= val) return true
+		}
+	}
+	return false
 }
 
 states.autopass = {
@@ -4648,7 +4682,11 @@ states.create_autopass = {
 		}
 		else if (game.autopass_type === undefined) {
 			view.prompt = `${FACTIONS[game.autopass_target]} chosen. Next choose condition - Handsize or Influence?`
-			view.actions.handsize = 1
+			let hsap = false //hand size already picked
+			for (let c of game.autopass[game.activeNum]) {
+				if (c.target === game.autopass_target && c.type === "handsize") {hsap = true; break}
+			}			
+			view.actions.handsize = hsap? 0:1 
 			view.actions.influences = 1
 		}
 		else if (game.autopass_type === "handsize") {
@@ -4658,8 +4696,18 @@ states.create_autopass = {
 			for (let i = 1; i <= max; ++i)
 				view.actions.value.push(i)
 		}
-		else if (game.autopass_type === "influence") {
-			view.prompt = "Not built out yet. Please Undo."
+		else if (game.autopass_type === "influence" && game.autopass_country === undefined) {
+			view.prompt = "What country do you wish to check influence against?"
+			const ics = generate_ineligible_countries()
+			for (let r = 0; r < REGIONS.length; r++){
+				if (REGIONS[r].country && !ics.includes(REGIONS[r].country)) gen_action_region(r)
+			}
+		}
+		else {
+			view.prompt = `How much influence should the ${FACTIONS[game.autopass_target]} have in ${game.autopass_country} (at least) to stop auto passing?`
+			view.actions.value = view.actions.value ?? []
+			for (let i = 1; i <= 3; ++i)
+				view.actions.value.push(i)
 		}
 	},
 	axis(){push_undo(); game.autopass_target = 0},
@@ -4670,6 +4718,7 @@ states.create_autopass = {
 		game.autopass_type = "handsize"
 	},
 	influences() {push_undo(); game.autopass_type = "influence"},
+	region(r) {push_undo(); game.autopass_country = REGIONS[r].country},
 	value(v) {
 		clear_undo()
 		if (game.autopass_type === "handsize") {
@@ -4678,10 +4727,19 @@ states.create_autopass = {
 				type: game.autopass_type,
 				value: v
 			})
-			delete game.autopass_target
-			delete game.autopass_type
-			game.state = "autopass"
 		}
+		else {
+			game.autopass[game.activeNum].push({
+				target: game.autopass_target,
+				type: game.autopass_type,
+				country: game.autopass_country,
+				value: v
+			})
+			delete game.autopass_country
+		}
+		delete game.autopass_target
+		delete game.autopass_type
+		game.state = "autopass"
 	}
 }
 

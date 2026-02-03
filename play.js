@@ -910,7 +910,7 @@ function on_update(){
 	action_button("handsize", "Handsize")
 	action_button("influences", "Influence")
 
-	for (let v = 16; v >= 0; --v)
+	for (let v = 20; v >= 0; --v) //axis start with 14 cards, and have 11 industry at start, so theoretic high card count is 25, but that should basically never happen.
 		action_button_with_argument("value", v, v)
 
 	update_blocks()
