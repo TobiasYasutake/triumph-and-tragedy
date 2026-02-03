@@ -202,6 +202,7 @@ function end_production(){
 }
 
 function handsize_check(){
+	if (game.autopass) delete game.autopass
 	for (let i = 0; i < 3; i++) {
 		let hand = game.hand[game.turn_order[i]]
 		if (hand[0].length + hand[1].length + (game.vault[game.turn_order[i]].length/2) > HANDSIZE[game.turn_order[i]]) {
@@ -4627,7 +4628,7 @@ function autopass_conditions_met(f){
 		if (c.type === "handsize" && 
 			game.hand[c.target][0].length + 
 			game.hand[c.target][1].length <= 
-			c.value) return true
+			c.value) {game.autopass[f] = []; return true}
 		
 		if (c.type === "influence"){
 			const inf = game.influence[COUNTRIES.findIndex(x => x.name === c.country)]
@@ -4639,7 +4640,7 @@ function autopass_conditions_met(f){
 					if (country === c.country) val += c.target === i? 1 : -1
 				}
 			}
-			if (c.value <= val) return true
+			if (c.value <= val) {game.autopass[f] = []; return true}
 		}
 	}
 	return false
