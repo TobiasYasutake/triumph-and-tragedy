@@ -724,6 +724,14 @@ function update_turn_order_display() {
 	}
 }
 
+function update_hand_count(){
+	for (let i = 0; i < 3; i++) {
+		const e = document.getElementById(`role_${FACTIONS[i]}`).querySelector(".role_name")
+		const count = view.hand[i][0].length + view.hand[i][1].length
+		e.querySelector("span").textContent = `${FACTIONS[i]} - ${count} cards`
+	}
+}
+
 function hoist_faction() {
 	let ppl = document.getElementById("power_panel_list")
 	ppl.insertBefore(document.getElementById(`${view.player}`), document.getElementById("Axis"))
@@ -921,6 +929,7 @@ function on_update(){
 	update_battle()
 
 	hoist_faction()
+	update_hand_count()
 	process_actions()
 	update_turn_order_display()
 	update_action_menu()
