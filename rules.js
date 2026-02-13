@@ -2166,7 +2166,7 @@ states.production = {
 			
 			for (i; i <= finish; ++i){
 				if (reserve_empty(i)) continue
-				if (set_has(game.defeated_major_powers, NATIONS[Math.floor(i/7)])) continue
+				if (set_has(game.defeated_major_powers, Math.floor(i/7))) continue
 				if (i%7 === 0 && forts_everywhere(NATIONS[Math.floor(i/7)])) continue
 				//if no coastal home costal regions
 				gen_action_reserve(i)

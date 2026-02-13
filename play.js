@@ -726,9 +726,9 @@ function update_turn_order_display() {
 
 function update_hand_count(){
 	for (let i = 0; i < 3; i++) {
-		const e = document.getElementById(`role_${FACTIONS[i]}`).querySelector(".role_name")
+		const e = document.getElementById(`role_${FACTIONS[i]}`).querySelector(".role_stat")
 		const count = view.hand[i][0].length + view.hand[i][1].length
-		e.querySelector("span").textContent = `${FACTIONS[i]} - ${count} cards`
+		e.textContent = count + " cards"
 	}
 }
 
