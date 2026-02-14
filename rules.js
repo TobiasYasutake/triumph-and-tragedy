@@ -1626,10 +1626,10 @@ function find_tech(card1, card2){
 function faction_major_powers(f){
 	let result = []
 	switch (f) {
-	case 0: if(!set_has(game.defeated_major_powers, MAJORPOWERS[0])) result.push(MAJORPOWERS[0]); break 
+	case 0: if(!set_has(game.defeated_major_powers, 1)) result.push(MAJORPOWERS[0]); break 
 	case 1: 
-		if(!set_has(game.defeated_major_powers, MAJORPOWERS[1])) result.push(MAJORPOWERS[1])
-		if(game.usa_satellite === 1 && !set_has(game.defeated_major_powers, MAJORPOWERS[2])) result.push(MAJORPOWERS[2])
+		if(!set_has(game.defeated_major_powers, 3)) result.push(MAJORPOWERS[1])
+		if(game.usa_satellite === 1 && !set_has(game.defeated_major_powers, 4)) result.push(MAJORPOWERS[2])
 	}
 	return result
 }
@@ -2175,26 +2175,24 @@ states.production = {
 			if (game.selected !== null) {
 				let nation = NATIONS[Math.floor(game.selected/7)]
 				let type = TYPE[game.selected%7]
-				let greatpower = GREATPOWERS.includes(nation)
+				let ics = false 
+				if (type === "Fort" && GREATPOWERS.includes(nation)) {
+					ics = faction_major_powers(game.activeNum) //ineligible countries
+					for (let i = ics.length -1; i >= 0; --i)
+						ics.push(...COLONIES[ics[i]])
+				}
 				for (let [index, region] of REGIONS.entries()) {
 					if (region.type === "sea") continue
+					if (map_has(game.battle, index)) continue
 					if (type !== "Fort" && region.country !== nation) continue
 					if (who_controls_region(index) !== game.activeNum) continue
 					if (type === "Fort") {
 						if (is_fort_in_region(index)) continue
-						if (greatpower) {
-							let ics = faction_major_powers(game.activeNum) //ineligible countries
-							for (let i = ics.length -1; i >= 0; --i) {
-								ics.push(...COLONIES[ics[i]])
-							}
-							if (ics.indexOf(region.country) !== -1) continue
-						} else {
-							if (region.country !== nation && !COLONIES[nation].includes(region.country)) continue
-						}
+						if (ics && ics.includes(region.country)) continue
+						if (!ics && region.country !== nation && !COLONIES[nation].includes(region.country)) continue
 						gen_action_region(index)
-						continue
 					}
-					if ((type === "Fleet" || type === "Sub" || type === "Carrier") && !is_coastal_region(index)) continue
+					else if ((type === "Fleet" || type === "Sub" || type === "Carrier") && !is_coastal_region(index)) continue
 					gen_action_region(index)
 				}
 			}
@@ -2232,6 +2230,7 @@ states.production = {
 		log(`Cadre placed in ${REGIONS[area].name}`)
 		set_add(game.block_moved, create_cadre(game.selected, area))
 		game.count -= 1
+		if (game.reserves[game.selected] === 0) game.selected = null
 		if (game.count === 0){ game.selected = null; view.selected = null}
 	},
 	end_production(){
