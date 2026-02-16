@@ -733,6 +733,7 @@ function update_hand_count(){
 }
 
 function hoist_faction() {
+	if (!view.player) return
 	let ppl = document.getElementById("power_panel_list")
 	ppl.insertBefore(document.getElementById(`${view.player}`), document.getElementById("Axis"))
 }
