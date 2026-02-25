@@ -291,8 +291,11 @@ function update_blocks(){
 /* BATTLE */
 function update_battle() {
 	if (view.battle !== null) {
+		const r = REGIONS[view.battle]
 		ui.battle_table.classList.remove("hidden")
 		ui.battle_header.innerText = `Battle in ${REGIONS[view.battle].name}`
+		ui.battle_table.style.top = (r.x >= 550 ? r.x - 550 : r.x + 550) + "px"
+		ui.battle_table.style.left = (r.y >= 312 ? r.y - 297 : 15) + "px"
 		ui.attacker.innerHTML = ""
 		ui.defender.innerHTML = ""
 		for (let b of view.battle_blocks) {
