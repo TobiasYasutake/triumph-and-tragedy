@@ -234,7 +234,7 @@ function resolve_diplomacy(){
 	for (let i = 0; i < game.influence.length; i++){ //gain control
 		if (game.influence[i]%10 >= 3) {
 			if (COUNTRIES[i].name === "USA"){
-				if (Math.abs(game.influence[i]/10) !== 1) {
+				if (Math.floor(game.influence[i]/10) !== 1) {
 					game.influence[i] = (Math.abs(game.influence[i]/10) + 3)
 				} else usa_satellite()
 			} else {
