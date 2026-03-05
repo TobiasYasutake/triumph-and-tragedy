@@ -1495,11 +1495,12 @@ function arm_minor(country, f) {
 }
 
 function defeat_minor(c) {
-	log(`${COUNTRIES[c].name} has been defeated.`)
+	const country = COUNTRIES[c].name
+	log(`${country} has been defeated.`)
 	set_delete(game.armed_minors, c)
 	game.minor_aggressor[c] = undefined
 	for (let i = 0; i < game.block_location.length; i++) {
-		if (game.block_nation[i] === 6 && REGIONS[game.block_location[i]].country === c) remove_block[i]
+		if (game.block_nation[i] === 6 && REGIONS[game.block_location[i]].country === country) remove_block(i)
 	}
 }
 
