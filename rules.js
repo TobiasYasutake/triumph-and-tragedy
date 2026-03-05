@@ -2601,7 +2601,7 @@ states.government_diplomacy = {
 	prompt(){
 		const ic = game.selected
 		view.prompt = `Confirm: influence ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}?`
-		view.actions.confirm
+		view.actions.confirm = 1
 	},
 	confirm(){
 		const ic = game.selected
