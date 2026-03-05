@@ -203,6 +203,7 @@ function end_production(){
 
 function handsize_check(){
 	if (game.autopass) delete game.autopass
+	if (game.autopass_disabled) delete game.autopass_disabled
 	for (let i = 0; i < 3; i++) {
 		let hand = game.hand[game.turn_order[i]]
 		if (hand[0].length + hand[1].length + (game.vault[game.turn_order[i]].length/2) > HANDSIZE[game.turn_order[i]]) {
@@ -403,6 +404,9 @@ function determine_turn_order_command(){
 
 function next_player(){
 	clear_undo()
+	if (game.state === "government" && game.autopass_disabled && game.autopass_disabled[game.activeNum]) 
+		game.autopass_disabled[game.activeNum] = false //turn off AUTOPASS DISABLED prompt.
+
 	let index = game.turn_order.indexOf(game.activeNum)
 	make_active(game.turn_order[(index + 1)%3])
 
@@ -2453,7 +2457,10 @@ states.government = {
 	inactive: "take a government action",
 	prompt(){
 		const f = game.activeNum
-		view.prompt = "Perform an action or pass."
+		let message = "Perform an action or pass."
+		if (game.autopass && game.autopass[f].length > 0) message += " (Autopass active)"
+		else if (game.autopass_disabled && game.autopass_disabled[f]) message += " (Autopass has been disabled)"
+		view.prompt = message
 		view.actions.pass = 1
 		view.actions.configure_autopass = 1
 		if (game.selected && Array.isArray(game.selected) && can_make_factory(game.selected, f)){
@@ -2532,19 +2539,9 @@ states.government = {
 		}
 	},
 	influence(ic){//inner card
-		log(`${game.active} influences ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}.`)
-		game.pass_count = 0
-		array_remove_item(game.hand[game.activeNum][0], Math.abs(ic))
-		let match = check_matching_diplomacy(ic, game.activeNum)
-		if (match) {
-			let f = match[0]
-			let card = match[1]
-			log(`The card (#${Math.abs(ic)}) cancels the ${FACTIONS[f]}'s card (#${Math.abs(card)}).`)
-			game.discard[0].push(Math.abs(ic))
-			game.discard[0].push(Math.abs(card))
-			array_remove_item(game.diplomacy[f], card)
-		} else game.diplomacy[game.activeNum].push(ic)
-		next_player()
+		push_undo()
+		game.selected = ic
+		game.state = "government_diplomacy"
 	},
 	influence_special(ic){//inner card
 		push_undo()
@@ -2596,6 +2593,32 @@ states.government = {
 			next_player()
 		}
 	},	
+}
+
+states.government_diplomacy = {
+	inactive: "take a government action",
+	prompt(){
+		const ic = game.selected
+		view.prompt = `Confirm: influence ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}?`
+		view.actions.confirm
+	},
+	confirm(){
+		const ic = game.selected
+		log(`${game.active} influences ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}.`)
+		game.pass_count = 0
+		array_remove_item(game.hand[game.activeNum][0], Math.abs(ic))
+		let match = check_matching_diplomacy(ic, game.activeNum)
+		if (match) {
+			let f = match[0]
+			let card = match[1]
+			log(`The card (#${Math.abs(ic)}) cancels the ${FACTIONS[f]}'s card (#${Math.abs(card)}).`)
+			game.discard[0].push(Math.abs(ic))
+			game.discard[0].push(Math.abs(card))
+			array_remove_item(game.diplomacy[f], card)
+		} else game.diplomacy[game.activeNum].push(ic)
+		game.selected = null
+		next_player()
+	}
 }
 
 states.government_wildcard = {
@@ -2787,6 +2810,7 @@ function resolve_target(f) {
 	log(`The ${game.active} targeted the ${FACTIONS[f]} with ${ICARDS[game.selected].special}`)
 	game.espionage = game.activeNum
 	game.target = f
+	if (game.autopass && game.autopass[f].length > 0) disable_autopass(f)
 	if (discarded_double_agent()){
 		resolve_espionage()
 	} else {
@@ -4592,6 +4616,7 @@ states.pong = {
 	prompt() {
 		view.prompt = FACTIONS[game.ping.save_activeNum] + " has requested your response in chat."
 		view.actions.resume = 1
+		if (game.autopass && game.autopass[game.activeNum].length > 0) view.actions.disable_autopass = 1
 		view.actions.undo = last_undo_same_player()? 1 : 0
 		view.drb = previous_state_disable('block')
 		view.dri = previous_state_disable('influence')
@@ -4603,6 +4628,7 @@ states.pong = {
 		game.state = game.ping.save_state
 		delete game.ping
 	},
+	disable_autopass(){disable_autopass(game.activeNum)}
 }
 
 // === Autopass ===
@@ -4627,7 +4653,7 @@ function autopass_conditions_met(f){
 		if (c.type === "handsize" && 
 			game.hand[c.target][0].length + 
 			game.hand[c.target][1].length <= 
-			c.value) {game.autopass[f] = []; return true}
+			c.value) {disable_autopass(f); return true}
 		
 		if (c.type === "influence"){
 			const inf = game.influence[COUNTRIES.findIndex(x => x.name === c.country)]
@@ -4639,11 +4665,19 @@ function autopass_conditions_met(f){
 					if (country === c.country) val += c.target === i? 1 : -1
 				}
 			}
-			if (c.value <= val) {game.autopass[f] = []; return true}
+			if (c.value <= val) {disable_autopass(f); return true}
 		}
 	}
 	return false
 }
+
+function disable_autopass(f){ //should always be gated behind "if (game.autopass && game.autopass[f].length > 0"
+	if (!game.autopass) throw new Error("disable_autopass was called when there was no autopass!")
+	game.autopass[f] = []
+	if (!game.autopass_disabled) game.autopass_disabled = [false, false, false]
+	game.autopass_disabled[f] = true
+}
+
 
 states.autopass = {
 	disable_negotiation: 1,
@@ -4651,7 +4685,7 @@ states.autopass = {
 	inactive: "take a government action",
 	prompt() {
 		const conditions = translate_conditions(game.activeNum)
-		view.prompt = "Will Autopass UNLESS: " + conditions
+		view.prompt = "Will Autopass unless: " + conditions
 		view.actions.resume = 1
 		view.actions.create = 1
 		view.actions.clear = game.autopass[game.activeNum].length > 0? 1 : 0
