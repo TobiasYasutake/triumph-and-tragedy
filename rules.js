@@ -2618,6 +2618,7 @@ states.government_diplomacy = {
 			array_remove_item(game.diplomacy[f], card)
 		} else game.diplomacy[game.activeNum].push(ic)
 		game.selected = null
+		game.state = "government"
 		next_player()
 	}
 }
