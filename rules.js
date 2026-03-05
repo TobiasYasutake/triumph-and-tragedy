@@ -2985,7 +2985,7 @@ states.acknowledge_mole = {
 	prompt(){
 		const vault = game.vault[game.espionage]
 		const card = vault[vault.length-2]
-		const tech = card > 0? ICARDS[card].left : ICARDS[card].right
+		const tech = card > 0? ICARDS[card].left : ICARDS[Math.abs(card)].right
 		view.prompt = `The ${FACTIONS[game.espionage]} has invented ${tech} and placed it in their vault.` 
 		view.actions.done = 1
 		view.vault[game.espionage][vault.length-2] = vault[vault.length-2]
