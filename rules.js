@@ -4631,16 +4631,33 @@ function autopass_conditions_met(f){
 			c.value) {game.autopass[f] = []; return true}
 		
 		if (c.type === "influence"){
-			const inf = game.influence[COUNTRIES.findIndex(x => x.name === c.country)]
-			let val = inf >= 0 ? inf%10 : 0 //current influence
-			if (Math.floor(inf/10) === c.target) val *= -1 //flip to negative if not the target
-			for (let i = 0; i < 3; i++){
-				for (let card of game.diplomacy[i]) {
-					const country = card > 0? ACARDS[card].left : ACARDS[Math.abs(card)].right
-					if (country === c.country) val += c.target === i? 1 : -1
+			if (c.country === "any country"){
+				for (let j = 0; j < game.influence.length; j++) {
+					const inf = game.influence[j]
+					if (inf%10 === 0) continue //under control, so skip it
+					let val = inf >= 0 ? inf%10 : 0 //current influence
+					if (Math.floor(inf/10) !== c.target) val *= -1 //flip to negative if not the target
+					for (let i = 0; i < 3; i++){
+						for (let card of game.diplomacy[i]) {
+							const country = card > 0? ACARDS[card].left : ACARDS[Math.abs(card)].right
+							if (country === COUNTRIES[j].name) val += c.target === i? 1 : -1
+						}
+					}
+					if (c.value <= val) {game.autopass[f] = []; return true}
 				}
 			}
-			if (c.value <= val) {game.autopass[f] = []; return true}
+			else {
+				const inf = game.influence[COUNTRIES.findIndex(x => x.name === c.country)]
+				let val = inf >= 0 ? inf%10 : 0 //current influence
+				if (Math.floor(inf/10) !== c.target) val *= -1 //flip to negative if not the target
+				for (let i = 0; i < 3; i++){
+					for (let card of game.diplomacy[i]) {
+						const country = card > 0? ACARDS[card].left : ACARDS[Math.abs(card)].right
+						if (country === c.country) val += c.target === i? 1 : -1
+					}
+				}
+				if (c.value <= val) {game.autopass[f] = []; return true}
+			}
 		}
 	}
 	return false
@@ -4699,6 +4716,7 @@ states.create_autopass = {
 		}
 		else if (game.autopass_type === "influence" && game.autopass_country === undefined) {
 			view.prompt = "What country do you wish to check influence against?"
+			view.actions.any = 1
 			const ics = generate_ineligible_countries()
 			for (let r = 0; r < REGIONS.length; r++){
 				if (REGIONS[r].country && !ics.includes(REGIONS[r].country)) gen_action_region(r)
@@ -4719,6 +4737,7 @@ states.create_autopass = {
 		game.autopass_type = "handsize"
 	},
 	influences() {push_undo(); game.autopass_type = "influence"},
+	any() {push_undo(); game.autopass_country = "any country"},
 	region(r) {push_undo(); game.autopass_country = REGIONS[r].country},
 	value(v) {
 		clear_undo()
