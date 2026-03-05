@@ -896,6 +896,7 @@ function on_update(){
 	action_button("axis", "Axis")
 	action_button("west", "West")
 	action_button("ussr", "USSR")
+	action_button("any", "Any country")
 	action_button("neutral", "Neutral")
 	action_button("disable_autopass", "Disable Autopass")
 
