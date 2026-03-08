@@ -459,7 +459,7 @@ body.shift .block.known:hover {
 
 .card.action {
 	border-color: white;
-	border-width: 3px;
+	/* border-width: 3px; */
 	cursor: pointer;
 }
 
@@ -470,8 +470,11 @@ body.shift .block.known:hover {
 }
 
 .card.selected {
-	border-color: yellow;
-	filter: grayscale(50%) brightness(90%);
+	display:inline;
+	border-width: 3px;
+	border-color: red;
+	fill:#339933;
+    fill-opacity:0.40;
 }
 
 .card:hover:not(.hidden) {
