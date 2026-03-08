@@ -4683,7 +4683,7 @@ function autopass_conditions_met(f){
 						if (country === c.country) val += c.target === i? 1 : -1
 					}
 				}
-				if (c.value <= val) {disable_autopass(f) = []; return true}
+				if (c.value <= val) {disable_autopass(f); return true}
 			}
 		}
 	}
