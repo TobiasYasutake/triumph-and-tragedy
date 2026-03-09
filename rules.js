@@ -2418,7 +2418,7 @@ function generate_ineligible_countries(){ //for diplomacy
 	}
 	//armed minors
 	for (let i = 13; i < game.influence.length; i++){ //13 is the first possible minor country: Afghanistan
-		if (set_has(game.armed_minors, i)) set_add(ics, COUNTRIES[i].country)
+		if (set_has(game.armed_minors, i)) set_add(ics, COUNTRIES[i].name)
 	}
 	return ics
 }
