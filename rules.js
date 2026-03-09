@@ -108,10 +108,44 @@ function end_setup(){
 		game.state = "setup"
 		make_active(game.activeNum += 1)
 	} else {
-		log('Setup finished. Starting game.')
-		log_br()
-		determine_control(0)
-		new_year()	
+		if (game.scenario === "Short game") {
+			log('Initial setup finished. Starting the special short game extra setup.')
+			log_br()
+
+			const roll = roll_d6()
+			game.turn_order = TURNORDER[roll]
+			log_br()
+			log(`A ${roll} was rolled for initiative.`)
+			log_br()
+
+			// for (let p = 0; p <= 2; ++p){
+			// 	log(`${FACTIONS[p]} drew three peace dividends.`)
+			// 	for (let i = 0; i < 3; i++){
+			// 		let draw = random_bigint(game.peace_dividend_bag.length)
+			// 		game.peace_dividend[p].push(game.peace_dividend_bag[draw])
+			// 		array_remove(game.peace_dividend_bag, draw)
+			// 	}
+			// }
+
+			log(".h2 Special Setup Production Phase")
+			log_br()
+			make_active(game.turn_order[0])
+			game.state = "setup_short_game"
+			switch (game.activeNum) {
+				case 0: game.count = 20
+				case 1: game.count = 8
+				case 2: game.count = 14
+			}
+			determine_control(game.activeNum)
+			log(`.h3 ${game.active} begins special setup`)
+			log(`with ${game.count} bonus production for Cadres/CVs`)
+		}
+		else {
+			log('Setup finished. Starting game.')
+			log_br()
+			determine_control(0)
+			new_year()
+		}
 	}
 }
 
@@ -153,7 +187,6 @@ function new_year(){
 	log_br()
 	make_active(game.turn_order[0])
 	determine_control(game.activeNum)
-	//log_br()
 	log(`.h3 ${game.active} begins production`)
 	game.count = determine_production(game.activeNum)
 
@@ -2064,7 +2097,7 @@ var view
 //SETUP
 states.setup = {
 	disable_negotiation: true,
-	inactive: "Setup",
+	inactive: "setup",
 	prompt(){
 		view.prompt = "Place starting Cadres."
 		let i
@@ -2131,6 +2164,11 @@ states.setup = {
 		if (game.reserves[game.selected] === 0) game.selected = null 
 	},
 	end_setup(){
+		if (game.scenario === "Short game") {
+			clear_undo()
+			end_setup()
+			return
+		}
 		clear_undo()
 		game.selected = null
 		let c = HANDSIZE[game.activeNum]
@@ -2139,6 +2177,16 @@ states.setup = {
 		draw()
 		game.state = "draw_setup"
 	}
+}
+
+states.setup_short_game = {
+	disable_negotiation: true,
+	inactive: "special setup",
+	prompt(){
+		view.prompt = `Spend bonus Cadres/CVs: ${game.count} points left.`
+		view.actions.end_production = game.count !== 0 ? 1:0 
+	},
+	end_production(){}//draw cards -> axis gains control of Austria -> axis plays 7 cards -> draw dividends
 }
 
 //PRODUCTION
@@ -4798,7 +4846,6 @@ states.create_autopass = {
 	}
 }
 
-
 exports.setup = function (seed, scenario, options) {
 	game = {
 		seed: seed,
@@ -4909,6 +4956,32 @@ exports.setup = function (seed, scenario, options) {
 		usa_reinforcements: -6
 	}
 	game.scenario = scenario
+	
+	/*17.0 SHORT GAME (1939)
+	• DONE: Place Starting Forces (Units/CV) and POP/RES as for 1936 setup (5.0). -- UNCHANGED
+	• After a special Setup Player Order die roll, each Faction, referencing the Short Game Setup Table: --SPECIAL PHASE AFTER BASIC SETUP
+	• Adds additional (+) Cadres/CV within Home Territory. --PART OF SPECIAL PHASE
+	• Draws Action and Investment cards. --SPECIAL DRAW AFTER SETUP
+	• DONE: Places their IND marker. 
+	• The Axis controls Austria: place a Control marker and a 2 CV Infantry there and adjust POP +1.
+	• The Axis plays 7 Diplomacy cards unopposed, marks the Influence/Control gained and adjusts POP/RES on its track, then discards the cards.
+	• Each Faction secretly draws three Peace Dividend chits.
+	• DONE: Begin 1939 with New Year.
+
+	Short Game Setup (1939)
+					West Axis USSR
+	+Cadres / CV 	 +8  +20  +14
+	Action Cards 	 12   18   10
+	Investment Cds	  4    4    4
+	1939 IND 		 10   15   12
+	Peace Dividends   3    3    3*/
+
+	if (scenario === "Short game") {
+		game.ind = [15, 10, 12],
+		game.turn = 3 //with a +1 after that to make the first turn turn 4
+		game.usa_reinforcements = -3 //I *think* this is right?
+	}
+
 	game.deck[0] = make_deck()
 	game.deck[1] = make_deck()
 
