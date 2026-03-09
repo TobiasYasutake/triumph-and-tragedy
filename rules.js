@@ -235,6 +235,7 @@ function end_production(){
 }
 
 function handsize_check(){
+	clear_selected()
 	if (game.autopass) delete game.autopass
 	if (game.autopass_disabled) delete game.autopass_disabled
 	for (let i = 0; i < 3; i++) {
@@ -437,6 +438,7 @@ function determine_turn_order_command(){
 
 function next_player(){
 	clear_undo()
+	clear_selected()
 	if (game.state === "government" && game.autopass_disabled && game.autopass_disabled[game.activeNum]) 
 		game.autopass_disabled[game.activeNum] = false //turn off AUTOPASS DISABLED prompt.
 
@@ -1652,10 +1654,10 @@ function how_many_other_factions_can_battle_reveal(f){
 
 function find_tech(card1, card2){
 	let tech
-	if (card1.left && card1.left !== "Industrial Espionage" && game.selected[0] > 0) tech = card1.left
-	else if (card1.right && card1.right !== "Industrial Espionage" && game.selected[0] < 0) tech = card1.right
-	else if (card2.left && card2.left !== "Industrial Espionage" && game.selected[1] > 0) tech = card2.left
-	else if (card2.right && card2.right !== "Industrial Espionage" && game.selected[1] < 0) tech = card2.right
+	if (card1.left && card1.left !== "Industrial Espionage" && game.selected_Icard[0] > 0) tech = card1.left
+	else if (card1.right && card1.right !== "Industrial Espionage" && game.selected_Icard[0] < 0) tech = card1.right
+	else if (card2.left && card2.left !== "Industrial Espionage" && game.selected_Icard[1] > 0) tech = card2.left
+	else if (card2.right && card2.right !== "Industrial Espionage" && game.selected_Icard[1] < 0) tech = card2.right
 	return tech
 }
 //TECH MANIPULATION
@@ -1970,7 +1972,7 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 		}
 	} else if (s) {
 		game.state = "retreat"
-		game.selected = b
+		game.selected_block = b
 	} else (
 		next_player_battle()
 	)
@@ -2089,6 +2091,15 @@ function end_battle(){
 	game.state = 'choose_battle'
 }
 
+// OTHER
+function clear_selected() {
+	game.selected_Acard = null; view.selected_Acard = null
+	game.selected_Icard = null; view.selected_Icard = null
+	game.selected_block = null; view.selected_block = null
+	game.selected_other = null; view.selected_other = null
+	game.selected_reserve = null; view.selected_reserve = null
+}
+
 // STATES
 let states = {}
 var game
@@ -2129,12 +2140,12 @@ states.setup = {
 		}
 		if (all_regions_full) {
 			view.actions.end_setup = 1
-			game.selected = null
+			game.selected_reserve = null
 		}
 
-		if (game.selected !== null) {
-			let nation = NATIONS[Math.floor(game.selected/7)]
-			let type = TYPE[game.selected%7]
+		if (game.selected_reserve !== null) {
+			let nation = NATIONS[Math.floor(game.selected_reserve/7)]
+			let type = TYPE[game.selected_reserve%7]
 	
 			for (let [index, region] of REGIONS.entries()) {
 				if (region.type === "sea" || region.pop === 0) continue
@@ -2150,27 +2161,22 @@ states.setup = {
 				}
 			}
 		}
-		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected))) {
-			game.selected = null
-			view.selected = null
+		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected_reserve))) {
+			game.selected_reserve = null
+			view.selected_reserve = null
 		}
 	},
 	reserve(r) {
-		game.selected === r ? game.selected = null : game.selected = r
+		game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r
 	},
 	region(area){
 		push_undo()
-		create_cadre(game.selected, area)
-		if (game.reserves[game.selected] === 0) game.selected = null 
+		create_cadre(game.selected_reserve, area)
+		if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null 
 	},
 	end_setup(){
-		if (game.scenario === "Short game") {
-			clear_undo()
-			end_setup()
-			return
-		}
 		clear_undo()
-		game.selected = null
+		clear_selected()
 		let c = HANDSIZE[game.activeNum]
 		if (game.activeNum === 0) c *= 2
 		for (let i = 0; i < c; i++) game.draw[0].push(-1)
@@ -2252,9 +2258,9 @@ function Gen_CV_and_Cadre_Actions(){
 			gen_action_reserve(i)
 		}
 
-		if (game.selected !== null) {
-			let nation = NATIONS[Math.floor(game.selected/7)]
-			let type = TYPE[game.selected%7]
+		if (game.selected_reserve !== null) {
+			let nation = NATIONS[Math.floor(game.selected_reserve/7)]
+			let type = TYPE[game.selected_reserve%7]
 			let ics = false 
 			if (type === "Fort" && GREATPOWERS.includes(nation)) {
 				ics = faction_major_powers(game.activeNum) //ineligible countries
@@ -2289,21 +2295,20 @@ states.production = {
 		view.actions.draw_investment_card = game.count > 0? 1:0//logic if the deck is empty?
 		Gen_CV_and_Cadre_Actions()
 		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected))) {
-			game.selected = null
-			view.selected = null
+			clear_selected()
 		}
 	},
 	draw_action_card(){
 		push_undo()
 		game.draw[0].push(-1)
 		game.count -= 1
-		if (game.count === 0){ game.selected = null; view.selected = null}
+		if (game.count === 0){ clear_selected() }
 	},
 	draw_investment_card(){
 		push_undo()
 		game.draw[1].push(-1)
 		game.count -= 1
-		if (game.count === 0){ game.selected = null; view.selected = null}
+		if (game.count === 0){ clear_selected() }
 	},
 	block(b){
 		push_undo()
@@ -2311,18 +2316,18 @@ states.production = {
 		game.block_steps[b] += 1
 		set_add(game.block_moved, b)
 		game.count -= 1
-		if (game.count === 0){ game.selected = null; view.selected = null}
+		if (game.count === 0){ clear_selected() }
 	},
 	reserve(r){
-		game.selected === r ? game.selected = null : game.selected = r
+		game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r
 	},
 	region(area){
 		push_undo()
 		log(`Cadre placed in ${REGIONS[area].name}`)
-		set_add(game.block_moved, create_cadre(game.selected, area))
+		set_add(game.block_moved, create_cadre(game.selected_reserve, area))
 		game.count -= 1
-		if (game.reserves[game.selected] === 0) game.selected = null
-		if (game.count === 0){ game.selected = null; view.selected = null}
+		if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null
+		if (game.count === 0){ clear_selected()}
 	},
 	end_production(){
 		clear_undo()
@@ -2353,19 +2358,19 @@ states.production_usa = {
 			view.actions.done = 0
 		}
 		view.prompt = "Place free USA blocks:" + message
-		if (game.selected) {
+		if (game.selected_reserve) {
 			gen_action_region(REGIONS.findIndex(x => x.name === "Washington"))
 			gen_action_region(REGIONS.findIndex(x => x.name === "New York"))
 		} 
 	},
-	reserve(r){game.selected === r ? game.selected = null : game.selected = r},
+	reserve(r){game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r},
 	region(r){		
 		push_undo()
 		log(`USA reinforcement placed in ${REGIONS[r].name}.`)
-		const b = create_cadre(game.selected, r)
+		const b = create_cadre(game.selected_reserve, r)
 		set_delete(game.usa_reinforcements_types, game.block_type[b])
 		game.block_steps[b] = game.usa_reinforcements
-		game.selected = null
+		game.selected_reserve = null
 	},
 	done(){
 		push_undo()
@@ -2494,7 +2499,7 @@ function generate_ineligible_countries(){ //for diplomacy
 	}
 	//armed minors
 	for (let i = 13; i < game.influence.length; i++){ //13 is the first possible minor country: Afghanistan
-		if (set_has(game.armed_minors, i)) set_add(ics, COUNTRIES[i].country)
+		if (set_has(game.armed_minors, i)) set_add(ics, COUNTRIES[i].name)
 	}
 	return ics
 }
@@ -2550,7 +2555,7 @@ states.government = {
 		view.prompt = message
 		view.actions.pass = 1
 		view.actions.configure_autopass = 1
-		if (game.selected && Array.isArray(game.selected) && can_make_factory(game.selected, f)){
+		if (game.selected_Icard && Array.isArray(game.selected_Icard) && can_make_factory(game.selected_Icard, f)){
 			view.actions.build_factory = 1
 		}
 		if (can_make_factory(game.hand[f][1], f)){
@@ -2627,43 +2632,49 @@ states.government = {
 	},
 	influence(ic){//inner card
 		push_undo()
-		game.selected = ic
+		clear_selected()
+		game.selected_Acard = ic
 		game.state = "government_diplomacy"
 	},
 	influence_special(ic){//inner card
 		push_undo()
-		game.selected = ic
+		clear_selected()
+		game.selected_Acard = ic
 		game.state = "government_wildcard"
 	},
 	technology(ic){//inner card
 		push_undo()
-		game.selected = ic
+		clear_selected()
+		game.selected_Icard = ic
 		game.state = "government_second_tech"
 	},
 	intelligence(ic){//inner card
 		push_undo()
-		game.selected = ic
+		clear_selected()
+		game.selected_Icard = ic
 		game.state = "choose_target_intelligence"
 	},
 	industry_card(c){
-		if (!game.selected || !Array.isArray(game.selected)) game.selected = [c] 
-		else if (game.selected.includes(c)) {
-			array_remove_item(game.selected, c)
-			if (game.selected.length === 0) game.selected = null
-		} else game.selected.push(c)
+		if (!game.selected_Icard || !Array.isArray(game.selected_Icard)) {
+			clear_selected(); game.selected_Icard = [c] 
+		}
+		else if (game.selected_Icard.includes(c)) {
+			array_remove_item(game.selected_Icard, c)
+			if (game.selected_Icard.length === 0) game.selected_Icard = null
+		} 
+		else game.selected_Icard.push(c)
 	},
 	build_factory(){
 		game.pass_count = 0
-		game.discard[1].push(...game.selected)
+		game.discard[1].push(...game.selected_Icard)
 		let cards = ""
-		for (let card of game.selected) {
+		for (let card of game.selected_Icard) {
 			array_remove_item(game.hand[game.activeNum][1], card)
 			cards += `(#${Math.abs(card)}) `
 		}
 		game.ind[game.activeNum] += 1
 		game.factory_increase[game.activeNum] += 1
 		log(`${game.active} has built a factory using the following cards: ${cards}.`)
-		game.selected = null
 		next_player()
 	},
 	configure_autopass(){
@@ -2671,7 +2682,6 @@ states.government = {
 		game.state = "autopass"
 	},
 	pass(){
-		game.selected = null
 		log(`${game.active} passed.`)
 		game.pass_count += 1
 		if (three_consecutive_passes()) {
@@ -2685,12 +2695,12 @@ states.government = {
 states.government_diplomacy = {
 	inactive: "take a government action",
 	prompt(){
-		const ic = game.selected
+		const ic = game.selected_Acard
 		view.prompt = `Confirm: influence ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}?`
 		view.actions.confirm = 1
 	},
 	confirm(){
-		const ic = game.selected
+		const ic = game.selected_Acard
 		log(`${game.active} influences ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}.`)
 		game.pass_count = 0
 		array_remove_item(game.hand[game.activeNum][0], Math.abs(ic))
@@ -2703,7 +2713,6 @@ states.government_diplomacy = {
 			game.discard[0].push(Math.abs(card))
 			array_remove_item(game.diplomacy[f], card)
 		} else game.diplomacy[game.activeNum].push(ic)
-		game.selected = null
 		game.state = "government"
 		next_player()
 	}
@@ -2714,7 +2723,7 @@ states.government_wildcard = {
 	prompt(){
 		view.prompt = "Select country to apply Wild Card."
 		let ics = generate_ineligible_countries()
-		let card = ACARDS[game.selected]
+		let card = ACARDS[game.selected_Acard]
 		let s_c = special_countries(card.special, game.activeNum)
 		for (let i = 0; i < REGIONS.length; i++) {
 			if (REGIONS[i].country && s_c.indexOf(REGIONS[i].country) !== -1 && !set_has(ics, REGIONS[i].country)){
@@ -2727,15 +2736,14 @@ states.government_wildcard = {
 		influence_country(c, game.activeNum)
 		update_production()
 
-		let s = ACARDS[game.selected].special
+		let s = ACARDS[game.selected_Acard].special
 		log(`${game.active} uses ${s} to influence ${COUNTRIES[c].name}.`)
 		if (s === "Foreign Aid") {
 			game.ind[game.activeNum] -= 1
 			log("They lose one industry.")
 		}
 
-		game.discard[0].push(game.hand[game.activeNum][0].splice(game.hand[game.activeNum][0].indexOf(game.selected), 1)[0])
-		game.selected = null
+		game.discard[0].push(game.hand[game.activeNum][0].splice(game.hand[game.activeNum][0].indexOf(game.selected_Acard), 1)[0])
 		game.pass_count = 0
 		game.state = "government"
 		next_player()
@@ -2748,9 +2756,9 @@ states.government_second_tech = {
 		view.prompt = "Select a matching tech."
 		view.actions.undo = 1
 		let tech
-		let card = ICARDS[Math.abs(game.selected)]
-		if (card.left && game.selected > 0) tech = card.left
-		else if (card.right && game.selected < 0) tech = card.right
+		let card = ICARDS[Math.abs(game.selected_Icard)]
+		if (card.left && game.selected_Icard > 0) tech = card.left
+		else if (card.right && game.selected_Icard < 0) tech = card.right
 		else tech = techs_from_science(card)
 		if (tech === "Industrial Espionage") tech = industrial_espionage()
 
@@ -2758,7 +2766,7 @@ states.government_second_tech = {
 		if (Array.isArray(tech)){ //as the first card is special, the second card cannot be special
 			let its = generate_ineligible_techs(game.activeNum)
 			for (let i = 0; i < ihand.length; i++){
-				if (ihand[i] === Math.abs(game.selected)) continue 
+				if (ihand[i] === Math.abs(game.selected_Icard)) continue 
 				let card = ICARDS[ihand[i]]
 				let l = card.left
 				let r = card.right
@@ -2767,7 +2775,7 @@ states.government_second_tech = {
 			}
 		} else {
 			for (let i = 0; i < ihand.length; i++){
-				if (ihand[i] === Math.abs(game.selected)) continue 
+				if (ihand[i] === Math.abs(game.selected_Icard)) continue 
 				let card = ICARDS[ihand[i]]
 				let l = card.left
 				let r = card.right
@@ -2781,26 +2789,26 @@ states.government_second_tech = {
 	technology(ic){
 		push_undo()
 		game.state = "government_invent"
-		game.selected = [game.selected, ic]
+		game.selected_Icard = [game.selected_Icard, ic]
 	}
 }
 
 states.government_invent = {
 	inactive: "take a government action",
 	prompt(){
-		let tech = find_tech(ICARDS[Math.abs(game.selected[0])], ICARDS[Math.abs(game.selected[1])])
+		let tech = find_tech(ICARDS[Math.abs(game.selected_Icard[0])], ICARDS[Math.abs(game.selected_Icard[1])])
 		view.prompt = `Inventing ${tech}: Discard one of the cards or place inside your vault.`
 		game.vault[game.activeNum].length >= HANDSIZE[game.activeNum]*2 ? view.actions.vault = 0 : view.actions.vault = 1
 		let hand = game.hand[game.activeNum][1]
-		let pair = pair_has_tech_printed(game.selected[0], game.selected[1], tech)
+		let pair = pair_has_tech_printed(game.selected_Icard[0], game.selected_Icard[1], tech)
 		for (let i = 0; i < hand.length; i++){
-			if ((hand[i] === Math.abs(game.selected[0]) || hand[i] === Math.abs(game.selected[1]))
+			if ((hand[i] === Math.abs(game.selected_Icard[0]) || hand[i] === Math.abs(game.selected_Icard[1]))
 				&& (pair || !card_has_tech_printed(hand[i], tech))) gen_action_industry(hand[i])
 		}
 	},
 	industry_card(c){ //discard card
 		clear_undo()
-		let tc = c === Math.abs(game.selected[0])? game.selected[1] : game.selected[0] //tech card
+		let tc = c === Math.abs(game.selected_Icard[0])? game.selected_Icard[1] : game.selected_Icard[0] //tech card
 		let side = tc > 0 ? 1 : -1		
 		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
 		let f = game.activeNum
@@ -2808,21 +2816,19 @@ states.government_invent = {
 		log(`${game.active} has invented ${tech}`)
 		game.tech[f].push(game.hand[f][1].splice(game.hand[f][1].indexOf(Math.abs(tc)), 1)[0]*side)
 		game.discard[1].push(game.hand[f][1].splice(game.hand[f][1].indexOf(c), 1)[0])
-		game.selected = null
 		game.pass_count = 0
 		game.state = "government"
 		next_player()
 	},
 	vault(){
-		let tech = find_tech(ICARDS[Math.abs(game.selected[0])], ICARDS[Math.abs(game.selected[1])])
+		let tech = find_tech(ICARDS[Math.abs(game.selected_Icard[0])], ICARDS[Math.abs(game.selected_Icard[1])])
 		let f = game.activeNum
 		clear_undo()
 		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
 		log(`${game.active} has placed a technology in their secret vault`)
-		game.vault[f].push(...game.selected)
-		array_remove_item(game.hand[f][1], Math.abs(game.selected[0]))
-		array_remove_item(game.hand[f][1], Math.abs(game.selected[1]))
-		game.selected = null
+		game.vault[f].push(...game.selected_Icard)
+		array_remove_item(game.hand[f][1], Math.abs(game.selected_Icard[0]))
+		array_remove_item(game.hand[f][1], Math.abs(game.selected_Icard[1]))
 		game.pass_count = 0
 		game.state = "government"
 		next_player()
@@ -2866,7 +2872,7 @@ states.government_discard = {
 states.choose_target_intelligence = {
 	inactive: "take a government action",
 	prompt(){
-		const a = ICARDS[game.selected].special
+		const a = ICARDS[game.selected_Icard].special
 		view.prompt = `Who do you wish to target with ${a}?`
 		if (game.activeNum !== 0) view.actions.axis = viable_target(0, a)? 1:0
 		if (game.activeNum !== 1) view.actions.west = viable_target(1, a)? 1:0
@@ -2895,7 +2901,7 @@ function discarded_double_agent() {
 }
 function resolve_target(f) {
 	push_undo()
-	log(`The ${game.active} targeted the ${FACTIONS[f]} with ${ICARDS[game.selected].special}`)
+	log(`The ${game.active} targeted the ${FACTIONS[f]} with ${ICARDS[game.selected_Icard].special}`)
 	game.espionage = game.activeNum
 	game.target = f
 	if (game.autopass && game.autopass[f].length > 0) disable_autopass(f)
@@ -2918,7 +2924,7 @@ function faction_of_selected_intel(){
 	for (let i = 0; i < 3; i++) {
 		const ihand = game.hand[i][1]
 		for (let card of ihand) {
-			if (card === game.selected) return i
+			if (card === game.selected_Icard) return i
 		}
 	}
 }
@@ -2933,10 +2939,10 @@ function state_from_special(s){
 	}
 }
 function cleanup_intel(){
-	make_active(faction_of_selected_intel(game.selected))
-	array_remove_item(game.hand[game.activeNum][1], game.selected)
-	game.discard[1].push(game.selected)
-	game.selected = null
+	make_active(faction_of_selected_intel(game.selected_Icard))
+	array_remove_item(game.hand[game.activeNum][1], game.selected_Icard)
+	game.discard[1].push(game.selected_Icard)
+	game.selected_Icard = null
 	game.target = null
 	game.espionage = null
 	game.pass_count = 0
@@ -2944,7 +2950,7 @@ function cleanup_intel(){
 	next_player()
 }
 function  resolve_espionage(){
-	switch (ICARDS[game.selected].special){
+	switch (ICARDS[game.selected_Icard].special){
 	case 'Spy Ring': game.draw = spy_ring_steal(game.target); make_active(game.target); break
 	case 'Sabotage': game.ind[game.target] -= 1; log("They lose one industry"); cleanup_intel(); return
 	case 'Mole':
@@ -2953,14 +2959,14 @@ function  resolve_espionage(){
 	case 'Code Break': make_active(game.espionage); break
 		
 	}
-	game.state = state_from_special(ICARDS[game.selected].special)
+	game.state = state_from_special(ICARDS[game.selected_Icard].special)
 }
 states.double_agent = {
 	disable_vault: 1,
 	inactive: `potentially reverse with double agent`,
 	prompt(){
 		const da = has_double_agent(game.activeNum)
-		view.prompt = da? `Reverse ${ICARDS[game.selected].special} with double agent?` : "No double agent, must pass."
+		view.prompt = da? `Reverse ${ICARDS[game.selected_Icard].special} with double agent?` : "No double agent, must pass."
 		view.actions.pass = 1
 		if (da) {
 			const ihand = game.hand[game.activeNum][1]
@@ -3039,7 +3045,7 @@ states.mole = {
 states.government_invent_mole = {
 	inactive: "resolve Mole",
 	prompt(){
-		let tech = find_tech(ICARDS[Math.abs(game.selected[0])], ICARDS[31])
+		let tech = find_tech(ICARDS[Math.abs(game.selected_Icard[0])], ICARDS[31])
 		view.prompt = `Inventing ${tech}: Discard the mole or place inside your vault.`
 		view.vault[game.target] = game.vault[game.target]
 		game.vault[game.activeNum].length >= HANDSIZE[game.activeNum]*2 ? view.actions.vault = 0 : view.actions.vault = 1
@@ -3053,7 +3059,7 @@ states.government_invent_mole = {
 				if (game.hand[i][1][j] === 31) original_faction = i
 			}
 		}
-		let tc = game.selected[0] //tech card
+		let tc = game.selected_Icard[0] //tech card
 		let side = tc > 0 ? 1 : -1		
 		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
 		let f = game.activeNum
@@ -3065,7 +3071,7 @@ states.government_invent_mole = {
 		make_active(original_faction)
 		array_remove_item(game.hand[original_faction][1], c)
 		game.discard[1].push(c)
-		game.selected = null
+		game.selected_Icard = null
 		game.target = null
 		game.espionage = null
 		game.pass_count = 0
@@ -3074,7 +3080,7 @@ states.government_invent_mole = {
 	},
 	vault(){
 		clear_undo()
-		let tech = find_tech(ICARDS[Math.abs(game.selected[0])], ICARDS[31])
+		let tech = find_tech(ICARDS[Math.abs(game.selected_Icard[0])], ICARDS[31])
 		let f = game.activeNum
 		let original_faction
 		for (let i = 0; i < 3; i++){
@@ -3084,12 +3090,13 @@ states.government_invent_mole = {
 		}
 		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
 		log(`${game.active} has placed a technology in their secret vault.`)
-		game.vault[f].push(...game.selected)
-		array_remove_item(game.hand[f][1], Math.abs(game.selected[0]))
+		game.vault[f].push(...game.selected_Icard)
+		array_remove_item(game.hand[f][1], Math.abs(game.selected_Icard[0]))
 		array_remove_item(game.hand[original_faction][1], 31)
 		game.state = "acknowledge_mole"
 		make_active(game.target)
-		game.selected = original_faction //used to remember who should be next in turn order
+		game.selected_Icard = null
+		game.selected_other = original_faction //used to remember who should be next in turn order
 	}
 }
 states.acknowledge_mole = {
@@ -3105,8 +3112,8 @@ states.acknowledge_mole = {
 	},
 	done(){
 		//slightly modified version of cleanup_intel()
-		make_active(game.selected)
-		game.selected = null
+		make_active(game.selected_other)
+		game.selected_other = null
 		game.target = null
 		game.espionage = null
 		game.pass_count = 0
@@ -3432,7 +3439,7 @@ states.movement = {
 	},
 	block(b){
 		push_undo()
-		game.selected = b
+		game.selected_block = b
 		game.mvmt = {
 			moves: 0,
 			max_moves: unit_movement(b, game.activeNum),
@@ -3497,36 +3504,36 @@ states.movement_move = {
 		}
 		view.prompt = `Move units: ${game.count} ${move} left. ${message}`
 
-		const spaces = BORDERS[game.block_location[game.selected]]
-		if (legal_end_space(game.selected, game.mvmt, game.block_location[game.selected])) gen_action_block(game.selected) 
+		const spaces = BORDERS[game.block_location[game.selected_block]]
+		if (legal_end_space(game.selected_block, game.mvmt, game.block_location[game.selected_block])) gen_action_block(game.selected_block) 
 		else view.prompt = "This unit cannot end its move here."
 		for(let r of spaces) {
 			if (game.control[r] !== game.activeNum && game.control[r] !== 3 && game.control[r] !== -1 && //this might be simplifiable with the change to the movement functions
 			!are_enemies(game.activeNum, game.control[r], r) && REGIONS[r].type !== 'strait') continue
 			let new_mvmt = object_copy(game.mvmt)
-			update_mvmt(game.selected, new_mvmt, r)
-			if (!new_mvmt.must_stop || legal_end_space(game.selected, new_mvmt, r)) gen_action_region(r)
+			update_mvmt(game.selected_block, new_mvmt, r)
+			if (!new_mvmt.must_stop || legal_end_space(game.selected_block, new_mvmt, r)) gen_action_region(r)
 		}
 	},
 	region(r){
-		update_mvmt(game.selected, game.mvmt, r)
-		game.block_location[game.selected] = r
+		update_mvmt(game.selected_block, game.mvmt, r)
+		game.block_location[game.selected_block] = r
 		if (game.mvmt.previous_space === game.mvmt.origin_space){
 			if (game.battle_groups[game.mvmt.origin_space]) {
-				array_remove_item(game.battle_groups[game.mvmt.origin_space], game.selected)
+				array_remove_item(game.battle_groups[game.mvmt.origin_space], game.selected_block)
 				if (game.battle_groups[game.mvmt.origin_space].length === 0) delete game.battle_groups[game.mvmt.origin_space]
 			}
 			if (game.mvmt.disengage === 1){
 				update_battle(game.mvmt.origin_space)
 				if (!contains_faction(game.mvmt.origin_space, game.activeNum)) set_delete(game.battle_required, game.mvmt.origin_space)
-				if (is_inf_or_tank(game.selected)) {
+				if (is_inf_or_tank(game.selected_block)) {
 					let border_id = get_border_id(r, game.mvmt.previous_space)
 					map_set(game.border_count, border_id, map_get(game.border_count, border_id, 0)+1)
 				}
 			}
 		}	
 
-		if (game.mvmt.must_stop) end_block_move(game.selected)
+		if (game.mvmt.must_stop) end_block_move(game.selected_block)
 	},
 	block(b){
 		if(game.mvmt.moves !== 0){
@@ -3575,7 +3582,7 @@ function end_block_move(b){
 			if (f !== game.activeNum) set_add(game.aggression_met, f === -1 ? c : f)
 	}
 
-	game.selected = null
+	clear_selected()
 	game.mvmt = {}
 	game.count -= 1
 	set_add(game.block_moved, b)
@@ -3734,8 +3741,8 @@ states.add_battle_group = {
 	inactive: "choose battles",
 	prompt(){
 		view.prompt = "Add a battle group."
-		view.actions.done = game.selected? 1 : 0
-		if (game.selected === null) {
+		view.actions.done = game.selected_block? 1 : 0
+		if (game.selected_block === null) {
 			for (let group in game.battle_groups) {
 				if (group%1000 !== game.active_battle) continue
 				for (let block of game.battle_groups[group]) {
@@ -3746,12 +3753,12 @@ states.add_battle_group = {
 	},
 	block(b){
 		push_undo()
-		game.selected = game.battle_groups[find_battle_group(b)]
+		game.selected_block = game.battle_groups[find_battle_group(b)]
 	},
 	done(){
 		clear_undo()
-		add_battle_group(game.selected)
-		game.selected = null
+		add_battle_group(game.selected_block)
+		game.selected_block = null
 		if (factions_in_group(game.active_battle_blocks).length === 1) pre_battle_setup(game.active_battle)
 		else {
 			game.state = 'battle'
@@ -3795,7 +3802,7 @@ states.battle = {
 			gen_action_pass(b) //theoretically there is no pass, but we will just have pass
 		}
 	}, //Air Naval Ground Sub
-	retreat(b){push_undo(); game.selected = b; game.state = "retreat"},
+	retreat(b){push_undo(); game.selected_block = b; game.state = "retreat"},
 	air(b){process_attack(b, 0)},
 	naval(b){process_attack(b, 1)},
 	shootNscoot(b){process_attack(b, 1, 1)},
@@ -3908,8 +3915,8 @@ states.damage = {
 			else {
 				clear_undo()
 				game.state = "retreat" 
-				game.selected = game.shootNscoot 
-				make_active(faction_of_block(game.selected))
+				game.selected_block = game.shootNscoot 
+				make_active(faction_of_block(game.selected_block))
 			}
 		}
 	}
@@ -3952,7 +3959,7 @@ states.choose_retreat = {
 			set_delete(game.active_battle_blocks, b)
 			set_add(game.sub_hiding, b)
 		} else {
-			game.selected = b
+			game.selected_block = b
 			game.state = "retreat"
 		}
 	},
@@ -3973,7 +3980,7 @@ states.retreat = {
 	inactive: "retreat or rebase",
 	prompt(){
 		view.prompt = "Retreat block."
-		const block = game.selected
+		const block = game.selected_block
 		const region = game.block_location[block]
 		const retreat = (game.must_retreat === null || (game.defender === null && set_has(game.must_retreat, block)))
 
@@ -4000,7 +4007,7 @@ states.retreat = {
 	},
 	region(r){
 		if (game.must_retreat !== null) push_undo
-		const b = game.selected
+		const b = game.selected_block
 		const previous_space = game.block_location[b]
 		game.block_location[b] = r
 		set_delete(game.active_battle_blocks, b)
@@ -4018,7 +4025,7 @@ states.retreat = {
 			map_set(game.border_count, border_id, map_get(game.border_count, border_id, 0)+1)
 		}
 				
-		game.selected = null
+		game.selected_block = null
 		game.shootNscoot = false
 
 		if (game.must_retreat !== null) game.state = 'choose_retreat'
@@ -4027,7 +4034,8 @@ states.retreat = {
 	no_valid_retreats(){
 		push_undo()
 		log("Block had no valid rebase options and was destroyed!")
-		remove_block(game.selected)
+		remove_block(game.selected_block)
+		clear_selected()
 		game.state = 'choose_retreat'
 	}
 }
@@ -4283,8 +4291,8 @@ states.gain_control = {
 			}
 		}
 		
-		if (game.selected !== null && game.phase === "government") {
-			let type = TYPE[game.selected%7]
+		if (game.selected_reserve !== null && game.phase === "government") {
+			let type = TYPE[game.selected_reserve%7]
 			for (let [index, region] of REGIONS.entries()) {
 				if (region.type === "sea") continue
 				if (cs.indexOf(region.country) === -1) continue
@@ -4294,27 +4302,26 @@ states.gain_control = {
 				gen_action_region(index)
 			}
 		}
-		if (game.selected !== null && game.phase !== "government") {
+		if (game.selected_reserve !== null && game.phase !== "government") {
 			for (let i = 0; i < game.block_location.length; i++) {
 				if (game.block_nation[i] === 6 && cs.indexOf(REGIONS[game.block_location[i]].country) !== -1) 
 					gen_action_block(i)
 			}
-			if (game.selected > 28 && game.selected < 35) {
+			if (game.selected_reserve > 28 && game.selected_reserve < 35) {
 				gen_action_region(REGIONS.findIndex(x => x.name === 'Washington'))
 				gen_action_region(REGIONS.findIndex(x => x.name === 'New York'))
 			}
 		}
-		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected))) {
-			game.selected = null
-			view.selected = null
+		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected_reserve))) {
+			clear_selected()
 		}
 	},
 	reserve(r){
-		game.selected === r ? game.selected = null : game.selected = r
+		game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r
 	},
 	block(b){
 		push_undo()
-		convert_neutral_fort(b, game.selected)
+		convert_neutral_fort(b, game.selected_reserve)
 		let country = REGIONS[game.block_location[b]].country
 		let country_done = true //if none of the regions in a country have a neutral, remove it! 
 		for (let i = 0; i < game.block_location.length; i++) {
@@ -4330,7 +4337,7 @@ states.gain_control = {
 			game.minor_aggressor[c] = undefined
 		}
 		if (game.gained_control[game.activeNum].length === 0){
-			game.selected = null
+			clear_selected()
 			check_gained_control()
 		}
 	},
@@ -4338,15 +4345,15 @@ states.gain_control = {
 		push_undo()
 		let r = REGIONS[area]
 		let country_done = true //if all the regions in a country have a block, remove it!
-		create_cadre(game.selected, area)
+		create_cadre(game.selected_reserve, area)
 		if (r.country === 'USA'){ //this should only fire on a US violation
-			game.selected = null
-			set_delete(game.usa_reinforcements_types, game.selected - 28)
+			game.selected_reserve = null
+			set_delete(game.usa_reinforcements_types, game.selected_reserve - 28)
 		} else {
 			let str = r.pop * 2
 			if (r.town) str += 1
 			if (str > 1) game.block_steps[game.block_location.indexOf(area)] = str
-			if (game.reserves[game.selected] === 0) game.selected = null
+			if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null
 			
 			let region
 			for (let i = 0; i < REGIONS.length; i++){
@@ -4362,7 +4369,7 @@ states.gain_control = {
 		}
 
 		if (game.gained_control[game.activeNum].length === 0) {
-			game.selected = null
+			clear_selected()
 			check_gained_control()
 		}
 	}
@@ -4769,7 +4776,7 @@ function autopass_conditions_met(f){
 						if (country === c.country) val += c.target === i? 1 : -1
 					}
 				}
-				if (c.value <= val) {disable_autopass(f) = []; return true}
+				if (c.value <= val) {disable_autopass(f); return true}
 			}
 		}
 	}
@@ -4894,7 +4901,11 @@ exports.setup = function (seed, scenario, options) {
 		previous_state: null, //used with tech reveal to remember where the game was at
 		active: "Axis",
 		activeNum: 0,
-		selected: null,
+		selected_reserve: null,
+		selected_block: null,
+		selected_Acard: null,
+		selected_Icard: null,
+		selected_other: null,
 		turn: 0,
 		phase: "new_year",
 		turn_order: TURNORDER[2],
@@ -5163,7 +5174,12 @@ exports.view = function (state, player) {
 		prompt: null,
 		actions: null,
 		log: game.log,
-		selected: game.selected,
+
+		selected_Acard: game.selected_Acard,
+		selected_Icard: game.selected_Icard,
+		selected_block: game.selected_block,
+		selected_other: game.selected_other,
+		selected_reserve: game.selected_reserve,
 		count: game.count,
 		turn_order: findTurnOrderIndex(game.turn_order),
 		turn_order_roles: game.turn_order,

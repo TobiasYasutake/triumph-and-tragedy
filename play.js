@@ -211,13 +211,6 @@ on_init()
 
 /* UPDATE UI */
 
-function reserve_select(){
-	return 	(view.prompt === "Place starting Cadres." || 
-		view.prompt.substring(0,16) === "Spend Production" || 
-		view.prompt.substring(0,15) === "Gain control of" ||
-		view.prompt.substring(0,21) === "Place free USA blocks")
-}
-
 function layout_blocks(area, blocks){
 	//sort the blocks
 	let w = area.width ? area.width : 3 //should be based on region
@@ -270,7 +263,7 @@ function update_blocks(){
 		e.classList.remove("NeutralFort")
 		e.classList.remove("Fort")
 		e.classList.toggle("moved", view.block_moved.includes(i))
-		e.classList.toggle("selected", (!reserve_select() && ((Array.isArray(view.selected) && view.selected.includes(i)) || view.selected === i)))
+		e.classList.toggle("selected", ((Array.isArray(view.selected_block) && view.selected_block.includes(i)) || view.selected_block === i))
 		e.classList.add(NATIONS[view.block_nation[i]])
 		if (!areas[view.block_location[i]]) areas[view.block_location[i]] = []
 		areas[view.block_location[i]].push(i)
@@ -371,7 +364,7 @@ function update_reserves(){
 			let e = ui.reserves[Math.floor(i/7)].children[i%7]
 			e.firstElementChild.innerText = view.reserves[i]
 
-			if (reserve_select() && view.selected === i) {
+			if (view.selected_reserve === i) {
 				e.classList.add("selected")
 			} else {e.classList.remove("selected")}
 		}
@@ -419,6 +412,7 @@ function update_cards() {
 				let tnb = (card.left !== undefined || card.right !== undefined)
 				let child = document.createElement('div')
 				child.className = tnb ? "card_button top" : "card_button special"
+				if (Math.abs(view.selected_Acard) === v) e.classList.add("selected")
 				e.appendChild(child)
 				register_action(child, tnb? "influence" : "influence_special", v)
 				if (tnb) {
@@ -446,9 +440,8 @@ function update_cards() {
 				let spy = (card.special && spy_actions.indexOf(card.special) !== -1)
 				let child = document.createElement('div')
 				child.className = tnb ? "card_button top" : "card_button special"
-				if (view.prompt === "Perform an action or pass." 
-					&& view.selected && Array.isArray(view.selected) 
-					&& view.selected.indexOf(v) !== -1) e.classList.add("selected")
+				if ((view.selected_Icard && Array.isArray(view.selected_Icard) && view.selected_Icard.indexOf(v) !== -1) || 
+					Math.abs(view.selected_Icard) === v) e.classList.add("selected")
 				e.appendChild(child)
 				register_action(child, spy? "intelligence" : "technology", v)
 				if (tnb) {
