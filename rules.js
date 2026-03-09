@@ -2184,9 +2184,99 @@ states.setup_short_game = {
 	inactive: "special setup",
 	prompt(){
 		view.prompt = `Spend bonus Cadres/CVs: ${game.count} points left.`
-		view.actions.end_production = game.count !== 0 ? 1:0 
+		view.actions.end_production = game.count !== 0 ? 1:0
+		Gen_CV_and_Cadre_Actions()
+	},
+	block(b){
+		push_undo()
+		log(`Step increased in ${REGIONS[game.block_location[b]].name}`)
+		game.block_steps[b] += 1
+		set_add(game.block_moved, b)
+		game.count -= 1
+		if (game.count === 0){ game.selected = null; view.selected = null}
+	},
+	reserve(r){
+		game.selected === r ? game.selected = null : game.selected = r
+	},
+	region(area){
+		push_undo()
+		log(`Cadre placed in ${REGIONS[area].name}`)
+		set_add(game.block_moved, create_cadre(game.selected, area))
+		game.count -= 1
+		if (game.reserves[game.selected] === 0) game.selected = null
+		if (game.count === 0){ game.selected = null; view.selected = null}
 	},
 	end_production(){}//draw cards -> axis gains control of Austria -> axis plays 7 cards -> draw dividends
+}
+
+states.draw_short_game = {
+	inactive: "Setup",
+	prompt(){
+		view.prompt = "Draw Cards."
+		view.actions.draw = 1
+		view.draw = game.draw
+	},
+	draw(){
+		game.hand[game.activeNum][0].push(... game.draw[0])
+		game.draw = [[],[]]
+ 		end_setup()
+	}
+}
+
+function Gen_CV_and_Cadre_Actions(){
+	if (game.count > 0) {
+		const supply = check_supply(game.activeNum)
+		for (let i = 0; i < game.block_location.length; ++i) {
+			if (!is_max_steps(i)
+				&& faction_of_block(i) === game.activeNum
+				&& REGIONS[game.block_location[i]].type !== "sea"
+				&& !set_has(game.block_moved, i)
+				&& !is_engaged(i)
+				&& (game.block_type[i] === 0 || adjacent_to_supply(supply, i))
+			) gen_action_block(i)
+		}
+		let i
+		let finish
+
+		switch (game.activeNum) {
+		case AXIS: i = 0; finish = 13; break
+		case WEST: i = 14; finish = game.usa_satellite? 34 : 27; break
+		case USSR: i = 35; finish = 41; break
+		}
+		
+		for (i; i <= finish; ++i){
+			if (reserve_empty(i)) continue
+			if (set_has(game.defeated_major_powers, Math.floor(i/7))) continue
+			if (i%7 === 0 && forts_everywhere(NATIONS[Math.floor(i/7)])) continue
+			//if no coastal home costal regions
+			gen_action_reserve(i)
+		}
+
+		if (game.selected !== null) {
+			let nation = NATIONS[Math.floor(game.selected/7)]
+			let type = TYPE[game.selected%7]
+			let ics = false 
+			if (type === "Fort" && GREATPOWERS.includes(nation)) {
+				ics = faction_major_powers(game.activeNum) //ineligible countries
+				for (let i = ics.length -1; i >= 0; --i)
+					ics.push(...COLONIES[ics[i]])
+			}
+			for (let [index, region] of REGIONS.entries()) {
+				if (region.type === "sea") continue
+				if (map_has(game.battle, index)) continue
+				if (type !== "Fort" && region.country !== nation) continue
+				if (who_controls_region(index) !== game.activeNum) continue
+				if (type === "Fort") {
+					if (is_fort_in_region(index)) continue
+					if (ics && ics.includes(region.country)) continue
+					if (!ics && region.country !== nation && !COLONIES[nation].includes(region.country)) continue
+					gen_action_region(index)
+				}
+				else if ((type === "Fleet" || type === "Sub" || type === "Carrier") && !is_coastal_region(index)) continue
+				gen_action_region(index)
+			}
+		}
+	}
 }
 
 //PRODUCTION
@@ -2197,59 +2287,7 @@ states.production = {
 		game.count !== 0 ? view.actions.end_production_confirm = 1 : view.actions.end_production = 1
 		view.actions.draw_action_card = game.count > 0? 1:0//logic if the deck is empty?
 		view.actions.draw_investment_card = game.count > 0? 1:0//logic if the deck is empty?
-		if (game.count > 0) {
-			const supply = check_supply(game.activeNum)
-			for (let i = 0; i < game.block_location.length; ++i) {
-				if (!is_max_steps(i)
-					&& faction_of_block(i) === game.activeNum
-					&& REGIONS[game.block_location[i]].type !== "sea"
-					&& !set_has(game.block_moved, i)
-					&& !is_engaged(i)
-					&& (game.block_type[i] === 0 || adjacent_to_supply(supply, i))
-				) gen_action_block(i)
-			}
-			let i
-			let finish
-	
-			switch (game.activeNum) {
-			case AXIS: i = 0; finish = 13; break
-			case WEST: i = 14; finish = game.usa_satellite? 34 : 27; break
-			case USSR: i = 35; finish = 41; break
-			}
-			
-			for (i; i <= finish; ++i){
-				if (reserve_empty(i)) continue
-				if (set_has(game.defeated_major_powers, Math.floor(i/7))) continue
-				if (i%7 === 0 && forts_everywhere(NATIONS[Math.floor(i/7)])) continue
-				//if no coastal home costal regions
-				gen_action_reserve(i)
-			}
-
-			if (game.selected !== null) {
-				let nation = NATIONS[Math.floor(game.selected/7)]
-				let type = TYPE[game.selected%7]
-				let ics = false 
-				if (type === "Fort" && GREATPOWERS.includes(nation)) {
-					ics = faction_major_powers(game.activeNum) //ineligible countries
-					for (let i = ics.length -1; i >= 0; --i)
-						ics.push(...COLONIES[ics[i]])
-				}
-				for (let [index, region] of REGIONS.entries()) {
-					if (region.type === "sea") continue
-					if (map_has(game.battle, index)) continue
-					if (type !== "Fort" && region.country !== nation) continue
-					if (who_controls_region(index) !== game.activeNum) continue
-					if (type === "Fort") {
-						if (is_fort_in_region(index)) continue
-						if (ics && ics.includes(region.country)) continue
-						if (!ics && region.country !== nation && !COLONIES[nation].includes(region.country)) continue
-						gen_action_region(index)
-					}
-					else if ((type === "Fleet" || type === "Sub" || type === "Carrier") && !is_coastal_region(index)) continue
-					gen_action_region(index)
-				}
-			}
-		}
+		Gen_CV_and_Cadre_Actions()
 		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected))) {
 			game.selected = null
 			view.selected = null
