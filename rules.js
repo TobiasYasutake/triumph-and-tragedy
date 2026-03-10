@@ -2086,7 +2086,9 @@ states.setup = {
 	disable_negotiation: true,
 	inactive: "setup",
 	prompt(){
-		view.prompt = "Place starting Cadres."
+		const north_sea = (game.britania && game.activeNum === 1 && 
+				number_of_blocks_in_region(REGIONS.findIndex(x => x.name === "North Sea")) === 0)
+		view.prompt = north_sea? "Place starting Cadres. Britania Rules the Waves: place an extra block in the North Sea." : "Place starting Cadres."
 		let i
 		let finish
 
@@ -2114,7 +2116,7 @@ states.setup = {
 				continue checkReserves
 			}
 		}
-		if (all_regions_full) {
+		if (all_regions_full && !north_sea) {
 			view.actions.end_setup = 1
 			game.selected_reserve = null
 		}
@@ -2136,6 +2138,7 @@ states.setup = {
 					gen_action_region(index)
 				}
 			}
+			if (north_sea && type !== "Fort" && nation === "Britain") gen_action_region(REGIONS.findIndex(x => x.name === "North Sea"))
 		}
 		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected_reserve))) {
 			game.selected_reserve = null
@@ -5137,6 +5140,10 @@ exports.setup = function (seed, scenario, options) {
 		game.usa_reinforcements = -3
 	}
 
+	//game.blitz = options.Blitz? 1 : 0
+	game.britania = options.Britannia_Rules_the_Waves? 1 : 0
+	game.territorial_straits = options.Territorial_Straits? 1 : 0
+
 	game.deck[0] = make_deck()
 	game.deck[1] = make_deck()
 
@@ -5157,6 +5164,15 @@ exports.setup = function (seed, scenario, options) {
 	create_cadre(
 		(NATIONS.indexOf("Britain")*7) + TYPE.indexOf("Infantry"), 
 		REGIONS.findIndex(x => x.name === 'Karachi'))
+
+	if (game.britania) {
+		log("Variant rule: Britannia Rules the Waves")
+		create_cadre(
+			(NATIONS.indexOf("Britain")*7) + TYPE.indexOf("Fleet"), 
+			REGIONS.findIndex(x => x.name === 'Glasgow'))
+	}
+
+	if (game.territorial_straits) log("Variant rule: Territorial Straits")
 
 	for (let i = 0; i < COUNTRIES.length; i++){
 		game.influence[i] = -1
