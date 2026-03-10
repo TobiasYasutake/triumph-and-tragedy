@@ -1293,13 +1293,13 @@ function rebase_locations(r, b, retreat) {
 			const bt = border_type(space, s)
 			if (remaining < 0) continue
 			if (!set_has(net, s) &&
-				!(set_has(rss, s)) && !(battle && retreat) &&
+				!(set_has(rss, s)) && !( !(air || sub) && battle && retreat) &&
 				(space !== r || !retreat || f !== game.attacker || os === undefined || s === os) && //if you are retreating, the first step must be the original space
  				((air || sub || !contains_enemy_blocks(s, f, true)) ||(c && is_neutral(c) && !is_armed_minor(c) && type === 'strait')) && //cannot move through enemy blocks
 				(!c || !is_neutral(c) || is_armed_minor(c) || type === 'strait') && //cannot move through neutral unless armed or strait
  				(air || bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, s))
  			) {
- 				set_add(net, s)
+ 				if (!battle) set_add(net, s)
  				if ((air || type !== 'land') && remaining !== 0)
 					queue.push({space: s, movement: remaining})
 			}
@@ -3901,7 +3901,8 @@ states.retreat = {
 		view.prompt = "Retreat block."
 		const block = game.selected_block
 		const region = game.block_location[block]
-		const retreat = (game.must_retreat === null || (game.defender === null && set_has(game.must_retreat, block)))
+		const retreat = (game.must_retreat === null || (game.defender === null && set_has(game.must_retreat, block)) 
+			|| (REGIONS[game.active_battle].type === "sea" && game.block_type[block] === 1)) //an airplane at sea is always retreating
 
 		let cannot_retreat = true
 		if (is_ans(block)) {//rebase
