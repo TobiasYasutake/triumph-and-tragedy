@@ -108,10 +108,14 @@ function end_setup(){
 		game.state = "setup"
 		make_active(game.activeNum += 1)
 	} else {
-		log('Setup finished. Starting game.')
-		log_br()
-		determine_control(0)
-		new_year()	
+		if (game.scenario === "Short game") 
+			sg_setup()
+		else {
+			log('Setup finished. Starting game.')
+			log_br()
+			determine_control(0)
+			new_year()
+		}
 	}
 }
 
@@ -153,7 +157,6 @@ function new_year(){
 	log_br()
 	make_active(game.turn_order[0])
 	determine_control(game.activeNum)
-	//log_br()
 	log(`.h3 ${game.active} begins production`)
 	game.count = determine_production(game.activeNum)
 
@@ -253,7 +256,13 @@ function resolve_diplomacy(){
 function check_gained_control() {
 	clear_undo()
 	if (game.gained_control[0].length === 0 && game.gained_control[1].length === 0 && game.gained_control[2].length === 0 ) {
-		if (game.phase === "government") next_season()
+		if (is_short_setup()) {
+			if (game.hand[0][0].length === 18) {
+				game.count = 7; game.state = "sg_axis_diplomacy"
+			}
+			else game.state = "sg_draw_dividends"
+		}
+		else if (game.phase === "government") next_season()
 		else {make_active(game.turn_order_command[0]); end_movement_phase()}
 	} else {
 		game.state = "gain_control"
@@ -2075,7 +2084,7 @@ var view
 //SETUP
 states.setup = {
 	disable_negotiation: true,
-	inactive: "Setup",
+	inactive: "setup",
 	prompt(){
 		view.prompt = "Place starting Cadres."
 		let i
@@ -2144,11 +2153,71 @@ states.setup = {
 	end_setup(){
 		clear_undo()
 		clear_selected()
+		if (game.scenario === "Short game") {
+			end_setup()
+			return
+		}
 		let c = HANDSIZE[game.activeNum]
 		if (game.activeNum === 0) c *= 2
 		for (let i = 0; i < c; i++) game.draw[0].push(-1)
 		draw()
 		game.state = "draw_setup"
+	}
+}
+
+function Gen_CV_and_Cadre_Actions(){
+	if (game.count > 0) {
+		const supply = check_supply(game.activeNum)
+		for (let i = 0; i < game.block_location.length; ++i) {
+			if (!is_max_steps(i)
+				&& faction_of_block(i) === game.activeNum
+				&& REGIONS[game.block_location[i]].type !== "sea"
+				&& !set_has(game.block_moved, i)
+				&& !is_engaged(i)
+				&& (game.block_type[i] === 0 || adjacent_to_supply(supply, i))
+			) gen_action_block(i)
+		}
+		let i
+		let finish
+
+		switch (game.activeNum) {
+		case AXIS: i = 0; finish = 13; break
+		case WEST: i = 14; finish = game.usa_satellite? 34 : 27; break
+		case USSR: i = 35; finish = 41; break
+		}
+		
+		for (i; i <= finish; ++i){
+			if (reserve_empty(i)) continue
+			if (set_has(game.defeated_major_powers, Math.floor(i/7))) continue
+			if (i%7 === 0 && forts_everywhere(NATIONS[Math.floor(i/7)])) continue
+			//if no coastal home costal regions
+			gen_action_reserve(i)
+		}
+
+		if (game.selected_reserve !== null) {
+			let nation = NATIONS[Math.floor(game.selected_reserve/7)]
+			let type = TYPE[game.selected_reserve%7]
+			let ics = false 
+			if (type === "Fort" && GREATPOWERS.includes(nation)) {
+				ics = faction_major_powers(game.activeNum) //ineligible countries
+				for (let i = ics.length -1; i >= 0; --i)
+					ics.push(...COLONIES[ics[i]])
+			}
+			for (let [index, region] of REGIONS.entries()) {
+				if (region.type === "sea") continue
+				if (map_has(game.battle, index)) continue
+				if (type !== "Fort" && region.country !== nation) continue
+				if (who_controls_region(index) !== game.activeNum) continue
+				if (type === "Fort") {
+					if (is_fort_in_region(index)) continue
+					if (ics && ics.includes(region.country)) continue
+					if (!ics && region.country !== nation && !COLONIES[nation].includes(region.country)) continue
+					gen_action_region(index)
+				}
+				else if ((type === "Fleet" || type === "Sub" || type === "Carrier") && !is_coastal_region(index)) continue
+				gen_action_region(index)
+			}
+		}
 	}
 }
 
@@ -2160,60 +2229,8 @@ states.production = {
 		game.count !== 0 ? view.actions.end_production_confirm = 1 : view.actions.end_production = 1
 		view.actions.draw_action_card = game.count > 0? 1:0//logic if the deck is empty?
 		view.actions.draw_investment_card = game.count > 0? 1:0//logic if the deck is empty?
-		if (game.count > 0) {
-			const supply = check_supply(game.activeNum)
-			for (let i = 0; i < game.block_location.length; ++i) {
-				if (!is_max_steps(i)
-					&& faction_of_block(i) === game.activeNum
-					&& REGIONS[game.block_location[i]].type !== "sea"
-					&& !set_has(game.block_moved, i)
-					&& !is_engaged(i)
-					&& (game.block_type[i] === 0 || adjacent_to_supply(supply, i))
-				) gen_action_block(i)
-			}
-			let i
-			let finish
-	
-			switch (game.activeNum) {
-			case AXIS: i = 0; finish = 13; break
-			case WEST: i = 14; finish = game.usa_satellite? 34 : 27; break
-			case USSR: i = 35; finish = 41; break
-			}
-			
-			for (i; i <= finish; ++i){
-				if (reserve_empty(i)) continue
-				if (set_has(game.defeated_major_powers, Math.floor(i/7))) continue
-				if (i%7 === 0 && forts_everywhere(NATIONS[Math.floor(i/7)])) continue
-				//if no coastal home costal regions
-				gen_action_reserve(i)
-			}
-
-			if (game.selected_reserve !== null) {
-				let nation = NATIONS[Math.floor(game.selected_reserve/7)]
-				let type = TYPE[game.selected_reserve%7]
-				let ics = false 
-				if (type === "Fort" && GREATPOWERS.includes(nation)) {
-					ics = faction_major_powers(game.activeNum) //ineligible countries
-					for (let i = ics.length -1; i >= 0; --i)
-						ics.push(...COLONIES[ics[i]])
-				}
-				for (let [index, region] of REGIONS.entries()) {
-					if (region.type === "sea") continue
-					if (map_has(game.battle, index)) continue
-					if (type !== "Fort" && region.country !== nation) continue
-					if (who_controls_region(index) !== game.activeNum) continue
-					if (type === "Fort") {
-						if (is_fort_in_region(index)) continue
-						if (ics && ics.includes(region.country)) continue
-						if (!ics && region.country !== nation && !COLONIES[nation].includes(region.country)) continue
-						gen_action_region(index)
-					}
-					else if ((type === "Fleet" || type === "Sub" || type === "Carrier") && !is_coastal_region(index)) continue
-					gen_action_region(index)
-				}
-			}
-		}
-		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected_reserve))) {
+		Gen_CV_and_Cadre_Actions()
+		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected))) {
 			clear_selected()
 		}
 	},
@@ -2614,6 +2631,7 @@ states.government = {
 states.government_diplomacy = {
 	inactive: "take a government action",
 	prompt(){
+		states.government_diplomacy.disable_negotiation = is_short_setup()? 1 : 0
 		const ic = game.selected_Acard
 		view.prompt = `Confirm: influence ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}?`
 		view.actions.confirm = 1
@@ -2632,14 +2650,20 @@ states.government_diplomacy = {
 			game.discard[0].push(Math.abs(card))
 			array_remove_item(game.diplomacy[f], card)
 		} else game.diplomacy[game.activeNum].push(ic)
-		game.state = "government"
-		next_player()
+		if (is_short_setup()){
+			game.count -= 1
+			game.state = "sg_axis_diplomacy"
+		} else {
+			game.state = "government"
+			next_player()
+		}
 	}
 }
 
 states.government_wildcard = {
 	inactive: "take a government action",
 	prompt(){
+		states.government_diplomacy.disable_negotiation = is_short_setup()? 1 : 0
 		view.prompt = "Select country to apply Wild Card."
 		let ics = generate_ineligible_countries()
 		let card = ACARDS[game.selected_Acard]
@@ -2664,8 +2688,13 @@ states.government_wildcard = {
 
 		game.discard[0].push(game.hand[game.activeNum][0].splice(game.hand[game.activeNum][0].indexOf(game.selected_Acard), 1)[0])
 		game.pass_count = 0
-		game.state = "government"
-		next_player()
+		if (is_short_setup()){
+			game.count -= 1
+			game.state = "sg_axis_diplomacy"
+		} else {
+			game.state = "government"
+			next_player()
+		}
 	},
 }
 
@@ -4176,9 +4205,12 @@ states.choose_initiative = {//used in the rare case where two initiative cards a
 	}
 }
 
+
 states.gain_control = {
 	inactive: "gain control of neutral countries",
 	prompt(){
+		states.government_diplomacy.disable_negotiation = is_short_setup()? 1 : 0
+
 		let cs = []
 		for (let i = 0; i < game.gained_control[game.activeNum].length; i++){
 			cs.push(COUNTRIES[game.gained_control[game.activeNum][i]].name)
@@ -4211,7 +4243,7 @@ states.gain_control = {
 			}
 		}
 		
-		if (game.selected_reserve !== null && game.phase === "government") {
+		if (game.selected_reserve !== null && (game.phase === "government" || is_short_setup())) {
 			let type = TYPE[game.selected_reserve%7]
 			for (let [index, region] of REGIONS.entries()) {
 				if (region.type === "sea") continue
@@ -4811,6 +4843,178 @@ states.create_autopass = {
 	}
 }
 
+// === Short Game ===
+
+function is_short_setup() {return game && game.scenario === "Short game" && game.turn === 3}
+
+function sg_setup() {
+	log('Initial setup finished. Starting the short game extra setup.')
+	log_br()
+
+	const roll = roll_d6()
+	game.turn_order = TURNORDER[roll]
+	log_br()
+	log(`A ${roll} was rolled for initiative.`)
+	log_br()
+	log(".h2 Special Setup Production Phase")
+	log_br()
+	make_active(game.turn_order[0])
+	game.state = "sg_setup"
+	switch (game.activeNum) {
+	case 0: game.count = 20; break
+	case 1: game.count = 8; break
+	case 2: game.count = 14; break
+	}
+	determine_control(game.activeNum)
+	log(`.h3 ${game.active} begins special setup`)
+	log(`with ${game.count} bonus production for Cadres/CVs`)
+}
+
+function sg_end_setup() {
+	//modeled after end_setup()
+	log(`${game.active} has finished the extra setup.`)
+	if (game.activeNum !== game.turn_order[2]) {
+		game.state = "sg_setup"
+		next_player()
+		switch (game.activeNum) {
+		case 0: game.count = 20; break
+		case 1: game.count = 8; break
+		case 2: game.count = 14; break
+		}
+	} else {
+		log("Everyone has finished. Starting the game.")
+		new_year()
+	}
+}
+
+states.sg_setup = {
+	disable_negotiation: true,
+	inactive: "special setup",
+	prompt(){
+		view.prompt = `Spend bonus Cadres/CVs: ${game.count} points left.`
+		view.actions.end_production = game.count === 0 ? 1:0
+		Gen_CV_and_Cadre_Actions()
+	},
+	block(b){
+		push_undo()
+		log(`Step increased in ${REGIONS[game.block_location[b]].name}`)
+		game.block_steps[b] += 1
+		game.count -= 1
+		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
+	},
+	reserve(r){
+		game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r
+	},
+	region(area){
+		push_undo()
+		log(`Cadre placed in ${REGIONS[area].name}`)
+		create_cadre(game.selected_reserve, area)
+		game.count -= 1
+		if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null
+		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
+	},
+	end_production(){
+		clear_undo()
+		clear_selected()
+		let act
+		switch (game.activeNum) {
+		case 0: act = 18; break
+		case 1: act = 12; break
+		case 2: act = 10; break
+		}
+		for (let i = 0; i < act; i++) 
+			game.draw[0].push(-1)
+		game.draw[1] = [-1,-1,-1,-1]
+		draw()
+		game.state = "sg_draw"
+	}
+}
+
+states.sg_draw = {
+	inactive: "special setup",
+	disable_negotiation: true,
+	prompt(){
+		view.prompt = "Draw Cards."
+		view.actions.draw = 1
+		view.draw = game.draw
+	},
+	draw(){
+		clear_undo()
+		game.hand[game.activeNum][0].push(... game.draw[0])
+		game.hand[game.activeNum][1].push(... game.draw[1])
+		game.draw = [[],[]]
+ 		if (game.activeNum === 0) {
+			game.gained_control = [[15],[],[]]
+			game.state = "gain_control"
+		}
+		else game.state = "sg_draw_dividends" 
+	}
+}
+
+states.sg_axis_diplomacy ={
+	inactive: "special setup",
+	disable_negotiation: true,
+	prompt(){
+		if (game.count === 0) {view.prompt = "Done"; view.actions.done = 1}
+		else {
+			view.prompt = `Take ${game.count} unopposed diplomatic actions.`
+			const f = game.activeNum
+			const ics = generate_ineligible_countries()
+			const ahand = game.hand[f][0]
+			for (let i = 0; i < ahand.length; i++){
+				const card = ACARDS[ahand[i]]
+				if (card.left && !set_has(ics, card.left)) gen_action_influence(ahand[i])
+				if (card.right && !set_has(ics, card.right)) gen_action_influence((ahand[i])*-1)
+				if (card.special) {
+					let s_c = special_countries(card.special, f)
+					for (let j = 0; j < s_c.length; j++) {
+						if (!set_has(ics, s_c[j])) {
+							gen_action_influence_special(ahand[i]); break
+						}
+					}
+				}
+			}
+		}
+	},
+	influence(ic){//inner card
+		push_undo()
+		clear_selected()
+		game.selected_Acard = ic
+		game.state = "government_diplomacy"
+	},
+	influence_special(ic){//inner card
+		push_undo()
+		clear_selected()
+		game.selected_Acard = ic
+		game.state = "government_wildcard"
+	},
+	done(){
+		resolve_diplomacy()
+	}
+}
+
+states.sg_draw_dividends = {
+	inactive: "special setup",
+	disable_negotiation: true,
+	prompt(){
+		if (game.peace_dividend[game.activeNum].length > 0) {
+			view.prompt = "Done"
+			view.actions.done = 1
+		} else {
+			view.prompt = "Draw three dividends"
+			view.actions.draw = 1
+		}
+	},
+	draw(){
+		log(`${game.active} drew three dividends`)
+		for (let i = 0; i < 3; i++){
+			let draw = random_bigint(game.peace_dividend_bag.length)
+			game.peace_dividend[game.activeNum].push(game.peace_dividend_bag[draw])
+			array_remove(game.peace_dividend_bag, draw)
+		}
+	},
+	done(){sg_end_setup()}
+}
 
 exports.setup = function (seed, scenario, options) {
 	game = {
@@ -4926,6 +5130,13 @@ exports.setup = function (seed, scenario, options) {
 		usa_reinforcements: -6
 	}
 	game.scenario = scenario
+	
+	if (scenario === "Short game") {
+		game.ind = [15, 10, 12],
+		game.turn = 3
+		game.usa_reinforcements = -3
+	}
+
 	game.deck[0] = make_deck()
 	game.deck[1] = make_deck()
 
@@ -4951,8 +5162,6 @@ exports.setup = function (seed, scenario, options) {
 		game.influence[i] = -1
 	}
 	
-	//scenario === "Short game" ? log("Starting year: 1936") : log("Starting year: 1939")
-	//Needs work: the short game.
 	return game
 }
 
