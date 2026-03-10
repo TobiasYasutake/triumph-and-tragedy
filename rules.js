@@ -108,38 +108,8 @@ function end_setup(){
 		game.state = "setup"
 		make_active(game.activeNum += 1)
 	} else {
-		if (game.scenario === "Short game") {
-			log('Initial setup finished. Starting the special short game extra setup.')
-			log_br()
-
-			const roll = roll_d6()
-			game.turn_order = TURNORDER[roll]
-			log_br()
-			log(`A ${roll} was rolled for initiative.`)
-			log_br()
-
-			// for (let p = 0; p <= 2; ++p){
-			// 	log(`${FACTIONS[p]} drew three peace dividends.`)
-			// 	for (let i = 0; i < 3; i++){
-			// 		let draw = random_bigint(game.peace_dividend_bag.length)
-			// 		game.peace_dividend[p].push(game.peace_dividend_bag[draw])
-			// 		array_remove(game.peace_dividend_bag, draw)
-			// 	}
-			// }
-
-			log(".h2 Special Setup Production Phase")
-			log_br()
-			make_active(game.turn_order[0])
-			game.state = "setup_short_game"
-			switch (game.activeNum) {
-			case 0: game.count = 20; break
-			case 1: game.count = 8; break
-			case 2: game.count = 14; break
-			}
-			determine_control(game.activeNum)
-			log(`.h3 ${game.active} begins special setup`)
-			log(`with ${game.count} bonus production for Cadres/CVs`)
-		}
+		if (game.scenario === "Short game") 
+			sg_setup()
 		else {
 			log('Setup finished. Starting game.')
 			log_br()
@@ -288,9 +258,9 @@ function check_gained_control() {
 	if (game.gained_control[0].length === 0 && game.gained_control[1].length === 0 && game.gained_control[2].length === 0 ) {
 		if (is_short_setup()) {
 			if (game.hand[0][0].length === 18) {
-				game.count = 7; game.state = "special_axis_diplomacy"
+				game.count = 7; game.state = "sg_axis_diplomacy"
 			}
-			else game.state = "draw_dividends_short_game"
+			else game.state = "sg_draw_dividends"
 		}
 		else if (game.phase === "government") next_season()
 		else {make_active(game.turn_order_command[0]); end_movement_phase()}
@@ -2195,156 +2165,6 @@ states.setup = {
 	}
 }
 
-function end_short_game_setup() {
-	//modeled after end_setup()
-	log(`${game.active} has finished the extra setup.`)
-	if (game.activeNum !== game.turn_order[2]) {
-		game.state = "setup_short_game"
-		next_player()
-		switch (game.activeNum) {
-		case 0: game.count = 20; break
-		case 1: game.count = 8; break
-		case 2: game.count = 14; break
-		}
-	} else {
-		log("Everyone has finished. Starting the game.")
-		new_year()
-	}
-}
-
-states.setup_short_game = {
-	disable_negotiation: true,
-	inactive: "special setup",
-	prompt(){
-		view.prompt = `Spend bonus Cadres/CVs: ${game.count} points left.`
-		view.actions.end_production = game.count === 0 ? 1:0
-		Gen_CV_and_Cadre_Actions()
-	},
-	block(b){
-		push_undo()
-		log(`Step increased in ${REGIONS[game.block_location[b]].name}`)
-		game.block_steps[b] += 1
-		game.count -= 1
-		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
-	},
-	reserve(r){
-		game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r
-	},
-	region(area){
-		push_undo()
-		log(`Cadre placed in ${REGIONS[area].name}`)
-		create_cadre(game.selected_reserve, area)
-		game.count -= 1
-		if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null
-		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
-	},
-	end_production(){
-		clear_undo()
-		clear_selected()
-		let act
-		switch (game.activeNum) {
-		case 0: act = 18; break
-		case 1: act = 12; break
-		case 2: act = 10; break
-		}
-		for (let i = 0; i < act; i++) 
-			game.draw[0].push(-1)
-		game.draw[1] = [-1,-1,-1,-1]
-		draw()
-		game.state = "draw_short_game"
-	}//draw cards -> axis gains control of Austria -> axis plays 7 cards -> draw dividends
-}
-
-states.draw_short_game = {
-	inactive: "special setup",
-	disable_negotiation: true,
-	prompt(){
-		view.prompt = "Draw Cards."
-		view.actions.draw = 1
-		view.draw = game.draw
-	},
-	draw(){
-		clear_undo()
-		game.hand[game.activeNum][0].push(... game.draw[0])
-		game.hand[game.activeNum][1].push(... game.draw[1])
-		game.draw = [[],[]]
- 		if (game.activeNum === 0) {
-			game.gained_control = [[15],[],[]]
-			game.state = "gain_control"
-		}
-		else game.state = "draw_dividends_short_game" 
-	}
-}
-
-states.special_axis_diplomacy ={
-	inactive: "special setup",
-	disable_negotiation: true,
-	prompt(){
-		
-		if (game.count === 0) {view.prompt = "Done"; view.actions.done = 1}
-		else {
-			view.prompt = `Take ${game.count} unopposed diplomatic actions.`
-			const f = game.activeNum
-			const ics = generate_ineligible_countries()
-			const ahand = game.hand[f][0]
-			for (let i = 0; i < ahand.length; i++){
-				const card = ACARDS[ahand[i]]
-				if (card.left && !set_has(ics, card.left)) gen_action_influence(ahand[i])
-				if (card.right && !set_has(ics, card.right)) gen_action_influence((ahand[i])*-1)
-				if (card.special) {
-					let s_c = special_countries(card.special, f)
-					for (let j = 0; j < s_c.length; j++) {
-						if (!set_has(ics, s_c[j])) {
-							gen_action_influence_special(ahand[i]); break
-						}
-					}
-				}
-			}
-		}
-	},
-	influence(ic){//inner card
-		push_undo()
-		clear_selected()
-		game.selected_Acard = ic
-		game.state = "government_diplomacy"
-	},
-	influence_special(ic){//inner card
-		push_undo()
-		clear_selected()
-		game.selected_Acard = ic
-		game.state = "government_wildcard"
-	},
-	done(){
-		resolve_diplomacy()
-	}
-}
-
-/*Action Cards 12 18 10
-Investment Cds 4 4 4 */
-
-states.draw_dividends_short_game = {
-	inactive: "special setup",
-	disable_negotiation: true,
-	prompt(){
-		if (game.peace_dividend[game.activeNum].length > 0) {
-			view.prompt = "Done"
-			view.actions.done = 1
-		} else {
-			view.prompt = "Draw three dividends"
-			view.actions.draw = 1
-		}
-	},
-	draw(){
-		log(`${game.active} drew three dividends`)
-		for (let i = 0; i < 3; i++){
-			let draw = random_bigint(game.peace_dividend_bag.length)
-			game.peace_dividend[game.activeNum].push(game.peace_dividend_bag[draw])
-			array_remove(game.peace_dividend_bag, draw)
-		}
-	},
-	done(){end_short_game_setup()}
-}
-
 function Gen_CV_and_Cadre_Actions(){
 	if (game.count > 0) {
 		const supply = check_supply(game.activeNum)
@@ -2832,7 +2652,7 @@ states.government_diplomacy = {
 		} else game.diplomacy[game.activeNum].push(ic)
 		if (is_short_setup()){
 			game.count -= 1
-			game.state = "special_axis_diplomacy"
+			game.state = "sg_axis_diplomacy"
 		} else {
 			game.state = "government"
 			next_player()
@@ -2870,7 +2690,7 @@ states.government_wildcard = {
 		game.pass_count = 0
 		if (is_short_setup()){
 			game.count -= 1
-			game.state = "special_axis_diplomacy"
+			game.state = "sg_axis_diplomacy"
 		} else {
 			game.state = "government"
 			next_player()
@@ -4384,7 +4204,6 @@ states.choose_initiative = {//used in the rare case where two initiative cards a
 	}
 }
 
-function is_short_setup() {return game && game.scenario === "Short game" && game.turn === 3}
 
 states.gain_control = {
 	inactive: "gain control of neutral countries",
@@ -5023,6 +4842,179 @@ states.create_autopass = {
 	}
 }
 
+// === Short Game ===
+
+function is_short_setup() {return game && game.scenario === "Short game" && game.turn === 3}
+
+function sg_setup() {
+	log('Initial setup finished. Starting the short game extra setup.')
+	log_br()
+
+	const roll = roll_d6()
+	game.turn_order = TURNORDER[roll]
+	log_br()
+	log(`A ${roll} was rolled for initiative.`)
+	log_br()
+	log(".h2 Special Setup Production Phase")
+	log_br()
+	make_active(game.turn_order[0])
+	game.state = "sg_setup"
+	switch (game.activeNum) {
+	case 0: game.count = 20; break
+	case 1: game.count = 8; break
+	case 2: game.count = 14; break
+	}
+	determine_control(game.activeNum)
+	log(`.h3 ${game.active} begins special setup`)
+	log(`with ${game.count} bonus production for Cadres/CVs`)
+}
+
+function sg_end_setup() {
+	//modeled after end_setup()
+	log(`${game.active} has finished the extra setup.`)
+	if (game.activeNum !== game.turn_order[2]) {
+		game.state = "sg_setup"
+		next_player()
+		switch (game.activeNum) {
+		case 0: game.count = 20; break
+		case 1: game.count = 8; break
+		case 2: game.count = 14; break
+		}
+	} else {
+		log("Everyone has finished. Starting the game.")
+		new_year()
+	}
+}
+
+states.sg_setup = {
+	disable_negotiation: true,
+	inactive: "special setup",
+	prompt(){
+		view.prompt = `Spend bonus Cadres/CVs: ${game.count} points left.`
+		view.actions.end_production = game.count === 0 ? 1:0
+		Gen_CV_and_Cadre_Actions()
+	},
+	block(b){
+		push_undo()
+		log(`Step increased in ${REGIONS[game.block_location[b]].name}`)
+		game.block_steps[b] += 1
+		game.count -= 1
+		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
+	},
+	reserve(r){
+		game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r
+	},
+	region(area){
+		push_undo()
+		log(`Cadre placed in ${REGIONS[area].name}`)
+		create_cadre(game.selected_reserve, area)
+		game.count -= 1
+		if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null
+		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
+	},
+	end_production(){
+		clear_undo()
+		clear_selected()
+		let act
+		switch (game.activeNum) {
+		case 0: act = 18; break
+		case 1: act = 12; break
+		case 2: act = 10; break
+		}
+		for (let i = 0; i < act; i++) 
+			game.draw[0].push(-1)
+		game.draw[1] = [-1,-1,-1,-1]
+		draw()
+		game.state = "sg_draw"
+	}
+}
+
+states.sg_draw = {
+	inactive: "special setup",
+	disable_negotiation: true,
+	prompt(){
+		view.prompt = "Draw Cards."
+		view.actions.draw = 1
+		view.draw = game.draw
+	},
+	draw(){
+		clear_undo()
+		game.hand[game.activeNum][0].push(... game.draw[0])
+		game.hand[game.activeNum][1].push(... game.draw[1])
+		game.draw = [[],[]]
+ 		if (game.activeNum === 0) {
+			game.gained_control = [[15],[],[]]
+			game.state = "gain_control"
+		}
+		else game.state = "sg_draw_dividends" 
+	}
+}
+
+states.sg_axis_diplomacy ={
+	inactive: "special setup",
+	disable_negotiation: true,
+	prompt(){
+		if (game.count === 0) {view.prompt = "Done"; view.actions.done = 1}
+		else {
+			view.prompt = `Take ${game.count} unopposed diplomatic actions.`
+			const f = game.activeNum
+			const ics = generate_ineligible_countries()
+			const ahand = game.hand[f][0]
+			for (let i = 0; i < ahand.length; i++){
+				const card = ACARDS[ahand[i]]
+				if (card.left && !set_has(ics, card.left)) gen_action_influence(ahand[i])
+				if (card.right && !set_has(ics, card.right)) gen_action_influence((ahand[i])*-1)
+				if (card.special) {
+					let s_c = special_countries(card.special, f)
+					for (let j = 0; j < s_c.length; j++) {
+						if (!set_has(ics, s_c[j])) {
+							gen_action_influence_special(ahand[i]); break
+						}
+					}
+				}
+			}
+		}
+	},
+	influence(ic){//inner card
+		push_undo()
+		clear_selected()
+		game.selected_Acard = ic
+		game.state = "government_diplomacy"
+	},
+	influence_special(ic){//inner card
+		push_undo()
+		clear_selected()
+		game.selected_Acard = ic
+		game.state = "government_wildcard"
+	},
+	done(){
+		resolve_diplomacy()
+	}
+}
+
+states.sg_draw_dividends = {
+	inactive: "special setup",
+	disable_negotiation: true,
+	prompt(){
+		if (game.peace_dividend[game.activeNum].length > 0) {
+			view.prompt = "Done"
+			view.actions.done = 1
+		} else {
+			view.prompt = "Draw three dividends"
+			view.actions.draw = 1
+		}
+	},
+	draw(){
+		log(`${game.active} drew three dividends`)
+		for (let i = 0; i < 3; i++){
+			let draw = random_bigint(game.peace_dividend_bag.length)
+			game.peace_dividend[game.activeNum].push(game.peace_dividend_bag[draw])
+			array_remove(game.peace_dividend_bag, draw)
+		}
+	},
+	done(){sg_end_setup()}
+}
+
 exports.setup = function (seed, scenario, options) {
 	game = {
 		seed: seed,
@@ -5169,8 +5161,6 @@ exports.setup = function (seed, scenario, options) {
 		game.influence[i] = -1
 	}
 	
-	//scenario === "Short game" ? log("Starting year: 1936") : log("Starting year: 1939")
-	//Needs work: the short game.
 	return game
 }
 

@@ -855,7 +855,7 @@ function update_action_menu(){
 }
 
 function on_update(){
-	action_button("draw", "Draw Cards")
+	action_button("draw", "Draw")
 	action_button("pass", "Pass")
 	action_button("next", "Next")
 	action_button("configure_autopass", "Configure Autopass")
@@ -865,7 +865,6 @@ function on_update(){
 
 	action_button("build_factory", "Build Factory")
 
-	action_button("end_cards", "End card draw")
 	action_button("end_setup", "End setup")
 	action_button("end_production", "End Production")
 	confirm_action_button("end_production_confirm", "End Production", 
