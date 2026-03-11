@@ -1,6 +1,3 @@
-/* TODO
-Other check phases?
-*/
 "use strict"
 
 const { REGIONS, COLONIES, COUNTRIES, BORDERS, BORDER_TYPES } = require("./data")
@@ -1176,17 +1173,6 @@ function process_supply(){
 		if (s[f] && is_inf_or_tank(i) && !adjacent_to_supply(s[f], i) && 
 			(game.phase !== 'Winter' || (REGIONS[r].country && REGIONS[r].country === 'USSR'))) //only units inside Russia during winter
 			oos.push(i)
-		// {
-		// 	log(`${FACTIONS[f]} block in ${REGIONS[r].name} out of supply`)
-		// 	if (block_reduce(i)) {
-		// 		const ngs = no_ground_support(r, f)
-		// 		if (ngs && REGIONS[r].type !== 'sea' && game.control[r] !== f) {
-		// 			game.must_retreat = game.must_retreat ?? []
-		// 			game.may_retreat = game.may_retreat ?? []
-		// 			for (let block of ngs) set_add(game.must_retreat, block)
-		// 		}
-		// 	}			
-		// }
 	}
 	game.oos_loss = oos
 }
@@ -1219,7 +1205,12 @@ function check_supply(f) {
 		for (let adj of BORDERS[space]) {
 			if (set_has(checked, adj)) continue
 			if (game.control[adj] === f || game.control[adj] === 3 || 
-				(REGIONS[adj].type === "strait" && !are_enemies(f, game.control[adj]))){
+				(REGIONS[adj].type === "strait" &&
+					!(game.territorial_straits && (adj === 22 || adj === 96)) && //Suez and Istanbull 
+					!are_enemies(f, game.control[adj])
+				)
+			)
+			{
 				set_add(is, adj)
 				queue.push(adj)
 			}
@@ -1302,10 +1293,11 @@ function rebase_locations(r, b, retreat) {
 			const bt = border_type(space, s)
 			if (remaining < 0) continue
 			if (!set_has(net, s) &&
-				!(set_has(rss, s)) && !( !(air || sub) && battle && retreat) &&
+				!(set_has(rss, s)) && 
+				!( !(air || sub) && battle && retreat) &&
 				(space !== r || !retreat || f !== game.attacker || os === undefined || s === os) && //if you are retreating, the first step must be the original space
  				((air || sub || !contains_enemy_blocks(s, f, true)) ||(c && is_neutral(c) && !is_armed_minor(c) && type === 'strait')) && //cannot move through enemy blocks
-				(!c || !is_neutral(c) || is_armed_minor(c) || type === 'strait') && //cannot move through neutral unless armed or strait
+				(!c || !is_neutral(c) || is_armed_minor(c) || (type === 'strait' && !(game.territorial_straits && (s === 22 || s === 96)))) && //cannot move through neutral unless armed or strait
  				(air || bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, s))
  			) {
  				if (!battle) set_add(net, s)
@@ -3372,8 +3364,8 @@ states.movement = {
 		}
 		view.prompt = `Move units: ${game.count} ${move} left. ${message}`
 		
-
-		if (game.block_moved.length === 0) view.actions.declare_war = 1
+		view.actions.declare_war = (game.block_moved.length === 0 && 
+			(ACARDS[game.command_card[game.activeNum]].season === game.phase || game.phase === 'Winter'))? 1 : 0
 		if (game.count === 0) view.actions.end_movement = dec.length === 0 && int.length === 0 ? 1 : 0
 		else {
 			view.actions.end_movement_confirm = dec.length === 0 && int.length === 0 ? 1 : 0
@@ -3577,6 +3569,7 @@ function update_mvmt(b, m, r){
 		(eb && region.type !== 'sea' && !all_eb) || //there must either be no enemies in the space, or is a sea, or you must be enemies with all in the space (intervention exception)
 		(c && is_neutral(c) && !(set_has(game.intervention_required, c) || (game.minor_aggressor[c] && game.minor_aggressor[c].includes(f)) || //cannot invade neutrals, unless intervention or is enemy of minor (like partition)
 			(region.type === 'strait' && !set_has(game.armed_minors, c) && (!m.move_type || m.move_type !== 'land')))) || //or, another exception: you may go through neutral straits with sea/air movement
+		(game.territorial_straits && (r === 22 || r === 96) && !(f === ctrl || are_enemies(f, ctrl, r))) || //may not move into suez/istanbul with variant on unless you own it or you are at war. 
 		(game.phase === "Winter" && c !== 5) //5 === ussr
 	) m.must_stop = 1
 
@@ -3873,11 +3866,8 @@ states.damage = {
 	}
 }
 
-/*Upon Battle resolution (i.e., after a Land 
-Combat Round or a fully resolved Sea 
-Battle), Active ANS units in that area may
-ReBase (exception: Escaped Subs may 
-not ReBase). */
+/* Upon Battle resolution (i.e., after a Land Combat Round or a fully resolved Sea Battle), Active ANS units in that area mayReBase 
+(exception: Escaped Subs may not ReBase). */
 
 states.choose_retreat = {
 	disable_remove_block: 1,
@@ -4000,45 +3990,21 @@ states.blockade = { //Craig said that blockades should just be an acknowledgemen
 		view.prompt = "Mark Blockades."
 		view.actions.mark_all = done ? 0:1
 		view.actions.done = done ? 1:0
-		//view.actions.pass = 1
-		//Needs work
-		//determine which regions could be blockades
 	},
-	// region(r){
-	// 	const tp = trade_partner(r)
-		
-	// 	if (game.blockade_possible.includes(r)) {
-	// 		array_remove_item(game.blockade_possible, r)
-	// 		set_add(game.blockade, r)
-	// 		game.blockaded_pop[tp] += REGIONS[r].pop
-	// 		game.blockaded_res[tp] += REGIONS[r].res
-	// 	}
-	// 	else if (game.blockade_transafrica_possible.includes(r)){
-	// 		array_remove_item(game.blockade_transafrica_possible, r)
-	// 		set_add(game.blockade_transafrica, r)
-	// 		game.blockaded_res[tp] += REGIONS[r].res
-	// 	}
-	// 	else throw new Error ('')
-	// },
 	mark_all(){
 		push_undo()
 		for (let i = game.blockade_possible.length -1; i >= 0; i--) {
 			let tp = trade_partner(game.blockade_possible[i])
-			//if (tp !== game.activeNum) {
 			let r = game.blockade_possible[i]
 			set_add(game.blockade, game.blockade_possible.splice(i, 1)[0])
 			game.blockaded_pop[tp] += REGIONS[r].pop
 			game.blockaded_res[tp] += REGIONS[r].res
-			//}
 		}
 		for (let i = game.blockade_transafrica_possible.length -1; i >= 0; i--) {
 			let tp = trade_partner(game.blockade_transafrica_possible[i])
-			//if (tp !== game.activeNum) {
 			let r = game.blockade_transafrica_possible[i]
 			set_add(game.blockade_transafrica, game.blockade_transafrica_possible.splice(i, 1)[0])
 			game.blockaded_res[tp] += REGIONS[r].res - (REGIONS[r].tres ?? 0)
-				
-			//}
 		}
 	},
 	done(){
