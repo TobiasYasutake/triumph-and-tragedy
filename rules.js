@@ -417,7 +417,7 @@ function determine_turn_order_command(){
 		if (game.command_card[i]) {
 			const c = game.command_card[i]
 			if (c > 0) {
-				if (game.season === "Winter" || ACARDS[c].season === game.season)
+				if (game.season === "Winter" || ACARDS[c].season === game.phase)
 					log(`${FACTIONS[i]} played ${ACARDS[c].initiative}${ACARDS[c].value} (A#${c}).`)
 				else log(`${FACTIONS[i]} played the ${ACARDS[c].season} ${ACARDS[c].initiative} (A#${c}) for emergency command.`)
 				order.push({
