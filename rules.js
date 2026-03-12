@@ -1,3 +1,37 @@
+/*
+2. Faction played Season Xn [a#]. (Not “action card #”).
+3. Faction Declaresa VoN on Minor which arms in defense.
+5. Not sure about the NewYear VP report. Perhaps “Faction has N apparent VPs and n
+PDs”. Or prefer “Faction has about N+PDs*0.6 VPs.”
+6. Its Minor card [ac#] cancels Rival’s Minor card [ax#].
+7. N was rolled for Player Order: Faction / Faction / Faction.
+8. Faction has built INDustry using cards [i#]. [I#], [i#].
+9. Some RES markers are starting on their “At War” side.
+
+11. Province’s neutral Fort attacks Faction Ground. Rolled n,n,n scoring N Hit[s].
+12. Province’s Neutral fort takes the damage / Is eliminated [if applicable].
+
+14. Moved from should note Sea Invasions.
+15. “Auto-passed”??
+16. Faction has N moves. {not “has started movement.”)
+
+18. Faction reduced block in Province due to Supply Attrition.
+19. When reporting Combat, for each new battle being fought mention location. 
+
+10. Toggle to “Map Fits In Screen”?
+13. Option to enforce HomeSea Violation DoWs?
+from C&C:
+home SeaS violation: moving units into
+and remaining within a Home Sea (2.41) of
+a Rival Great Power, unless it is also one's
+own Home Sea.
+
+4. When Turkey is defeated by loss of Ankara, its 2 other Neutral Forts are not eliminated.
+Happened 2X. (Intervention/Partition only apply to undefeated Minors).
+17. In Winter USSR moved units outside Russia (Rumania) to inside Russia (Odessa).
+Intention is that both movement and Combat are limited to within Russia in Winter.
+*/
+
 "use strict"
 
 const { REGIONS, COLONIES, COUNTRIES, BORDERS, BORDER_TYPES } = require("./data")
@@ -100,7 +134,7 @@ exports.roles = [
 
 //PHASE LOGIC
 function end_setup(){
-	log(`${game.active} has finished setup.`)
+	log(`${game.active} finished setup.`)
 	if (game.activeNum < 2) {
 		game.state = "setup"
 		make_active(game.activeNum += 1)
@@ -108,8 +142,6 @@ function end_setup(){
 		if (game.scenario === "Short game") 
 			sg_setup()
 		else {
-			log('Setup finished. Starting game.')
-			log_br()
 			determine_control(0)
 			new_year()
 		}
@@ -119,13 +151,17 @@ function end_setup(){
 function new_year(){
 	game.phase = "new year"
 	++game.turn
-	if (game.turn <= 10) log('.h1 Turn ' + game.turn)
+
+	log_br()
+	if (game.turn <= 10) log('.h1 Year ' + (game.turn + 1935))
 	check_blockades_still_in_effect()
+	log_br()
+
 	update_production()
 	if (game.turn >= 11) {victory_check_hegemony(); return}
-	log_br()
 	victory_check()
 	log_br()
+	
 	reshuffle(0)
 	reshuffle(1)
 	for (let p = 0; p <= 2; ++p){
@@ -140,16 +176,18 @@ function new_year(){
 	const roll = roll_d6()
 	game.turn_order = TURNORDER[roll]
 	log_br()
-	log(`A ${roll} was rolled for initiative.`)
+	log(`A ${roll} was rolled for Player Order: ${FACTIONS[game.turn_order[0]]} / ${FACTIONS[game.turn_order[1]]} / ${FACTIONS[game.turn_order[2]]}.`)
 	log_br()
 	
 	if (game.turn >= 6 && game.turn <= 9 && game.influence[4] !== 10) {
 		influence_country(4, 1)
+		log("The West gained 1 free influence in the USA")
 		if (game.influence[4] === 13) usa_satellite()
 	}
 	game.usa_reinforcements += 1
 
 	game.phase = 'production'
+	log_br()
 	log(".h2 Production Phase")
 	log_br()
 	make_active(game.turn_order[0])
@@ -211,7 +249,7 @@ function handsize_check(){
 			clear_undo()
 			make_active(game.turn_order[i])
 			game.state = "government_discard"
-			log(`${game.active} has too many cards in hand and must discard`)
+			log(`${game.active} has too many cards in hand/vault and must discard`)
 			return
 		}
 	}
@@ -220,7 +258,7 @@ function handsize_check(){
 
 function resolve_diplomacy(){
 	log_br()
-	log("Resolving diplomacy:")
+	log(".h3 Diplomacy")
 	log_br()
 	for (let i = 0; i < 3; i++){ //add influence
 		log(`${FACTIONS[i]} influence:`)
@@ -241,7 +279,7 @@ function resolve_diplomacy(){
 				} else usa_satellite()
 			} else {
 				game.influence[i] -= game.influence[i]%10
-				log(`The ${FACTIONS[game.influence[i]/10]} have gained control of ${COUNTRIES[i].name}.`)
+				log(`The ${FACTIONS[game.influence[i]/10]} gained control of ${COUNTRIES[i].name}.`)
 				game.gained_control[game.influence[i]/10].push(i)
 			}
 		}
@@ -301,7 +339,7 @@ function next_season(skip_supply){ //Spring Summer blockade Fall Winter
 function start_player_turns(){
 	determine_turn_order_command()
 	if (game.turn_order_command.length === 0) {
-		log("Everyone has passed.")
+		log("Everyone passed.")
 		next_season()
 	}
 	else if (game.state !== "choose_initiative") {
@@ -378,7 +416,7 @@ function determine_turn_order_command(){
 	for (let i = 0; i <= 2; ++i){
 		if (game.command_card[i]) {
 			if (game.command_card[i] > 0) {
-				log(`${FACTIONS[i]} played action card ${game.command_card[i]}.`)
+				log(`${FACTIONS[i]} played action card A#${game.command_card[i]}.`)
 				order.push({
 					"faction": i, 
 					"initiative": ACARDS[game.command_card[i]].initiative, 
@@ -386,7 +424,7 @@ function determine_turn_order_command(){
 				})
 			} else
 			{
-				log(`${FACTIONS[i]} played investment card ${game.command_card[i]*-1} as a bluff!`)
+				log(`${FACTIONS[i]} played investment card I#${game.command_card[i]*-1} as a bluff!`)
 				game.discard[1].push(game.command_card[i]*-1)
 				game.command_card[i] = null
 			}
@@ -419,7 +457,7 @@ function next_player(){
 	make_active(game.turn_order[(index + 1)%3])
 
 	if (game.state === "government" && game.autopass && !autopass_conditions_met(game.activeNum)) {
-		log(`${game.active} auto passed.`)
+		log(`${game.active} passed.`)
 		game.pass_count += 1
 		if (three_consecutive_passes()) {
 			handsize_check()
@@ -506,18 +544,18 @@ function next_player_turn(){
 	} else {
 		make_active(game.turn_order_command[0])
 		log_br()
-		log(`${game.active} has started movement`)
+		log(`.h3 ${game.active} Movement`)
 		let card = ACARDS[game.command_card[game.activeNum]]
 		if (card.season === game.phase || game.phase === "Winter") {
 			game.count = card.value
+			log(`${game.active} have ${game.count} moves.`)
 			game.emergency = 0
-			//game.cannot_von = []
-			//if (game.activeNum !== 0 && game.usa_satellite === 0) game.cannot_von = [4] //no violating America (unless Axis)
 		} else {
 			game.activeNum === 0? game.count = 4 : game.count = 2
-			log("emergency movement")
+			log("Emergency movement!")
 			game.emergency = 1
 		}
+		
 		determine_control(game.activeNum)
 
 		//create sub-hunting battle groups
@@ -576,11 +614,11 @@ function victory_check(){// if someone has 25 vps (remember to count hidden vps 
 		for (let div of game.peace_dividend[i])
 			vps[i] += div
 		vps[i] += game.atomic[i].length
-		if (vps[i] >= 25) {goto_game_over(FACTIONS[i], `The ${FACTIONS[i]} have ${vps[i]} victory points and have won an Economic Victory!`); return}
+		if (vps[i] >= 25) {goto_game_over(FACTIONS[i], `The ${FACTIONS[i]} have ${vps[i]} VPs and have won an Economic Victory!`); return}
 	}
 
 	for (let i = 0; i < 3; i++) {
-		log(`The ${FACTIONS[i]} have ${public_points[i]} public victory points and ${game.peace_dividend[i].length} dividend tokens`)
+		log(`The ${FACTIONS[i]} have ${public_points[i]} public VPs and ${game.peace_dividend[i].length} peace dividends.`)
 	}
 }
 
@@ -589,7 +627,7 @@ function victory_check_atomic(f, b){
 }
 
 function victory_check_hegemony(){
-	log ("The game is over: the winner is the faction with the most points!")
+	log ("The game is over due to turn limit: the winner is the faction with the most points!")
 	const vps = captured_capitals()
 	for (let i = 0; i < 3; i++) {
 		vps[i] *= 2 //capitals are worth 2 points
@@ -598,7 +636,7 @@ function victory_check_hegemony(){
 		for (let div of game.peace_dividend[i])
 			vps[i] += div
 		vps[i] += game.atomic[i].length
-		log (`The ${FACTIONS[i]} have ${vps[i]} victory points`)
+		log (`The ${FACTIONS[i]} have ${vps[i]} VPs.`)
 	}
 	const highest = Math.max(...vps)
 	let factions_with_highest = 0
@@ -1027,27 +1065,27 @@ function trade_partner(r){
 }
 
 function check_blockades_still_in_effect (){
-	if (game.blockade.length === 0 && game.blockade_transafrica === 0) {
-		//log("No blockades on the board."); return
-	}
+	// if (game.blockade.length === 0 && game.blockade_transafrica === 0) {
+	// 	log("No blockades on the board."); return
+	// }
 	for (let f = 0; f < 3; f++){
 		determine_control(f)
 		const network = get_trade_network(f, false)
 		const ta_network = get_trade_network(f, true)
 		for (let i = game.blockade_transafrica.length -1; i >= 0; i--) {
 			if (trade_partner(game.blockade_transafrica[i]) !== f) continue
-			if (set_has(ta_network, game.blockade_transafrica[i])) {
-				log(`${REGIONS[game.blockade_transafrica[i]].name} is no longer blockaded.`)
+			if (set_has(network, game.blockade_transafrica[i])) {
+				log(`${REGIONS[game.blockade_transafrica[i]].name} no longer blockaded.`)
 				array_remove_item(game.blockade_transafrica, game.blockade_transafrica[i])
 			}
 		}
 		for (let i = game.blockade.length -1; i >= 0; i--) {
 			if (trade_partner(game.blockade[i]) !== f) continue
 			if (set_has(network, game.blockade[i])) {
-				log(`${REGIONS[game.blockade[i]].name} is no longer blockaded.`)
+				log(`${REGIONS[game.blockade[i]].name} no longer blockaded.`)
 				array_remove_item(game.blockade, game.blockade[i])
 			} else if (set_has(ta_network, game.blockade[i])) {
-				log(`${REGIONS[game.blockade[i]].name} has downgraded to just a MED blockade.`)
+				log(`${REGIONS[game.blockade[i]].name} downgraded to MED blockade.`)
 				game.blockade_transafrica.push(game.blockade[i])
 				array_remove_item(game.blockade, game.blockade_transafrica[i])
 			}
@@ -1087,24 +1125,15 @@ function determine_blockades(){
 
 function start_blockades(){
 	game.phase = "blockade"
+	log_br()
+	log(".h2 Blockade")
 	if (game.relationship[0].length === 0 && game.relationship[1].length === 0) {//no one is at war
 		log_br()
 		log("No one is at war. Skipping blockades.")
 		next_season()
 	} else {
 		log_br()
-		log("Blockade:")
 		determine_blockades()
-		// let bp = game.blockade_possible
-		// let btp = game.blockade_transafrica_possible 
-		// if (bp.length === 0 && btp.length === 0) {
-		// 	log('No blockades possible.')
-		// 	next_season()
-		// } else {
-		// 	game.state = 'blockade'
-		// 	make_active(game.turn_order[2])
-		// 	next_blockades(true)
-		// }
 	}
 }
 
@@ -1471,13 +1500,13 @@ function conquest_influence(){
 
 function arm_minor(country, f) {
 	if (country === 'USA') {usa_violation(); return}
-	if (f === 3) log(`${country} becomes neutral, and is arming for colonial independence!`)
-	else log(`${country} is arming to fight the ${FACTIONS[f]}!`)
+	if (f === 3) log(`${country} became neutral, and armed for colonial independence!`)
+	else log(`The ${game.active} declared a VoN on ${country}, which armed for defense!`)
 	let c = COUNTRIES.findIndex(x => x.name === country)
 	//remove influence, unless at 2 and OTHER faction attacked
 	if (game.influence[c]%10 === 2 && Math.floor(game.influence[c]/10) !== f){
 		game.influence[c] -=2
-		log(`${country} is a protectorate of the ${FACTIONS[game.influence[c]/10]}. They will gain control of the country.`)
+		log(`The ${game.active} declared a VoN on ${country}, which is a protectorate of the ${FACTIONS[game.influence[c]/10]}, giving them control.`)
 		set_add(game.gained_control[game.influence[c]/10], c)
 		set_add(game.aggression_met, game.influence[c]/10)
 	} else {game.influence[c] = -1; set_add(game.armed_minors, c)}
@@ -1527,7 +1556,7 @@ function defeat_major(c) {
 			arm_minor(COUNTRIES[c].name, 3) //if 'aggressor' is 3, then no interventions will be possible.
 			game.control[r] = -1
 		} else {
-			log(`${colony} is controlled by the ${FACTIONS[game.control[r]]}.`)
+			log(`${colony} is controlled by the ${FACTIONS[game.control[r]]}, giving them control.`)
 			game.influence[c] = game.control[r]*10
 		}
 	}
@@ -1878,7 +1907,7 @@ function fire(steps, value) {
 }
 
 function process_attack_industry(b) {
-	log(`${NATIONS[game.block_nation[b]]} air bombs industry`)
+	log(`${NATIONS[game.block_nation[b]]} air bombed industry`)
 	set_add(game.block_moved, b)
 	let hits = fire(game.block_steps[b], 1)
 	if (hits > 0) {
@@ -1893,7 +1922,7 @@ function process_attack_industry(b) {
 function neutral_firing_solution() {
 	for (let i = 0; i < game.block_location.length; i++){
 		if (game.block_nation[i] === 6 && game.block_location[i] === game.active_battle && !set_has(game.block_moved, i)) {
-			log(`${REGIONS[game.active_battle].name}'s neutral fort is attacking the invaders:`)
+			log(`${REGIONS[game.active_battle].name}'s neutral fort attacked the invaders:`)
 			const e = filter_local_enemy(-1)
 			let target
 			if (can_hit_ground(i, e)) target = 2
@@ -1914,7 +1943,7 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 		return
 	}
 	clear_undo()
-	log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} attacks ${CLASSNAME[c]}`)
+	log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} attacked ${CLASSNAME[c]}`)
 	const convoy = c === 4? c = 1 : 0 //both c and convoy should be 1 for a convoy attack
 	const adr = game.block_type[b] === 1 && c === 0 && has_tech(game.activeNum, "AirDefense Radar")? 1 : 0
 	const sonar = game.block_type[b] === 4 && c === 3 && has_tech(game.activeNum, "Sonar")? 1 : 0
@@ -1924,12 +1953,13 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 	if (game.hits > 0) {
 		game.hit_class = convoy? 2 : c
 		if (faction_of_block(b) !== -1 && (game.defender === -1 || game.target === -1)) {
-			log('The Neutral fort takes the damage.')
+			log('The Neutral fort took the damage.')
 			let block = game.active_battle_blocks.find(x => game.block_nation[x] === 6)
 			do {
 				let dead = block_reduce(block)
 				if (dead) {
 					game.hits = 0
+					log('The Neutral fort was eliminated.')
 				} else game.hits -= 1
 			} while (game.hits > 0)
 			next_player_battle()
@@ -2601,7 +2631,7 @@ states.government = {
 		let cards = ""
 		for (let card of game.selected_Icard) {
 			array_remove_item(game.hand[game.activeNum][1], card)
-			cards += `(#${Math.abs(card)}) `
+			cards += `(I#${Math.abs(card)}) `
 		}
 		game.ind[game.activeNum] += 1
 		game.factory_increase[game.activeNum] += 1
@@ -2633,14 +2663,14 @@ states.government_diplomacy = {
 	},
 	confirm(){
 		const ic = game.selected_Acard
-		log(`${game.active} influences ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}.`)
+		log(`${game.active} influenced ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}.`)
 		game.pass_count = 0
 		array_remove_item(game.hand[game.activeNum][0], Math.abs(ic))
 		let match = check_matching_diplomacy(ic, game.activeNum)
 		if (match) {
 			let f = match[0]
 			let card = match[1]
-			log(`The card (#${Math.abs(ic)}) cancels the ${FACTIONS[f]}'s card (#${Math.abs(card)}).`)
+			log(`The card (A#${Math.abs(ic)}) canceled the ${FACTIONS[f]}'s card (A#${Math.abs(card)}).`)
 			game.discard[0].push(Math.abs(ic))
 			game.discard[0].push(Math.abs(card))
 			array_remove_item(game.diplomacy[f], card)
@@ -2675,10 +2705,10 @@ states.government_wildcard = {
 		update_production()
 
 		let s = ACARDS[game.selected_Acard].special
-		log(`${game.active} uses ${s} to influence ${COUNTRIES[c].name}.`)
+		log(`${game.active} used ${s} to influence ${COUNTRIES[c].name}.`)
 		if (s === "Foreign Aid") {
 			game.ind[game.activeNum] -= 1
-			log("They lose one industry.")
+			log("They lost one industry.")
 		}
 
 		game.discard[0].push(game.hand[game.activeNum][0].splice(game.hand[game.activeNum][0].indexOf(game.selected_Acard), 1)[0])
@@ -2756,7 +2786,7 @@ states.government_invent = {
 		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
 		let f = game.activeNum
 		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
-		log(`${game.active} has invented ${tech}`)
+		log(`${game.active} invented ${tech}`)
 		game.tech[f].push(game.hand[f][1].splice(game.hand[f][1].indexOf(Math.abs(tc)), 1)[0]*side)
 		game.discard[1].push(game.hand[f][1].splice(game.hand[f][1].indexOf(c), 1)[0])
 		game.pass_count = 0
@@ -2768,7 +2798,7 @@ states.government_invent = {
 		let f = game.activeNum
 		clear_undo()
 		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
-		log(`${game.active} has placed a technology in their secret vault`)
+		log(`${game.active} have placed a technology in their secret vault`)
 		game.vault[f].push(...game.selected_Icard)
 		array_remove_item(game.hand[f][1], Math.abs(game.selected_Icard[0]))
 		array_remove_item(game.hand[f][1], Math.abs(game.selected_Icard[1]))
@@ -2797,13 +2827,13 @@ states.government_discard = {
 		push_undo()
 		let hand = game.hand[game.activeNum]
 		game.discard[0].push(hand[0].splice(hand[0].indexOf(c), 1)[0])
-		log(`Discarded Action card (#${c}).`)
+		log(`Discarded Action card (A#${c}).`)
 	},
 	industry_card(c) {
 		push_undo()
 		let hand = game.hand[game.activeNum]
 		game.discard[1].push(hand[1].splice(hand[1].indexOf(c), 1)[0])
-		log(`Discarded Investment card (#${c}).`)
+		log(`Discarded Investment card (I#${c}).`)
 	},
 	done() {
 		clear_undo()
@@ -2895,7 +2925,7 @@ function cleanup_intel(){
 function  resolve_espionage(){
 	switch (ICARDS[game.selected_Icard].special){
 	case 'Spy Ring': game.draw = spy_ring_steal(game.target); make_active(game.target); break
-	case 'Sabotage': game.ind[game.target] -= 1; log("They lose one industry"); cleanup_intel(); return
+	case 'Sabotage': game.ind[game.target] -= 1; log("They lost one industry"); cleanup_intel(); return
 	case 'Mole':
 	case 'Agent':
 	case 'Coup':
@@ -3007,7 +3037,7 @@ states.government_invent_mole = {
 		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
 		let f = game.activeNum
 		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
-		log(`${game.active} has invented ${tech}`)
+		log(`${game.active} invented ${tech}`)
 		game.tech[f].push(game.hand[f][1].splice(game.hand[f][1].indexOf(Math.abs(tc)), 1)[0]*side)
 		
 		//slightly modified version of cleanup_intel()
@@ -3032,7 +3062,7 @@ states.government_invent_mole = {
 			}
 		}
 		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
-		log(`${game.active} has placed a technology in their secret vault.`)
+		log(`${game.active} placed a technology in their secret vault.`)
 		game.vault[f].push(...game.selected_Icard)
 		array_remove_item(game.hand[f][1], Math.abs(game.selected_Icard[0]))
 		array_remove_item(game.hand[original_faction][1], 31)
@@ -3075,7 +3105,7 @@ states.agent = {
 	},
 	region(r) { //Needs work figure out the logic to have this be in the replay file?
 		clear_undo()
-		log(`The ${game.active} viewed the blocks in ${REGIONS[r].name}`)
+		log(`The ${game.active} viewed the blocks in ${REGIONS[r].name}.`)
 		game.view_region = r
 	},
 	done(){
@@ -3091,7 +3121,7 @@ states.code_break = {
 		view.hand[game.target] = game.hand[game.target]		
 	},
 	done(){
-		log(`The ${game.active} viewed the ${FACTIONS[game.target]}'s hand`)
+		log(`The ${game.active} viewed the ${FACTIONS[game.target]}'s hand.`)
 		cleanup_intel()
 	}
 }
@@ -3374,6 +3404,7 @@ states.movement = {
 				if (set_has(game.block_moved, i)) continue
 				if (faction_of_block(i) !== game.activeNum) continue
 				let r = game.block_location[i]
+				if (game.phase === "Winter" && (!REGIONS[r].country || REGIONS[r].country !== "USSR")) continue
 				if (REGIONS[r].type === 'sea' && game.control[r] !== 3 && 
 					is_inf_or_tank(i) && map_has(game.battle, r)) continue //Convoys cannot disengage at sea, should only happen if you declare war
 				gen_action_block(i)
@@ -3475,7 +3506,13 @@ states.movement_move = {
 				}
 			}
 		}	
-
+		if (game.mvmt.aggression) {
+			const c = REGIONS[r].country ? COUNTRIES.findIndex(x => x.name === REGIONS[r].country) : false
+			const fs = factions_in_region(r) 
+			if (fs.length === 1) set_add(game.aggression_met, game.control[r] === -1 ? c : game.control[r])
+			else for (let f of fs) 
+				if (f !== game.activeNum) set_add(game.aggression_met, f === -1 ? c : f)
+		}
 		if (game.mvmt.must_stop) end_block_move(game.selected_block)
 	},
 	block(b){
@@ -3511,7 +3548,7 @@ function end_block_move(b){
 		if (game.block_type[b] !== 1){
 			const border_id = get_border_id(r, p)
 			map_set(game.border_count, border_id, map_get(game.border_count, border_id, 0) + is_inf_or_tank(b))
-			if (REGIONS[p].type === "sea" && is_inf_or_tank(b)) set_add(game.invasion_blocks, b)
+			if (REGIONS[p].type === "sea" && is_inf_or_tank(b)) {log("Sea Invasion!"); set_add(game.invasion_blocks, b)}
 		}
 	}
 	if (game.mvmt.aggression === 1) {
@@ -3519,10 +3556,10 @@ function end_block_move(b){
 		if (first_block_in(b, r) && (contains_rival_blocks(r, game.activeNum) || can_hit_industry(b))) set_add(game.battle_required, r)
 		if (can_hit_industry(b) && !map_has(game.battle, r)) map_set(game.battle, r, [game.control[r], game.activeNum]) //for bombing specifically, make it a battle so you don't conquere with air
 		if (game.block_type[b] !== 1 && !contains_enemy_blocks(r, game.activeNum) && set_has(game.battle_required, r)) {set_delete(game.battle_required, r); map_remove(game.battle, r)} //for bombing specifically, remove 
-		const fs = factions_in_region(r)
-		if (fs.length === 1) set_add(game.aggression_met, game.control[r] === -1 ? c : game.control[r])
-		else for (let f of fs) 
-			if (f !== game.activeNum) set_add(game.aggression_met, f === -1 ? c : f)
+		// const fs = factions_in_region(r)
+		// if (fs.length === 1) set_add(game.aggression_met, game.control[r] === -1 ? c : game.control[r])
+		// else for (let f of fs) 
+		// 	if (f !== game.activeNum) set_add(game.aggression_met, f === -1 ? c : f)
 	}
 
 	clear_selected()
@@ -4412,7 +4449,6 @@ states.declare_war = {
 	},
 	region(r){
 		push_undo()
-		log(`The ${game.active} declares a VoN`)
 		arm_minor(REGIONS[r].country, game.activeNum)
 		game.state = "movement"
 	}
@@ -4817,15 +4853,13 @@ states.create_autopass = {
 function is_short_setup() {return game && game.scenario === "Short game" && game.turn === 3}
 
 function sg_setup() {
-	log('Initial setup finished. Starting the short game extra setup.')
+	log(".h2 Special Setup Production Phase")
 	log_br()
 
 	const roll = roll_d6()
 	game.turn_order = TURNORDER[roll]
 	log_br()
-	log(`A ${roll} was rolled for initiative.`)
-	log_br()
-	log(".h2 Special Setup Production Phase")
+	log(`A ${roll} was rolled for Player Order: ${game.turn_order[0]} / ${game.turn_order[1]} / ${game.turn_order[2]}.`)
 	log_br()
 	make_active(game.turn_order[0])
 	game.state = "sg_setup"
@@ -4841,7 +4875,7 @@ function sg_setup() {
 
 function sg_end_setup() {
 	//modeled after end_setup()
-	log(`${game.active} has finished the extra setup.`)
+	log(`${game.active} has finished special setup.`)
 	if (game.activeNum !== game.turn_order[2]) {
 		game.state = "sg_setup"
 		next_player()
