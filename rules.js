@@ -370,6 +370,7 @@ function end_movement_phase(){
 	if (battles || Object.keys(game.battle_groups).length !== 0){
 		determine_control(game.activeNum)
 		determine_raids()
+		log(".h3 Combat Phase")
 		game.state = "choose_battle"
 	} else cleanup_player_turn()
 }
@@ -3994,7 +3995,7 @@ states.retreat = {
 		const previous_space = game.block_location[b]
 		if (game.must_retreat !== null) {
 			push_undo()
-			log(`Block retreated to ${REGIONS[r].name}`)
+			log(`${NATIONS[game.block_nation[b]]} block retreated to ${REGIONS[r].name}`)
 		}
 		else {log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} retreated to ${REGIONS[r].name}`)}
 		game.block_location[b] = r
@@ -5329,6 +5330,7 @@ exports.view = function (state, player) {
 		block_steps: [],
 		block_type: [],
 		block_moved: game.block_moved,
+		aggressed_from: game.aggressed_from = [],
 		
 		// TOKENS
 		turn: game.turn,
