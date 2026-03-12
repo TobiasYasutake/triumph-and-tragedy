@@ -415,17 +415,20 @@ function determine_turn_order_command(){
 	let order = []
 	for (let i = 0; i <= 2; ++i){
 		if (game.command_card[i]) {
-			if (game.command_card[i] > 0) {
-				log(`${FACTIONS[i]} played action card A#${game.command_card[i]}.`)
+			const c = game.command_card[i]
+			if (c > 0) {
+				if (game.season === "Winter" || ACARDS[c].season === game.season)
+					log(`${FACTIONS[i]} played ${ACARDS[c].initiative}${ACARDS[c].value} (A#${c}).`)
+				else log(`${FACTIONS[i]} played the ${ACARDS[c].season} ${ACARDS[c].initiative} (A#${c}) for emergency command.`)
 				order.push({
 					"faction": i, 
-					"initiative": ACARDS[game.command_card[i]].initiative, 
-					"season": ACARDS[game.command_card[i]].season
+					"initiative": ACARDS[c].initiative, 
+					"season": ACARDS[c].season
 				})
 			} else
 			{
-				log(`${FACTIONS[i]} played investment card I#${game.command_card[i]*-1} as a bluff!`)
-				game.discard[1].push(game.command_card[i]*-1)
+				log(`${FACTIONS[i]} played investment card (I#${c*-1}) as a bluff!`)
+				game.discard[1].push(c*-1)
 				game.command_card[i] = null
 			}
 		}
@@ -2050,6 +2053,8 @@ function pre_battle_setup(r){
 
 function start_battle(){
 	game.state = "battle"
+	log_br()
+	log(`Battle in ${REGIONS[game.active_battle].name}:`)
 	next_player_battle()
 }
 
@@ -3791,11 +3796,11 @@ states.battle = {
 	sub(b){process_attack(b, 3)},
 	convoy(b){process_attack(b, 4)},
 	strategic_bombing(b){process_attack_industry(b)},
-	pass_attack(b){set_add(game.block_moved, b), next_player_battle()},
+	pass_attack(b){push_undo(); log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} passed.`); set_add(game.block_moved, b), next_player_battle()},
 }
 
 function attack_faction (f) {
-	log(`attacker chooses to attack the ${FACTIONS[f]}.`)
+	log(`Attacker chooses to attack the ${FACTIONS[f]}.`)
 	let b = game.target[0]
 	let c = game.target[1]
 	let s = game.target[2]
@@ -3985,9 +3990,13 @@ states.retreat = {
 		}
 	},
 	region(r){
-		if (game.must_retreat !== null) push_undo
 		const b = game.selected_block
 		const previous_space = game.block_location[b]
+		if (game.must_retreat !== null) {
+			push_undo()
+			log(`Block retreated to ${REGIONS[r].name}`)
+		}
+		else {log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} retreated to ${REGIONS[r].name}`)}
 		game.block_location[b] = r
 		set_delete(game.active_battle_blocks, b)
 		
@@ -4068,7 +4077,7 @@ states.supply_loss = {
 	},
 	block(b) {
 		const r = game.block_location[b]
-		log(`${game.active} reduced block in ${REGIONS[r].name}`)
+		log(`${game.active} reduced block in ${REGIONS[r].name} due to Supply Attrition.`)
 		set_delete(game.oos_loss, b)
 		if (block_reduce(b)) {
 			const ngs = no_ground_support(r, game.activeNum)
@@ -5143,6 +5152,7 @@ exports.setup = function (seed, scenario, options) {
 	//game.blitz = options.Blitz? 1 : 0
 	game.britania = options.Britannia_Rules_the_Waves? 1 : 0
 	game.territorial_straits = options.Territorial_Straits? 1 : 0
+	//game.home_seas = options.Home_Seas? 1 : 0
 
 	game.deck[0] = make_deck()
 	game.deck[1] = make_deck()

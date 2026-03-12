@@ -639,7 +639,7 @@ function update_tokens(){
 		let pop = document.getElementById(`${FACTIONS[i]}_pop`); let pop_xy = table[val[0]]
 		let ind = document.getElementById(`${FACTIONS[i]}_ind`); let ind_xy = table[val[1]]
 		let res = document.getElementById(`${FACTIONS[i]}_res`); let res_xy = table[val[2]]
-		if(view.relationship[i].length !== 0) res.classList.remove("pc")
+		res.classList.toggle("pc", view.relationship[i].length === 0)
 
 		//offset
 		let groups = []
