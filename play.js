@@ -283,12 +283,21 @@ function update_blocks(){
 
 /* BATTLE */
 function update_battle() {
-	if (view.battle !== null) {
+	if (view.battle !== null && (!view.selected_block || view.selected_block.substring(0,2) !== "bb")) {
 		const r = REGIONS[view.battle]
 		ui.battle_table.classList.remove("hidden")
 		ui.battle_header.innerText = `Battle in ${REGIONS[view.battle].name}`
 		ui.battle_table.style.top = (r.y >= 350 ? r.y - 350 : r.y + 350) + "px"
 		ui.battle_table.style.left = (r.x >= 312 ? r.x - 297 : 15) + "px"
+		battle_button('battle_air', 'air')
+		battle_button('battle_naval', 'naval')
+		battle_button('battle_sub', 'sub')
+		battle_button('battle_ground', 'ground')
+		battle_button('battle_convoy', 'convoy')
+		battle_button('battle_shootNscoot', 'shootNscoot')
+		battle_button('battle_strategic_bombing', 'strategic_bombing')
+		battle_button('battle_pass_attack', 'pass_attack')
+		battle_button('battle_retreat', 'retreat')
 		ui.attacker.innerHTML = ""
 		ui.defender.innerHTML = ""
 		for (let b of view.battle_blocks) {
@@ -301,54 +310,64 @@ function update_battle() {
 			block.classList.toggle("r1", s === 2)
 			block.classList.toggle("r2", s === 3)
 			block.classList.toggle("r3", s === 4)
+			block.classList.toggle("selected", view.selected_block === block.id)
 			register_action(block, "bblock", block.id)
 
-			let menu = document.createElement("div")
-			menu.className = 'menu'
-			build_battle_button(menu, b, 'air')
-			build_battle_button(menu, b, 'naval')
-			build_battle_button(menu, b, 'sub')
-			build_battle_button(menu, b, 'ground')
-			build_battle_button(menu, b, 'convoy')
-			build_battle_button(menu, b, 'shootNscoot')
-			build_battle_button(menu, b, 'strategic_bombing')
-			build_battle_button(menu, b, 'pass_attack')
-			build_battle_button(menu, b, 'retreat')
+			// let menu = document.createElement("div")
+			// menu.className = 'menu'
+			// build_battle_button(menu, b, 'air')
+			// build_battle_button(menu, b, 'naval')
+			// build_battle_button(menu, b, 'sub')
+			// build_battle_button(menu, b, 'ground')
+			// build_battle_button(menu, b, 'convoy')
+			// build_battle_button(menu, b, 'shootNscoot')
+			// build_battle_button(menu, b, 'strategic_bombing')
+			// build_battle_button(menu, b, 'pass_attack')
+			// build_battle_button(menu, b, 'retreat')
 
-			let set = document.createElement("div")
-			set.className = "battle_set"
-			set.appendChild(block)
-			set.appendChild(menu)
+			// let set = document.createElement("div")
+			// set.className = "battle_set"
+			// set.appendChild(block)
+			//set.appendChild(menu)
 
-			faction_of_block(b) === view.attacker? ui.attacker.appendChild(set) : ui.defender.appendChild(set)
+			//faction_of_block(b) === view.attacker? ui.attacker.appendChild(set) : ui.defender.appendChild(set)
+			faction_of_block(b) === view.attacker? ui.attacker.appendChild(block) : ui.defender.appendChild(block)
 		}
 	} else {
 		ui.battle_table.classList.add("hidden")
 	}
 }
 
-function source_from_action(action) {
-	switch(action) {
-	case "retreat": return "/images/flying-flag.svg"
-	case "air": return "/images/arrow-flights.svg"
-	case "naval": return "/images/rose.svg"
-	case "sub": return "/images/hasty-grave.svg"
-	case "ground": return "/images/flame.svg"
-	case "convoy": return "/images/cog.svg"
-	case "shootNscoot": return "/images/ancient-sword.svg"
-	case "strategic_bombing": return "/images/raining.svg"
-	case "pass_attack": return "/images/cross-mark.svg"
-	}
-}
+// function source_from_action(action) {
+// 	switch(action) {
+// 	case "retreat": return "/images/flying-flag.svg"
+// 	case "air": return "/images/arrow-flights.svg"
+// 	case "naval": return "/images/rose.svg"
+// 	case "sub": return "/images/hasty-grave.svg"
+// 	case "ground": return "/images/flame.svg"
+// 	case "convoy": return "/images/cog.svg"
+// 	case "shootNscoot": return "/images/ancient-sword.svg"
+// 	case "strategic_bombing": return "/images/raining.svg"
+// 	case "pass_attack": return "/images/cross-mark.svg"
+// 	}
+// }
 
-function build_battle_button(menu, block, action){
-	const img = new Image()
-	img.draggable = false
-	img.block = block
-	img.setAttribute("src", source_from_action(action))
-	img.setAttribute("title", action)
-	register_action(img, action, block)
-	menu.appendChild(img)
+// function build_battle_button(menu, block, action){
+// 	const img = new Image()
+// 	img.draggable = false
+// 	img.block = block
+// 	img.setAttribute("src", source_from_action(action))
+// 	img.setAttribute("title", action)
+// 	register_action(img, action, block)
+// 	menu.appendChild(img)
+// }
+
+function battle_button(id, action) {
+	let button = document.getElementById(id)
+	if (view.actions && view.actions[action])
+		button.classList.remove("hide")
+	else
+		button.classList.add("hide")
 }
 
 function update_reserves(){

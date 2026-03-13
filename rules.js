@@ -483,6 +483,7 @@ function next_player_command(){
 }
 
 function next_player_battle(){
+	clear_selected()
 	//based on the participating blocks, the attacker, the defender(s), tech, surprise, and blocks moved, figure out who's turn it is
 	//in a three way, the attacker determines initiative ties, but to save on turn activation it will just happen in turn order.
 	if (check_end_battle()) {post_battle_teardown(); return}
@@ -3772,32 +3773,45 @@ states.battle = {
 	disable_remove_block: 1,
 	inactive: "battle",
 	prompt(){
-		view.prompt = "Attack or retreat!"
+		view.prompt = "Choose a block to do an action."
 		const unused_blocks = game.active_battle_blocks.filter(x => !(set_has(game.block_moved, x)) && faction_of_block(x) === game.activeNum)
 		const type = lowest_type(unused_blocks)
 		const blocks = unused_blocks.filter(x => game.block_type[x] === type)
-		const e = filter_local_enemy(game.activeNum)
 		for (let b of blocks){
-			if (can_retreat(b)) gen_action_retreat(b)
-			if (can_hit_air(b, e)) gen_action_air(b)
-			if (can_hit_naval(b, e)) gen_action_naval(b)
-			if (can_hit_sub(b, e)) gen_action_sub(b)
-			if (can_hit_ground(b, e)) gen_action_ground(b)
-			if (can_hit_convoy(b, e)) gen_action_convoy(b)
-			if (can_retreat(b) && can_hit_naval(b, e) && type === 2) gen_action_shootNscoot(b)
-			if (can_hit_industry(b)) gen_action_strategic_bombing(b)
-			gen_action_pass(b) //theoretically there is no pass, but we will just have pass
+			gen_action_bblock("bb_" + b)
 		}
 	}, //Air Naval Ground Sub
-	retreat(b){push_undo(); game.selected_block = b; game.state = "retreat"},
-	air(b){process_attack(b, 0)},
-	naval(b){process_attack(b, 1)},
-	shootNscoot(b){process_attack(b, 1, 1)},
-	ground(b){process_attack(b, 2)},
-	sub(b){process_attack(b, 3)},
-	convoy(b){process_attack(b, 4)},
-	strategic_bombing(b){process_attack_industry(b)},
-	pass_attack(b){push_undo(); log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} passed.`); set_add(game.block_moved, b), next_player_battle()},
+	bblock(b){push_undo(); game.selected_block = b; game.state = "battle_action"}
+}
+
+states.battle_action = {
+	disable_remove_block: 1,
+	inactive: "battle",
+	prompt(){
+		view.prompt = "Attack or retreat!"
+		const e = filter_local_enemy(game.activeNum)
+		const b = parseInt(game.selected_block.replace("bb_", ""))
+		if (can_retreat(b)) gen_action_retreat(b)
+		if (can_hit_air(b, e)) gen_action_air(b)
+		if (can_hit_naval(b, e)) gen_action_naval(b)
+		if (can_hit_sub(b, e)) gen_action_sub(b)
+		if (can_hit_ground(b, e)) gen_action_ground(b)
+		if (can_hit_convoy(b, e)) gen_action_convoy(b)
+		if (can_retreat(b) && can_hit_naval(b, e) && game.block_type[b] === 2) gen_action_shootNscoot(b)
+		if (can_hit_industry(b)) gen_action_strategic_bombing(b)
+		gen_action_pass(b) //theoretically there is no pass, but we will just have pass
+		gen_action_bblock(game.selected_block)
+	},
+	bblock(){pop_undo()},
+	retreat(){push_undo(); game.selected_block = parseInt(game.selected_block.replace("bb_", "")); game.state = "retreat"},
+	air(){process_attack(parseInt(game.selected_block.replace("bb_", "")), 0)},
+	naval(){process_attack(parseInt(game.selected_block.replace("bb_", "")), 1)},
+	shootNscoot(){process_attack(parseInt(game.selected_block.replace("bb_", "")), 1, 1)},
+	ground(){process_attack(parseInt(game.selected_block.replace("bb_", "")), 2)},
+	sub(){process_attack(parseInt(game.selected_block.replace("bb_", "")), 3)},
+	convoy(){process_attack(parseInt(game.selected_block.replace("bb_", "")), 4)},
+	strategic_bombing(){process_attack_industry(parseInt(game.selected_block.replace("bb_", "")))},
+	pass_attack(){push_undo(); const b = parseInt(game.selected_block.replace("bb_", "")); log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} passed.`); set_add(game.block_moved, b), next_player_battle()},
 }
 
 function attack_faction (f) {
