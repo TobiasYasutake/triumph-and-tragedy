@@ -4510,7 +4510,7 @@ states.partition = {
 		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
 		log(`The ${game.active} have declared a partition of ${REGIONS[r].country}. They are now enemies.`)
 		game.minor_aggressor[c].push(game.activeNum)
-		set_add(game.surprise, c)
+		//set_add(game.surprise, c)
 		game.state = 'movement'
 	},
 }
