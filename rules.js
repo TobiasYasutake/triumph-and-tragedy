@@ -160,6 +160,7 @@ function new_year(){
 	update_production()
 	if (game.turn >= 11) {victory_check_hegemony(); return}
 	victory_check()
+	if (game.state === 'game_over') return
 	log_br()
 	
 	reshuffle(0)
@@ -378,6 +379,7 @@ function end_movement_phase(){
 function end_battle_phase() {
 	determine_control(game.activeNum)
 	conquest_influence()
+	if (game.state === 'game_over') return
 	cleanup_player_turn()
 }
 
