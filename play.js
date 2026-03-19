@@ -117,6 +117,7 @@ const ui = {
 	action_register: [],
 	battle_table: document.getElementById("battle_table"),
 	battle_header: document.getElementById("battle_header"),
+	battle_hits: document.getElementById("battle_hits"),
 	attacker: document.getElementById("attacker"),
 	defender: document.getElementById("defender"),
 }
@@ -283,7 +284,9 @@ function update_blocks(){
 
 /* BATTLE */
 function update_battle() {
-	if (view.battle !== null && (!view.selected_block || view.selected_block.substring(0,2) !== "bb")) {
+	if (view.battle === null || (view.selected_block && typeof view.selected_block === "number"))
+		ui.battle_table.classList.add("hidden")
+	else {
 		const r = REGIONS[view.battle]
 		ui.battle_table.classList.remove("hidden")
 		ui.battle_header.innerText = `Battle in ${REGIONS[view.battle].name}`
@@ -298,6 +301,12 @@ function update_battle() {
 		battle_button('battle_strategic_bombing', 'strategic_bombing')
 		battle_button('battle_pass_attack', 'pass_attack')
 		battle_button('battle_retreat', 'retreat')
+		ui.battle_hits.innerHTML = ""
+		for (let i = 0; i < view.hits; i++) {
+			let block = document.createElement("div")
+			block.classList.add("damage")
+			ui.battle_hits.appendChild(block)
+		}
 		ui.attacker.innerHTML = ""
 		ui.defender.innerHTML = ""
 		for (let b of view.battle_blocks) {
@@ -313,54 +322,10 @@ function update_battle() {
 			block.classList.toggle("selected", view.selected_block === block.id)
 			register_action(block, "bblock", block.id)
 
-			// let menu = document.createElement("div")
-			// menu.className = 'menu'
-			// build_battle_button(menu, b, 'air')
-			// build_battle_button(menu, b, 'naval')
-			// build_battle_button(menu, b, 'sub')
-			// build_battle_button(menu, b, 'ground')
-			// build_battle_button(menu, b, 'convoy')
-			// build_battle_button(menu, b, 'shootNscoot')
-			// build_battle_button(menu, b, 'strategic_bombing')
-			// build_battle_button(menu, b, 'pass_attack')
-			// build_battle_button(menu, b, 'retreat')
-
-			// let set = document.createElement("div")
-			// set.className = "battle_set"
-			// set.appendChild(block)
-			//set.appendChild(menu)
-
-			//faction_of_block(b) === view.attacker? ui.attacker.appendChild(set) : ui.defender.appendChild(set)
 			faction_of_block(b) === view.attacker? ui.attacker.appendChild(block) : ui.defender.appendChild(block)
 		}
-	} else {
-		ui.battle_table.classList.add("hidden")
 	}
 }
-
-// function source_from_action(action) {
-// 	switch(action) {
-// 	case "retreat": return "/images/flying-flag.svg"
-// 	case "air": return "/images/arrow-flights.svg"
-// 	case "naval": return "/images/rose.svg"
-// 	case "sub": return "/images/hasty-grave.svg"
-// 	case "ground": return "/images/flame.svg"
-// 	case "convoy": return "/images/cog.svg"
-// 	case "shootNscoot": return "/images/ancient-sword.svg"
-// 	case "strategic_bombing": return "/images/raining.svg"
-// 	case "pass_attack": return "/images/cross-mark.svg"
-// 	}
-// }
-
-// function build_battle_button(menu, block, action){
-// 	const img = new Image()
-// 	img.draggable = false
-// 	img.block = block
-// 	img.setAttribute("src", source_from_action(action))
-// 	img.setAttribute("title", action)
-// 	register_action(img, action, block)
-// 	menu.appendChild(img)
-// }
 
 function battle_button(id, action) {
 	let button = document.getElementById(id)
@@ -724,7 +689,7 @@ function update_turn_order_display() {
 			let role_elements = []
 			for (let faction_index of view.turn_order_roles) {
 				let faction_name = FACTIONS[faction_index]
-				faction_name = faction_name
+				//faction_name = faction_name
 				let role_id = "role_" + faction_name
 				let role_element = document.getElementById(role_id)
 				if (role_element) {

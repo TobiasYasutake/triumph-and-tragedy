@@ -1255,6 +1255,7 @@ function check_supply(f) {
 
 //RETREATS AND REBASES
 function retreat_locations(r, b) {
+	b = typeof b === 'number' ? b : parseInt(game.selected_block.replace("bb_", ""))
 	const spaces = []
 	const ans = is_ans(b)
 
@@ -3788,7 +3789,7 @@ states.battle_action = {
 	disable_remove_block: 1,
 	inactive: "battle",
 	prompt(){
-		view.prompt = "Attack or retreat!"
+		view.prompt = "Perform an action!"
 		const e = filter_local_enemy(game.activeNum)
 		const b = parseInt(game.selected_block.replace("bb_", ""))
 		if (can_retreat(b)) gen_action_retreat(b)
@@ -5344,7 +5345,8 @@ exports.view = function (state, player) {
 		block_steps: [],
 		block_type: [],
 		block_moved: game.block_moved,
-		aggressed_from: game.aggressed_from = [],
+		aggressed_from: game.aggressed_from,
+		hits: game.hits,
 		
 		// TOKENS
 		turn: game.turn,
