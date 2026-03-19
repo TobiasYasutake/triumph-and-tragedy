@@ -3915,6 +3915,7 @@ states.damage = {
 		const targets = game.active_battle_blocks.filter(x => faction_of_block(x) === game.activeNum && 
 			CLASS[game.block_type[x]] === game.hit_class)
 		if (game.hits === 0 || targets.length === 0) {
+			game.hits = 0
 			if (game.shootNscoot === false) next_player_battle()
 			else {
 				clear_undo()
