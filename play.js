@@ -1,6 +1,8 @@
 /* eslint-disable semi */
 "use strict"
 
+//const { REGIONS } = require("./data")
+
 const AXIS = 0
 const WEST = 1
 const USSR = 2
@@ -208,6 +210,40 @@ function on_init() {
 
 on_init()
 
+
+/* QUERY */
+
+function show_supply(supply) {
+	for (let i = 0; i < REGIONS.length; i++){
+		let e = document.getElementById(REGIONS[i].name)
+		e.classList.toggle("supply", supply.includes(i))
+	}
+}
+
+function show_trade(networks) {
+	for (let i = 0; i < REGIONS.length; i++){
+		let e = document.getElementById(REGIONS[i].name)
+		e.classList.toggle("network", networks[0].includes(i))
+		e.classList.toggle("network_ta", networks[1].includes(i))
+		e.classList.toggle("network_none", networks[2].includes(i))
+	}
+}
+
+function hide_supply_trade() {
+	for (let i = 0; i < REGIONS.length; i++){
+		let e = document.getElementById(REGIONS[i].name)
+		e.classList.remove("supply")
+		e.classList.remove("network")
+		e.classList.remove("network_ta")
+		e.classList.remove("network_none")
+	}
+}
+
+function on_reply(q, params) {
+	const action = q.slice(5)
+	if (action === "supply") show_supply(params)
+	if (action === "trade") show_trade(params)
+}
 
 
 /* UPDATE UI */
@@ -916,9 +952,6 @@ function on_update(){
 	update_turn_order_display()
 	update_action_menu()
 }
-
-function on_reply(what, response){}
-
 
 /* copied from FRIEDRICH */
 

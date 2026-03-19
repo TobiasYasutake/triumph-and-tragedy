@@ -5413,6 +5413,49 @@ exports.view = function (state, player) {
 	return view
 }
 
+
+/* QUERY */
+
+exports.query = function (state, _current, q) {
+	const f = FACTIONS.indexOf(q.slice(0, 4))
+	const action = q.slice(5)
+	if (action === "supply") return query_supply(f)
+	if (action === "trade") return query_trade(f)
+}
+
+function query_supply(f) {
+	const og_control = game.control
+	const supply = check_supply(f)
+	const adj_regions = []
+	game.control = og_control
+	for (let i = 0; i < REGIONS.length; i++) {
+		if (set_has(supply, i)) continue
+		for (const adj of BORDERS[i]) {
+			if (set_has(supply, adj)) adj_regions.push(i)
+		}
+	}
+	return set_union(supply, adj_regions)
+}
+function query_trade(f) {
+	const og_control = game.control
+	determine_control(f)
+	const network = get_trade_network(f, false)
+	const network_ta = get_trade_network(f, true)
+	const in_nw = []
+	const in_ta = []
+	const in_na = []
+	game.control = og_control
+	for (let i = 0; i < REGIONS.length; i++) {
+		const r = REGIONS[i]
+		if (r.type === "sea" || (r.pop === 0 && r.res === 0)) continue
+		if (set_has(network, i)) in_nw.push(i)
+		else if (!set_has(network, i) && set_has(network_ta, i)) in_ta.push(i)
+		else in_na.push(i)
+	}
+	return [in_nw, in_ta, in_na]
+}
+
+
 /* COMMON FRAMEWORK */
 
 function goto_game_over(result, victory) {

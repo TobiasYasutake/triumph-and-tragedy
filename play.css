@@ -46,12 +46,45 @@ path {
     display: none;
 }
 
+
+path.network {
+	display:inline;
+	fill: none;
+	stroke: #50d63e;
+	stroke-width: 5px;
+}
+
+path.network_ta {
+	display:inline;
+	fill: none;
+	stroke: #f58a26;
+	stroke-width: 5px;
+}
+
+path.network_none {
+	display:inline;
+	fill: none;
+	stroke: #ca2320;
+	stroke-width: 5px;
+}
+
+path.supply {
+	display:inline;
+	fill: rgba(17, 37, 219, 0.836);
+	fill-opacity: 0.40;
+}
+
 path.action {
     display:inline;
     fill:#339933;
     fill-opacity:0.40;
     image-rendering:auto;
     cursor: pointer;
+}
+
+path.action.supply {
+	fill:#15fad4;
+    fill-opacity:0.60;
 }
 
 .initiative.highlight {
