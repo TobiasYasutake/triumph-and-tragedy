@@ -674,6 +674,32 @@ body.shift .block.known:hover {
 	background-color: brown;
 }
 
+#battle_buttons {
+	display: flex;
+	justify-content: center;
+}
+
+#battle_hits {
+	display: flex;
+	justify-content: center;
+}
+
+#battle_buttons > button {
+	margin-top: 10px;
+	margin-left: 10px;
+	margin-right: 10px;
+}
+
+.damage {
+	margin-top: 10px;
+	width: 36px;
+	height: 36px;
+	background-image: url(images/bang.svg);
+	background-size: contain;
+	background-repeat: no-repeat;
+	pointer-events: none;
+}
+
 /* COMBAT TABLE */
 
 .player_pool {

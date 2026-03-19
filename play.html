@@ -49,6 +49,18 @@
 
 	<details id="battle_table" class="hidden"> 
 		<summary id="battle_header"></summary>
+		<div id="battle_buttons">
+			<button id="battle_air" onclick="send_action('air')">Air</button>
+			<button id="battle_naval" onclick="send_action('naval')">Naval</button>
+			<button id="battle_sub" onclick="send_action('sub')">Sub</button>
+			<button id="battle_ground" onclick="send_action('ground')">Ground</button>
+			<button id="battle_convoy" onclick="send_action('convoy')">Convoy</button>
+			<button id="battle_shootNscoot" onclick="send_action('shootNscoot')">Shoot and Scoot</button>
+			<button id="battle_strategic_bombing" onclick="send_action('strategic_bombing')">Strategic Bombing</button>
+			<button id="battle_retreat" onclick="send_action('retreat')">Retreat</button>
+			<button id="battle_pass_attack" onclick="send_action('pass_attack')">Pass</button>
+		</div>
+		<div id="battle_hits"></div>
 		<div id="attacker" class="player_pool">
 			<div id="name_attacker" class="player_name"></div>
 			<div id="pool_a" class="table_pool attacker"></div>
