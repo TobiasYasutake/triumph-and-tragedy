@@ -1,8 +1,6 @@
 /* eslint-disable semi */
 "use strict"
 
-//const { REGIONS } = require("./data")
-
 const AXIS = 0
 const WEST = 1
 const USSR = 2
