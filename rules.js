@@ -4976,6 +4976,7 @@ states.sg_draw = {
 		game.draw = [[],[]]
  		if (game.activeNum === 0) {
 			game.gained_control = [[15],[],[]]
+			game.influence[15] = 0
 			game.state = "gain_control"
 		}
 		else game.state = "sg_draw_dividends" 
