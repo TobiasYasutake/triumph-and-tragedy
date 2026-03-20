@@ -1697,8 +1697,9 @@ function are_enemies(f1, f2, r){
 		if (r === undefined) return false
 		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
 		if (game.minor_aggressor[c] === undefined || game.minor_aggressor[c] === null) return false
-		if (f1 === -1) return game.minor_aggressor[c].includes(f2)
-		if (f2 === -1) return game.minor_aggressor[c].includes(f1)
+		// if (f1 === -1) return game.minor_aggressor[c].includes(f2)
+		// if (f2 === -1) return game.minor_aggressor[c].includes(f1)
+		return !game.intervention_required.includes(c)
 	}
 	if (f1 === f2 || //you are not your own enemy
 		f1 === 3 || f2 === 3 || //you are not enemies at sea with rivals
@@ -3472,17 +3473,17 @@ states.movement_move = {
 		if (dec.length !== 0) {
 			message += "Still must attack "
 			for (let c = 0; c < dec.length; c++){
-				if (c > 2) message += ` ${COUNTRIES[c].name}`
-				else message += ` ${FACTIONS[c]}`
-				if (c === dec.length) message += '.'
+				if (dec[c] > 2) message += ` ${COUNTRIES[dec[c]].name}`
+				else message += ` ${FACTIONS[dec[c]]}`
+				if (c === dec.length -1) message += '.'
 				else message += ','
 			}
 		} 
 		if (int.length !== 0) {
 			message += " Still must intervene in"
 			for (let c = 0; c < dec.length; c++){
-				message += ` ${COUNTRIES[c].name}`
-				if (c === dec.length) message += '.'
+				message += ` ${COUNTRIES[int[c]].name}`
+				if (c === dec.length -1) message += '.'
 				else message += ','
 			}
 		}
@@ -3518,7 +3519,11 @@ states.movement_move = {
 		}	
 		if (game.mvmt.aggression) {
 			const c = REGIONS[r].country ? COUNTRIES.findIndex(x => x.name === REGIONS[r].country) : false
-			const fs = factions_in_region(r) 
+			const fs = factions_in_region(r)
+			if (c && is_neutral(c) && is_armed_minor(c) && !set_has(game.intervention_required, c) && !game.minor_aggressor[c].includes(game.activeNum)) {
+				game.minor_aggressor[c].push(game.activeNum)
+				log(`The ${game.active} have enacted a partition of ${REGIONS[r].country}. They are now enemies.`)
+			}
 			if (fs.length === 1) set_add(game.aggression_met, game.control[r] === -1 ? c : game.control[r])
 			else for (let f of fs) 
 				if (f !== game.activeNum) set_add(game.aggression_met, f === -1 ? c : f)
@@ -3614,7 +3619,8 @@ function update_mvmt(b, m, r){
 		//reasons for must_stop because they are illegal moves
 		(m.move_type && m.move_type === 'land' && region.type === 'sea') || //land cannot go to sea
 		(eb && region.type !== 'sea' && !all_eb) || //there must either be no enemies in the space, or is a sea, or you must be enemies with all in the space (intervention exception)
-		(c && is_neutral(c) && !(set_has(game.intervention_required, c) || (game.minor_aggressor[c] && game.minor_aggressor[c].includes(f)) || //cannot invade neutrals, unless intervention or is enemy of minor (like partition)
+		//(c && is_neutral(c) && !(set_has(game.intervention_required, c) || (game.minor_aggressor[c] && game.minor_aggressor[c].includes(f)) || //cannot invade neutrals, unless intervention or is enemy of minor (like partition)
+		(c && is_neutral(c) && (!is_armed_minor(c) || //may not invade a neutral for any reason, unless it is an AM, then can always invade it
 			(region.type === 'strait' && !set_has(game.armed_minors, c) && (!m.move_type || m.move_type !== 'land')))) || //or, another exception: you may go through neutral straits with sea/air movement
 		(game.territorial_straits && (r === 22 || r === 96) && !(f === ctrl || are_enemies(f, ctrl, r))) || //may not move into suez/istanbul with variant on unless you own it or you are at war. 
 		(game.phase === "Winter" && c !== 5) //5 === ussr
@@ -3653,7 +3659,8 @@ function legal_end_space(b, m, r){
 		//illegal moves from update_mvmt
 		(m.move_type && m.move_type === 'land' && region.type === 'sea') || //land cannot go to sea
 		(eb && region.type !== 'sea' && !all_eb) || //there must either be no enemies in the space, or is a sea, or you must be enemies with all in the space (intervention exception)
-		(c && is_neutral(c) && !(set_has(game.intervention_required, c) || (game.minor_aggressor[c] && game.minor_aggressor[c].includes(f)))) || //cannot invade neutrals, unless intervention or is enemy of minor (like partition)
+		//(c && is_neutral(c) && !(set_has(game.intervention_required, c) || (game.minor_aggressor[c] && game.minor_aggressor[c].includes(f)))) || //cannot invade neutrals, unless intervention or is enemy of minor (like partition)
+		(c && is_neutral(c) && !is_armed_minor(c)) || //may not invade a neutral for any reason, unless it is an AM, then can always invade it
 		(game.phase === "Winter" && c !== 5) //5 === ussr
 	) return false
 	return true
@@ -4382,7 +4389,7 @@ function sea_battle_check(f1, f2){ //when war is declared, there needs to be com
 states.declare_war = {
 	inactive: "movement",
 	prompt(){
-		view.prompt = "Declare War or Violation of Neutrality."
+		view.prompt = "Declare War, Intervention, or Violation of Neutrality."
 		let aw = are_enemies(0,1)
 		let au = are_enemies(0,2)
 		let wu = are_enemies(1,2)
@@ -4401,7 +4408,7 @@ states.declare_war = {
 			) gen_action_region(i) 
 		}
 		//if there are armed minors that you are not the aggressor of
-		view.actions.partition = partition_list(game.activeNum)? 1 : 0
+		//view.actions.partition = partition_list(game.activeNum)? 1 : 0
 		view.actions.intervention = intervention_list(game.activeNum)? 1 : 0
 	},
 	axis(){
@@ -4467,10 +4474,10 @@ states.declare_war = {
 		determine_control(game.activeNum)
 		game.state = "movement"
 	},
-	partition(){
-		push_undo()
-		game.state = "partition"
-	},
+	// partition(){
+	// 	push_undo()
+	// 	game.state = "partition"
+	// },
 	intervention(){
 		push_undo()
 		game.state = "intervention"
@@ -4482,16 +4489,16 @@ states.declare_war = {
 	}
 }
 
-function partition_list(f) { //armed minor countries that are not your enemy
-	const list = []
-	for (let i = 0; i < game.influence.length; i++){
-		//clause for already declared partition/intervetion countries
-		if (game.minor_aggressor[i] && !game.minor_aggressor[i].includes(f) &&
-			!set_has(game.intervention_required, i) && !set_has(game.surprise, i) //clause for already declared partition/intervetion countries
-		) list.push(COUNTRIES[i].name)
-	}
-	return list.length === 0? false : list
-}
+// function partition_list(f) { //armed minor countries that are not your enemy
+// 	const list = []
+// 	for (let i = 0; i < game.influence.length; i++){
+// 		//clause for already declared partition/intervetion countries
+// 		if (game.minor_aggressor[i] && !game.minor_aggressor[i].includes(f) &&
+// 			!set_has(game.intervention_required, i) && !set_has(game.surprise, i) //clause for already declared partition/intervetion countries
+// 		) list.push(COUNTRIES[i].name)
+// 	}
+// 	return list.length === 0? false : list
+// }
 
 function intervention_list(f) { //armed minor countries that are your enemy's enemy.
 
@@ -4505,33 +4512,33 @@ function intervention_list(f) { //armed minor countries that are your enemy's en
 	const list = []
 	for (let i = 0; i < game.influence.length; i++){
 		if (game.minor_aggressor[i] && !game.minor_aggressor[i].includes(f) && enemy_in_group(f, game.minor_aggressor[i]) &&
-			!set_has(game.intervention_required, i) && !set_has(game.surprise, i) && //clause for already declared partition/intervetion countries
+			!set_has(game.intervention_required, i) && //!set_has(game.surprise, i) && //clause for already declared partition/intervetion countries
 			still_has_blocks(COUNTRIES[i].name)
 		) list.push(COUNTRIES[i].name)
 	}
 	return list.length === 0? false : list
 }
 
-states.partition = {
-	inactive: "movement",
-	prompt(){
-		view.prompt = "Declare Partition."
-		const list = partition_list(game.activeNum)
-		for (let i = 0; i < REGIONS.length; i++) {
-			if (REGIONS[i].country && list.includes(REGIONS[i].country)) {
-				gen_action_region(i)
-			}
-		}
-	},
-	region(r){
-		push_undo()
-		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
-		log(`The ${game.active} have declared a partition of ${REGIONS[r].country}. They are now enemies.`)
-		game.minor_aggressor[c].push(game.activeNum)
-		//set_add(game.surprise, c)
-		game.state = 'movement'
-	},
-}
+// states.partition = {
+// 	inactive: "movement",
+// 	prompt(){
+// 		view.prompt = "Declare Partition."
+// 		const list = partition_list(game.activeNum)
+// 		for (let i = 0; i < REGIONS.length; i++) {
+// 			if (REGIONS[i].country && list.includes(REGIONS[i].country)) {
+// 				gen_action_region(i)
+// 			}
+// 		}
+// 	},
+// 	region(r){
+// 		push_undo()
+// 		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
+// 		log(`The ${game.active} have enacted a partition of ${REGIONS[r].country}. They are now enemies.`)
+// 		game.minor_aggressor[c].push(game.activeNum)
+// 		//set_add(game.surprise, c)
+// 		game.state = 'movement'
+// 	},
+// }
 
 states.intervention = {
 	inactive: "movement",

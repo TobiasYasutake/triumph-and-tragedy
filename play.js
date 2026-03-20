@@ -215,6 +215,7 @@ function show_supply(supply) {
 	for (let i = 0; i < REGIONS.length; i++){
 		let e = document.getElementById(REGIONS[i].name)
 		e.classList.toggle("supply", supply.includes(i))
+		e.classList.toggle("no_supply", !supply.includes(i))
 	}
 }
 
@@ -231,6 +232,7 @@ function hide_supply_trade() {
 	for (let i = 0; i < REGIONS.length; i++){
 		let e = document.getElementById(REGIONS[i].name)
 		e.classList.remove("supply")
+		e.classList.remove("no_supply")
 		e.classList.remove("network")
 		e.classList.remove("network_ta")
 		e.classList.remove("network_none")
