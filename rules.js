@@ -488,10 +488,13 @@ function next_player_battle(){
 	clear_selected()
 	//based on the participating blocks, the attacker, the defender(s), tech, surprise, and blocks moved, figure out who's turn it is
 	//in a three way, the attacker determines initiative ties, but to save on turn activation it will just happen in turn order.
-	if (check_end_battle()) {post_battle_teardown(); return}
+	if (check_end_battle()) {
+		post_battle_teardown(); return
+	}
 	const s = game.slated_to_attack
 	const unused_blocks = game.active_battle_blocks.filter(x => !(set_has(game.block_moved, x)))
 	if (unused_blocks.length === 0 && s.length === 0) {
+		if (game.hits) {resolve_damage(); return}
 		if (REGIONS[game.active_battle].type === 'sea') { //retreat airplane/subs and then go for another battle
 			game.block_moved = []
 			determine_retreats(game.active_battle, false) //shoooould only catch airplanes that took an action
@@ -507,7 +510,9 @@ function next_player_battle(){
 			const bNum = 0 + (game.attacker !== b) + (has_ff(b, type) ? 2 : 0)
 			return bNum - aNum
 		})
-		if (s.length > 0 && (type === -1 || type > game.block_type[s[0]])) {
+		if (game.hits && fs[0] !== game.activeNum && fs[0] !== -1) {
+			resolve_damage()
+		} else if (s.length > 0 && (type === -1 || type > game.block_type[s[0]])) {
 			log("Processing delayed attack")
 			const b = s[0]
 			const t = s[1]
@@ -1281,7 +1286,7 @@ function retreat_locations(r, b) {
 		const c = game.control[space]
 		const bt =  border_type(space, r)
 		if (
-			(c === f || c === 3) && //a: Enemy, Rival, or Neutral areas (Open Seas OK)
+			(c === f || (c === 3 && !contains_enemy_blocks(space, f))) && //a: Enemy, Rival, or Neutral areas (Open Seas OK) //note: contains_enemy_block needed because control can be from active player's perspective
 			!(set_has(battles, space)) && //b: Areas that contained Battles (other than Raids) that Player Turn [Raids do not block Retreats]
 			!(set_has(rss, space)) && //c: [Defenders only] Areas from which the Enemy Engaged them that Player Turn
 			(os === space || os === false) && //d: [Attackers only] Any area other than the one from which they Engaged into the Battle, if they Engaged that Turn
@@ -1386,6 +1391,7 @@ function next_player_retreat(){
 	group.push(...game.may_retreat)
 	const fs = factions_in_group(group)
 	if (fs.length === 0) {//either start another sea combat round or end the battle OR force an entire new combat at sea
+		game.must_retreat = null ; game.may_retreat = null //general cleanup
 		const fsr = factions_in_region(game.active_battle)
 		if (game.attacker === null) {game.must_retreat = null; game.may_retreat = null; next_season(true)}  //if attacker is null then this is during the supply check phase
 		else if (game.defender !== null && set_has(fsr, game.defender)) new_sea_combat_round() //defender should be null for all land battles by this point.
@@ -1958,8 +1964,8 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 	const sonar = game.block_type[b] === 4 && c === 3 && has_tech(game.activeNum, "Sonar")? 1 : 0
 	if (s) game.shootNscoot = b
 	set_add(game.block_moved, b)
-	game.hits = fire(game.block_steps[b]*(1+adr), s? 1 : FIREPOWER[game.block_type[b]][c]+sonar)
-	if (game.hits > 0) {
+	let hits = fire(game.block_steps[b]*(1+adr), s? 1 : FIREPOWER[game.block_type[b]][c]+sonar)
+	if (hits > 0) {
 		game.hit_class = convoy? 2 : c
 		if (faction_of_block(b) !== -1 && (game.defender === -1 || game.target === -1)) {
 			log('The Neutral fort took the damage.')
@@ -1967,15 +1973,21 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 			do {
 				let dead = block_reduce(block)
 				if (dead) {
-					game.hits = 0
+					hits = 0
 					log('The Neutral fort was eliminated.')
-				} else game.hits -= 1
-			} while (game.hits > 0)
+				} else hits -= 1
+			} while (hits > 0)
 			next_player_battle()
 		} else {
-			game.state = "damage" 
-			if (faction_of_block(b) !== game.attacker) make_active(game.attacker)
-			else make_active(game.target === null? game.defender : game.target)
+			const target = faction_of_block(b) !== game.attacker? game.attacker : game.target === null? game.defender : game.target
+			if (!game.hits) game.hits = {} //to not break games in progress
+			if (game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`]) game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] += hits
+			else game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] = hits
+			if (game.block_nation[b] === 6) resolve_damage()
+			else next_player_battle()
+			//game.state = "damage" 
+			//if (faction_of_block(b) !== game.attacker) make_active(game.attacker)
+			//else make_active(game.target === null? game.defender : game.target)
 		}
 	} else if (s) {
 		game.state = "retreat"
@@ -2077,6 +2089,7 @@ function can_add_battlegroup(r) {
 }
 
 function post_battle_teardown() {
+	if (game.hits) {resolve_damage(); return}
 	if (REGIONS[game.active_battle].type === 'sea') {
 		const fs = factions_in_region(game.active_battle)
 		game.battle_winner = set_has(fs, game.attacker)? game.attacker : game.defender
@@ -3537,7 +3550,7 @@ states.movement_move = {
 	}
 }
 
-function end_block_move(b){
+function  end_block_move(b){
 	const r = game.block_location[b]
 	const p = game.mvmt.previous_space
 	const o = game.mvmt.origin_space
@@ -3784,6 +3797,7 @@ states.battle = {
 	inactive: "battle",
 	prompt(){
 		view.prompt = "Choose a block to do an action."
+		if (game.hits) view.actions.request_damage = 1
 		const unused_blocks = game.active_battle_blocks.filter(x => !(set_has(game.block_moved, x)) && faction_of_block(x) === game.activeNum)
 		const type = lowest_type(unused_blocks)
 		const blocks = unused_blocks.filter(x => game.block_type[x] === type)
@@ -3791,7 +3805,8 @@ states.battle = {
 			gen_action_bblock("bb_" + b)
 		}
 	}, //Air Naval Ground Sub
-	bblock(b){push_undo(); game.selected_block = b; game.state = "battle_action"}
+	bblock(b){push_undo(); game.selected_block = b; game.state = "battle_action"},
+	request_damage(){resolve_damage()}
 }
 
 states.battle_action = {
@@ -3799,6 +3814,7 @@ states.battle_action = {
 	inactive: "battle",
 	prompt(){
 		view.prompt = "Perform an action!"
+		if (game.hits) view.actions.request_damage = 1
 		const e = filter_local_enemy(game.activeNum)
 		const b = parseInt(game.selected_block.replace("bb_", ""))
 		if (can_retreat(b)) gen_action_retreat(b)
@@ -3812,6 +3828,7 @@ states.battle_action = {
 		gen_action_pass(b) //theoretically there is no pass, but we will just have pass
 		gen_action_bblock(game.selected_block)
 	},
+	request_damage(){resolve_damage()},
 	bblock(){pop_undo()},
 	retreat(){push_undo(); game.selected_block = parseInt(game.selected_block.replace("bb_", "")); game.state = "retreat"},
 	air(){process_attack(parseInt(game.selected_block.replace("bb_", "")), 0)},
@@ -3899,31 +3916,57 @@ states.choose_target_battle = {
 	confirm_ussr(){slate_block_to_attack(2)},
 }
 
+function resolve_damage() {
+	const fs = []
+	for (const combo in game.hits)
+		set_add(fs, FACTIONS.indexOf(combo.substring(0,4)))
+	if (fs.length === 0) {
+		delete game.hits
+		next_player_battle()
+	}
+	else if (fs.length === 1) {
+		game.state = "damage"
+		make_active(fs[0])
+	}
+	else {
+		game.state = "damage"
+		let index = game.turn_order.indexOf(game.activeNum)
+		make_active(game.turn_order[(index + 1)%3])
+	}
+}
+
 states.damage = {
 	disable_remove_block: 1,
 	inactive: "take damage",
 	prompt() {
-		const hit = game.hits === 1? " hit left." : " hits left." 
-		view.prompt = "Assign damage: " + game.hits + hit
-		const targets = game.active_battle_blocks.filter(x => faction_of_block(x) === game.activeNum && 
-			CLASS[game.block_type[x]] === game.hit_class)
-		const high = highest_step(targets)
-		const options = targets.filter(x => game.block_steps[x] === high) 
-		for (let option of options) {
-			gen_action_bblock("bb_" + option)
+		//const hit = game.hits === 1? " hit left." : " hits left." 
+		//view.prompt = "Assign damage: " + game.hits + hit
+
+		view.prompt = "Assign damage"
+		for (const combo in game.hits) {
+			if (combo.substring(0,4) !== game.active) continue
+			const c = CLASSNAME.indexOf(combo.substring(5))
+			const targets = game.active_battle_blocks.filter(x => faction_of_block(x) === game.activeNum && 
+			CLASS[game.block_type[x]] === c)
+			const high = highest_step(targets)
+			const options = targets.filter(x => game.block_steps[x] === high) 
+			for (let option of options) {
+				gen_action_bblock("bb_" + option)
+			}
 		}
 	},
 	bblock(b) {
 		b = parseInt(b.replace("bb_", ""))
+		const combo = `${game.active}_${CLASSNAME[CLASS[game.block_type[b]]]}`
 		block_reduce(b)
 		if ((game.block_type[b] === 2) || (is_inf_or_tank(b) && REGIONS[game.block_location[b]].type === 'sea')) 
 			block_reduce(b)
-		game.hits -= 1
+		game.hits[combo] -= 1
 		const targets = game.active_battle_blocks.filter(x => faction_of_block(x) === game.activeNum && 
 			CLASS[game.block_type[x]] === game.hit_class)
-		if (game.hits === 0 || targets.length === 0) {
-			game.hits = 0
-			if (game.shootNscoot === false) next_player_battle()
+		if (game.hits[combo] === 0 || targets.length === 0) {
+			delete game.hits[combo]
+			if (game.shootNscoot === false) resolve_damage()
 			else {
 				clear_undo()
 				game.state = "retreat" 
@@ -5357,7 +5400,7 @@ exports.view = function (state, player) {
 		block_type: [],
 		block_moved: game.block_moved,
 		aggressed_from: game.aggressed_from,
-		hits: game.hits,
+		hits: game.hits?? {},
 		
 		// TOKENS
 		turn: game.turn,

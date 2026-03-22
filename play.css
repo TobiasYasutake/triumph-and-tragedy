@@ -183,6 +183,7 @@ body.shift .block.known:hover {
 	transition-property: top, left, transform, opacity;
 	transition-duration: 700ms, 700ms, 250ms, 250ms;
 	transition-timing-function: ease, ease, ease, linear;
+	margin: 2px;
 }
 
 .battle_set {
@@ -723,6 +724,16 @@ body.shift .block.known:hover {
 	justify-content: center;
 }
 
+.battle_line {
+	margin-top: 10px;
+	margin-left: 30px;
+	margin-right: 30px;
+	display: flex;
+	border-radius: 1px;
+	border-color: #333;
+	align-items: center;
+}
+
 #battle_buttons > button {
 	margin-top: 10px;
 	margin-left: 10px;
@@ -730,13 +741,13 @@ body.shift .block.known:hover {
 }
 
 .damage {
-	margin-top: 10px;
-	width: 36px;
-	height: 36px;
+	width: 30px;
+	height: 30px;
 	background-image: url(images/bang.svg);
 	background-size: contain;
 	background-repeat: no-repeat;
 	pointer-events: none;
+	margin-left: 2px;
 }
 
 /* COMBAT TABLE */

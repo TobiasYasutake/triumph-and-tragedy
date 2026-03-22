@@ -338,11 +338,18 @@ function update_battle() {
 		battle_button('battle_pass_attack', 'pass_attack')
 		battle_button('battle_retreat', 'retreat')
 		ui.battle_hits.innerHTML = ""
-		for (let i = 0; i < view.hits; i++) {
-			let block = document.createElement("div")
-			block.classList.add("damage")
-			ui.battle_hits.appendChild(block)
+		for (const combo in view.hits) {
+			let line = document.createElement("div")
+			line.classList.add("battle_line")
+			line.innerText = combo.replace("_", " ") + ": "
+			for (let i = 0; i < view.hits[combo]; i++) {
+				let block = document.createElement("div")
+				block.classList.add("damage")
+				line.appendChild(block)
+			}
+			ui.battle_hits.appendChild(line)
 		}
+
 		ui.attacker.innerHTML = ""
 		ui.defender.innerHTML = ""
 		for (let b of view.battle_blocks) {
@@ -918,6 +925,8 @@ function on_update(){
 
 	action_button("start_combat", "Start combat")
 	action_button("end_combat", "End combat")
+
+	action_button("request_damage", "Request damage resolution")
 
 	action_button("done", "Done")
 	action_button("create", "Create")
