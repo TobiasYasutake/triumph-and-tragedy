@@ -373,7 +373,9 @@ function end_movement_phase(){
 		determine_raids()
 		log(".h3 Combat Phase")
 		game.state = "choose_battle"
-	} else cleanup_player_turn()
+	} else {
+		end_battle_phase()
+	}
 }
 
 function end_battle_phase() {
