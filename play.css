@@ -107,19 +107,19 @@ path.action.supply {
 
 /* COLORS */
 :root {
-	--color-germany-primiary: rgb(120, 120, 120);
+	--color-germany-primary: rgb(120, 120, 120);
 	--color-germany-secondary: rgb(171, 171, 172);
 	--color-germany-tertiary: rgb(188, 184, 184);
-	--color-italy-primiary: rgb(215, 210, 100);
+	--color-italy-primary: rgb(215, 210, 100);
 	--color-italy-secondary: rgb(155, 154, 109);
-	--color-Britain-primiary: rgb(0, 50, 125);
+	--color-Britain-primary: rgb(0, 50, 125);
 	--color-Britain-secondary: rgb(27, 131, 191);
 	--color-Britain-tertiary: rgb(75, 147, 189);
-	--color-france-primiary: rgb(110, 170, 200);
+	--color-france-primary: rgb(110, 170, 200);
 	--color-france-secondary: rgb(113, 178, 201);
-	--color-USA-primiary: rgb(45, 95, 25);
+	--color-USA-primary: rgb(45, 95, 25);
 	--color-USA-secondary: rgb(98, 141, 75);
-	--color-ussr-primiary: rgb(226, 24, 12);
+	--color-ussr-primary: rgb(226, 24, 12);
 	--color-ussr-secondary: rgb(240, 78, 55);
 	--color-ussr-tertiary: rgb(240, 145, 132);
 }
@@ -249,12 +249,12 @@ body.shift .block.known:hover {
 
 /* BLOCK IMAGES */
 
-.block.Britain{background-color: var(--color-Britain-primiary);}
-.block.Germany{background-color: var(--color-germany-primiary);}
-.block.USA {background-color: var(--color-USA-primiary);}
-.block.Italy {background-color: var(--color-italy-primiary);}
-.block.USSR {background-color: var(--color-ussr-primiary);}
-.block.France{background-color: var(--color-france-primiary);}
+.block.Britain{background-color: var(--color-Britain-primary);}
+.block.Germany{background-color: var(--color-germany-primary);}
+.block.USA {background-color: var(--color-USA-primary);}
+.block.Italy {background-color: var(--color-italy-primary);}
+.block.USSR {background-color: var(--color-ussr-primary);}
+.block.France{background-color: var(--color-france-primary);}
 
 .block.Germany.Infantry, #reserves_Germany .Infantry {background-image: url(blocks/German_inf.png);}
 .block.Germany.Tank, #reserves_Germany .Tank {background-image: url(blocks/German_tank.png);}
@@ -754,6 +754,7 @@ body.shift .block.known:hover {
 
 .player_pool {
 	width: 550px;
+	min-height: 88px;
 	background-color: #0003;
 	padding: 8px;
 	border-radius: 20px;
@@ -788,7 +789,7 @@ body.shift .block.known:hover {
 	background-size: 600% 100%;
 	background-repeat: no-repeat;
 	background-image: url(images/die_pale_pips.svg);
-	box-shadow: 0 0 0 1px #333, 1px 2px 3px 1px #0004;
+	/* box-shadow: 0 0 0 1px #333, 1px 2px 3px 1px #0004; */
 }
 
 .d0 { display: none; }
@@ -799,17 +800,17 @@ body.shift .block.known:hover {
 .d5 { background-position: 80% 0; }
 .d6 { background-position: 100% 0; }
 
-.attacker .die {
+/* .attacker .die {
 	background-color: #c98a89;
 	border-color: #d8a09f #b67473 #b67473 #d8a09f;
-}
+} */
 
-.attacker .die.hit {
+.die.hit {
 	background-color: #9e302f;
 	border-color: #9c3b3a #701d1b #701d1b #9c3b3a;
 	background-image: url(images/die_gold_pips.svg);
 }
-
+/* 
 .defender .die {
 	background-color: #d1bdb0;
 	border-color: #dbcdc3 #c2aa99 #c2aa99 #dbcdc3;
@@ -819,7 +820,7 @@ body.shift .block.known:hover {
 	background-color: #bb957b;
 	border-color: #d6af95 #a18069 #a18069 #d6af95;
 	background-image: url(images/die_gold_pips.svg);
-}
+} */
 
 .die.action { box-shadow: 0 0 0 1px #333, 0 0 0px 3px white; }
 
@@ -830,6 +831,10 @@ body.shift .block.known:hover {
 #log .h1 { background-color: thistle;}
 #log .h2 { background-color: lightgray; }
 #log .h3 { background-color: gainsboro; }
+
+#log .h3.axis { background-color: lightgrey; }
+#log .h3.west { background-color: lightskyblue; }
+#log .h3.ussr { background-color: #f88; }
 
 #log .h1 { border-top: 1px solid black; border-bottom: 1px solid black; }
 #log .h2 { border-top: 1px solid black; border-bottom: 1px solid black; }
@@ -842,10 +847,19 @@ body.shift .block.known:hover {
 
 #log .group { margin: 0 8px }
 #log .group.h4 { text-align: center; padding: 0px; }
-#log .group.h4.ap { background-color: hsl(0, 20%, 80%); }
-#log .group.h4.cp { background-color: hsl(214, 30%, 80%); }
-#log .group.ap { background-color: hsl(0, 20%, 90%) }
-#log .group.cp { background-color: hsl(214, 30%, 90%) }
+#log .group.h4.axis { background-color: lightgrey}
+#log .group.h4.west { background-color: lightskyblue}
+#log .group.h4.ussr { background-color: #f88}
+#log .group.h4.vp {background-color: #cdeea3}
+#log .group.axis { background-color: rgba(211, 211, 211, 0.5)}
+#log .group.west { background-color: rgba(135, 206, 250, 0.5)}
+#log .group.ussr { background-color: rgba(255, 136, 136, 0.5)}
+#log .group.vp {background-color:#cdeea380}
+
+#log .Spring {background-color: rgb(142, 193, 63)}
+#log .Summer {background-color: rgb(206, 159, 43)}
+#log .Fall {background-color: rgb(240, 89, 39)}
+#log .Winter {background-color: rgb(179, 226, 246)}
 
 #log div.i { padding-left: 32px; text-indent: -12px; }
 #log div.ii { padding-left: 44px; text-indent: -12px; }
@@ -853,8 +867,15 @@ body.shift .block.known:hover {
 #log div.bold { font-weight: bold }
 #log div.italic { font-style: italic }
 
-#log .apvp { color: brown; }
-#log .cpvp { color: blue; }
+/* Country Colors */
+.Yugoslavia.h4 {background-color: d3edf6 ;}
+.Yugoslavia {background-color: rgb(215, 172, 115, 0.5);}
+
+/* 
+#log .axisvp { color: grey; }
+#log .westvp { color: blue; }
+#log .ussrvp { color: red; } 
+*/
 
 
 
@@ -875,6 +896,13 @@ body.shift .block.known:hover {
 	background-image: url(images/die_black_pips.svg);
 	background-color: white;
 	border: 1px solid #444;
+}
+
+#log .die.hit {
+	background-color: #eb2521;
+	/* border-color: #9c3b3a #701d1b #701d1b #9c3b3a; */
+	border: 1px solid #444;
+	background-image: url(images/die_white_pips.svg);
 }
 
 /* #log .die.cp {

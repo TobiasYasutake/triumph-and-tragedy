@@ -84,7 +84,7 @@ const NATIONS = [
 	MAJORPOWERS[1],
 	MAJORPOWERS[2],
 	GREATPOWERS[2],
-	"NeutralFort"
+	"Neutral"
 ]
 
 const TYPE = [
@@ -177,24 +177,27 @@ function new_year(){
 	const roll = roll_d6()
 	game.turn_order = TURNORDER[roll]
 	log_br()
-	log(`A ${roll} was rolled for Player Order: ${FACTIONS[game.turn_order[0]]} / ${FACTIONS[game.turn_order[1]]} / ${FACTIONS[game.turn_order[2]]}.`)
+	log(`Player Order Roll: W${roll}` )
+	log(`>${FACTIONS[game.turn_order[0]]} / ${FACTIONS[game.turn_order[1]]} / ${FACTIONS[game.turn_order[2]]}.`)
 	log_br()
 	
 	if (game.turn >= 6 && game.turn <= 9 && game.influence[4] !== 10) {
 		influence_country(4, 1)
-		log("The West gained 1 free influence in the USA")
-		if (game.influence[4] === 13) usa_satellite()
+		log("West gained 1 free influence in the USA")
+		if (game.influence[4] === 11) update_production()
+		if (game.influence[4] === 13) {usa_satellite(); update_production()}
 	}
 	game.usa_reinforcements += 1
 
 	game.phase = 'production'
 	log_br()
-	log(".h2 Production Phase")
-	log_br()
+	//log(".h2 Production Phase")
+	//log_br()
 	make_active(game.turn_order[0])
 	determine_control(game.activeNum)
-	log(`.h3 ${game.active} begins production`)
+	log(`#${game.active} ${game.active} Production`)
 	game.count = determine_production(game.activeNum)
+	log(`${game.count} production points`)
 
 	if (game.activeNum === 1 && game.usa_satellite && game.usa_reinforcements > 0 && game.usa_reinforcements < 4) {
 		game.state = 'production_usa'
@@ -228,8 +231,9 @@ function end_production(){
 			next_player()
 			determine_control(game.activeNum)
 			log_br()
-			log(`.h3 ${game.active} begins production`)
+			log(`#${game.active} ${game.active} Production`)
 			game.count = determine_production(game.activeNum)
+			log(`${game.count} production points`)
 
 			if (game.activeNum === 1 && game.usa_satellite && game.usa_reinforcements > 0 && game.usa_reinforcements < 4) {
 				game.state = 'production_usa'
@@ -258,30 +262,33 @@ function handsize_check(){
 }
 
 function resolve_diplomacy(){
-	log_br()
-	log(".h3 Diplomacy")
-	log_br()
-	for (let i = 0; i < 3; i++){ //add influence
-		log(`${FACTIONS[i]} influence:`)
-		for (let j = game.diplomacy[i].length -1; j >= 0; j--){
-			let card = ACARDS[Math.abs(game.diplomacy[i][j])]
-			let country = game.diplomacy[i][j] > 0? COUNTRIES.findIndex(c => c.name === card.left) : COUNTRIES.findIndex(c => c.name === card.right)
-			influence_country(country, i)
-			game.discard[0].push(Math.abs(game.diplomacy[i].splice(j,1)[0]))
-			log(COUNTRIES[country].name)
-		}
+	if (game.diplomacy[0].length !== 0 || game.diplomacy[1].length !== 0 || game.diplomacy[2].length !== 0) {
 		log_br()
-	}
-	for (let i = 0; i < game.influence.length; i++){ //gain control
-		if (game.influence[i]%10 >= 3) {
-			if (COUNTRIES[i].name === "USA"){
-				if (Math.floor(game.influence[i]/10) !== 1) {
-					game.influence[i] = (Math.abs(game.influence[i]/10) + 3)
-				} else usa_satellite()
-			} else {
-				game.influence[i] -= game.influence[i]%10
-				log(`The ${FACTIONS[game.influence[i]/10]} gained control of ${COUNTRIES[i].name}.`)
-				game.gained_control[game.influence[i]/10].push(i)
+		log(".h3 Diplomacy")
+		log_br()
+		for (let i = 0; i < 3; i++){ //add influence
+			log(`#${FACTIONS[i]} ${FACTIONS[i]} influence:`)
+			if (game.diplomacy[i].length === 0) log("None")
+			for (let j = game.diplomacy[i].length -1; j >= 0; j--){
+				let card = ACARDS[Math.abs(game.diplomacy[i][j])]
+				let country = game.diplomacy[i][j] > 0? COUNTRIES.findIndex(c => c.name === card.left) : COUNTRIES.findIndex(c => c.name === card.right)
+				influence_country(country, i)
+				game.discard[0].push(Math.abs(game.diplomacy[i].splice(j,1)[0]))
+				log(COUNTRIES[country].name)
+			}
+			log_br()
+		}
+		for (let i = 0; i < game.influence.length; i++){ //gain control
+			if (game.influence[i]%10 >= 3) {
+				if (COUNTRIES[i].name === "USA"){
+					if (Math.floor(game.influence[i]/10) !== 1) {
+						game.influence[i] = (Math.abs(game.influence[i]/10) + 3)
+					} else usa_satellite()
+				} else {
+					game.influence[i] -= game.influence[i]%10
+					log(`The ${FACTIONS[game.influence[i]/10]} gained control of ${COUNTRIES[i].name}.`)
+					game.gained_control[game.influence[i]/10].push(i)
+				}
 			}
 		}
 	}
@@ -327,11 +334,11 @@ function next_season(skip_supply){ //Spring Summer blockade Fall Winter
 		make_active(game.turn_order[0])
 		log_br()
 		switch (game.phase){
-		case "government": game.phase = "Spring"; game.state = "command"; log(".h2 Spring"); break
-		case "Spring": game.phase = "Summer"; game.state = "command"; log(".h2 Summer"); break
-		case "Summer": start_blockades(); break
-		case "blockade": game.phase = "Fall"; game.state = "command"; log(".h2 Fall"); break
-		case "Fall": game.phase = "Winter"; make_active(2); game.state = "command"; log(".h2 Winter"); break
+		case "government": game.phase = "Spring"; game.state = "command"; log("#Spring Spring"); log_br(); break
+		case "Spring": game.phase = "Summer"; game.state = "command"; log("#Summer Summer"); log_br() ;break
+		case "Summer": start_blockades(); log_br(); break
+		case "blockade": game.phase = "Fall"; game.state = "command"; log("#Fall Fall"); log_br(); break
+		case "Fall": game.phase = "Winter"; make_active(2); game.state = "command"; log("#Winter Winter"); log_br(); break
 		case "Winter": new_year()
 		}
 	}
@@ -371,7 +378,8 @@ function end_movement_phase(){
 	if (battles || Object.keys(game.battle_groups).length !== 0){
 		determine_control(game.activeNum)
 		determine_raids()
-		log(".h3 Combat Phase")
+		log_br()
+		log_h3(`${game.active} Combat`, game.active)
 		game.state = "choose_battle"
 	} else {
 		end_battle_phase()
@@ -380,8 +388,8 @@ function end_movement_phase(){
 
 function end_battle_phase() {
 	determine_control(game.activeNum)
-	conquest_influence()
 	if (game.state === 'game_over') return
+	conquest_influence()
 	cleanup_player_turn()
 }
 
@@ -418,6 +426,7 @@ function is_last_in_turn_order(){
 
 function determine_turn_order_command(){
 	let order = []
+	log_br()
 	for (let i = 0; i <= 2; ++i){
 		if (game.command_card[i]) {
 			const c = game.command_card[i]
@@ -558,11 +567,11 @@ function next_player_turn(){
 	} else {
 		make_active(game.turn_order_command[0])
 		log_br()
-		log(`.h3 ${game.active} Movement`)
+		log_h3(`${game.active} Movement`, game.active)
 		let card = ACARDS[game.command_card[game.activeNum]]
 		if (card.season === game.phase || game.phase === "Winter") {
 			game.count = card.value
-			log(`${game.active} have ${game.count} moves.`)
+			log(`${game.count} moves:`)
 			game.emergency = 0
 		} else {
 			game.activeNum === 0? game.count = 4 : game.count = 2
@@ -620,6 +629,7 @@ function minus_war_vps(faction){
 function victory_check(){// if someone has 25 vps (remember to count hidden vps and atomic bombs in vault)
 	const vps = captured_capitals()
 	const public_points = []
+	log("#vp Victory Check")
 	for (let i = 0; i < 3; i++) {
 		vps[i] *= 2 //capitals are worth 2 points
 		vps[i] += determine_production(i)
@@ -784,10 +794,10 @@ function number_of_blocks_in_region(region, block) {
 	}
 	return block_number
 }
-function factions_in_region(region) {
+function factions_in_region(region, skip_esubs, skip_rrbs) { //rrbs = raid retreat blocks
 	let factions = []
 	for (let i = -1; i < 3; i++) {
-		if (contains_faction(region, i)) factions.push(i)
+		if (contains_faction(region, i, skip_esubs, skip_rrbs)) factions.push(i)
 	}
 	return factions
 }
@@ -837,9 +847,12 @@ function contains_enemy_blocks(r, f) { //enemy is used if you need to be enemies
 	return false
 }
 
-function contains_faction(r, f) {
+function contains_faction(r, f, skip_esubs, skip_rrbs) {
 	for (let i = 0; i < game.block_location.length; i++) {
-		if (game.block_location[i] === r && faction_of_block(i) === f) return true
+		if (game.block_location[i] === r && faction_of_block(i) === f &&
+		!(skip_esubs && hiding_sub(i)) &&
+		!(skip_rrbs && set_has(game.raid_retreat_blocks, i))
+	) return true
 	}
 	return false
 }
@@ -1431,12 +1444,16 @@ function create_emergency_battle_group() {//the attacker needs to fight another 
 	}
 	for (let i = 0; i < game.block_location.length; i++) //remake the attacker's battleblocks.
 		if (game.block_location[i] === r && faction_of_block[i] === f && !set_has(bgb, i))
-			game.active_battle_blocks.push(i)
+			set_add(game.active_battle_blocks, i)
+			//game.active_battle_blocks.push(i)
 	if (BGcount === 1) {
-		game.active_battle_blocks.push(...game.battle_groups[last_group])
+		for (let b of game.battle_groups[last_group]) 
+			set_add(game.active_battle_blocks, b)
+		//game.active_battle_blocks.push(...game.battle_groups[last_group])
 		delete game.battle_groups[last_group]
 	}
 	else if (BGcount > 1) { //Craig said that another battlegroup gets added to the main 
+		make_active(game.attacker)
 		game.state = "add_battle_group"
 		return
 	} 
@@ -1865,7 +1882,12 @@ function filter_local_enemy(f){
 }
 
 function check_end_battle() {
-	const fs = factions_in_group(game.active_battle_blocks)
+	const fs = factions_in_region(game.active_battle, true, true)
+	if (!set_has(fs, game.attacker) && game.battle_groups) {
+		for (let bg in game.battle_groups) {
+			if (bg%1000 === game.active_battle) return false
+		}
+	}
 	if (fs.length <= 1) {
 		for (let b of game.active_battle_blocks) {
 			if (can_hit_industry(b)) return false
@@ -1912,14 +1934,17 @@ function has_ff_from_tech(f, type) {
 
 //BATTLE MANIPULATION
 function fire(steps, value) {
-	const rolls = []
+	let rolls = ""
 	let hits = 0
 	for (let i = 0; i < steps; i++) {
 		const r = roll_d6()
-		rolls.push(r)
-		if (r <= value) hits ++
+		if (r <= value) {
+			hits ++
+			rolls += "B" + r + " "
+		}
+		else rolls += "W" + r + " "
 	}
-	log(`Rolled ${rolls}, scoring ${hits} ${hits === 1? 'hit' : 'hits'}`)
+	log(`Roll: ${rolls}, ${hits} ${hits === 1? 'hit' : 'hits'}`)
 	return hits
 }
 
@@ -1928,7 +1953,6 @@ function process_attack_industry(b) {
 	set_add(game.block_moved, b)
 	let hits = fire(game.block_steps[b], 1)
 	if (hits > 0) {
-		log(`${hits} damage to industry!`)
 		let victim = CAPITALS.indexOf(REGIONS[game.block_location[b]].name)
 		if (victim === -1) throw new Error("Cannot find the capital to bomb!")
 		else game.ind[victim] -= hits
@@ -1939,7 +1963,6 @@ function process_attack_industry(b) {
 function neutral_firing_solution() {
 	for (let i = 0; i < game.block_location.length; i++){
 		if (game.block_nation[i] === 6 && game.block_location[i] === game.active_battle && !set_has(game.block_moved, i)) {
-			log(`${REGIONS[game.active_battle].name}'s neutral fort attacked the invaders:`)
 			const e = filter_local_enemy(-1)
 			let target
 			if (can_hit_ground(i, e)) target = 2
@@ -1952,6 +1975,12 @@ function neutral_firing_solution() {
 	}
 }
 
+function completely_destroyed() {return false} //Needs Work
+//should cycle through the hits and compare the hits to the damage 
+// (remember to take into acount double damage) 
+// and return true if there is enough damage to kill everything
+// (to prevent "cheat" retreat actions after killing everything)
+
 function process_attack(b, c, s) {//block, class, shootnscoot
 	if (game.target === null && Array.isArray(game.defender) && faction_of_block(b) === game.attacker){
 		push_undo()
@@ -1960,7 +1989,7 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 		return
 	}
 	clear_undo()
-	log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} attacked ${CLASSNAME[c]}`)
+	log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} ${s? "used 'Shoot & Scoot'." : "attacked " + CLASSNAME[c]}`)
 	const convoy = c === 4? c = 1 : 0 //both c and convoy should be 1 for a convoy attack
 	const adr = game.block_type[b] === 1 && c === 0 && has_tech(game.activeNum, "AirDefense Radar")? 1 : 0
 	const sonar = game.block_type[b] === 4 && c === 3 && has_tech(game.activeNum, "Sonar")? 1 : 0
@@ -1968,7 +1997,6 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 	set_add(game.block_moved, b)
 	let hits = fire(game.block_steps[b]*(1+adr), s? 1 : FIREPOWER[game.block_type[b]][c]+sonar)
 	if (hits > 0) {
-		game.hit_class = convoy? 2 : c
 		if (faction_of_block(b) !== -1 && (game.defender === -1 || game.target === -1)) {
 			log('The Neutral fort took the damage.')
 			let block = game.active_battle_blocks.find(x => game.block_nation[x] === 6)
@@ -1982,14 +2010,11 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 			next_player_battle()
 		} else {
 			const target = faction_of_block(b) !== game.attacker? game.attacker : game.target === null? game.defender : game.target
-			if (!game.hits) game.hits = {} //to not break games in progress
+			game.hits ??= {}
 			if (game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`]) game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] += hits
 			else game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] = hits
-			if (game.block_nation[b] === 6) resolve_damage()
+			if (game.block_nation[b] === 6 || completely_destroyed()) resolve_damage()
 			else next_player_battle()
-			//game.state = "damage" 
-			//if (faction_of_block(b) !== game.attacker) make_active(game.attacker)
-			//else make_active(game.target === null? game.defender : game.target)
 		}
 	} else if (s) {
 		game.state = "retreat"
@@ -2028,7 +2053,9 @@ function pre_battle_setup(r){
 			}
 			if (BGcount === 0) throw new Error("No battle groups found!?!")
 			else if (BGcount === 1) {
-				game.active_battle_blocks.push(...game.battle_groups[last_group])
+				for (let b of game.battle_groups[last_group]) 
+					set_add(game.active_battle_blocks, b)
+				//game.active_battle_blocks.push(...game.battle_groups[last_group])
 				delete game.battle_groups[last_group]
 			}
 			else if (BGcount > 1) {
@@ -2039,7 +2066,8 @@ function pre_battle_setup(r){
 	} else {
 		for (let i = 0; i < game.block_location.length; i++) {
 			if (game.block_location[i] === r && faction_of_block(i) === game.attacker) {
-				game.active_battle_blocks.push(i)
+				set_add(game.active_battle_blocks, i)
+				//game.active_battle_blocks.push(i)
 				if (set_has(game.invasion_blocks, i)) set_add(game.block_moved, i)
 			}
 		}
@@ -2049,7 +2077,7 @@ function pre_battle_setup(r){
 	for (let i = 0; i < game.block_location.length; i++) {
 		if (game.block_location[i] === r && !set_has(game.raid_retreat_blocks, i) &&
 			((Array.isArray(game.defender) && set_has(game.defender, faction_of_block(i))) || 
-			faction_of_block(i) === game.defender)) game.active_battle_blocks.push(i)
+			faction_of_block(i) === game.defender)) set_add(game.active_battle_blocks, i)
 	}
 
 	game.active_battle_blocks.sort((a, b) => {if (a > b) return 1; if (b > a) return -1; throw new Error('multiple copies in the same active battle block') })
@@ -2073,13 +2101,13 @@ function pre_battle_setup(r){
 
 function start_battle(){
 	game.state = "battle"
-	log_br()
-	log(`Battle in ${REGIONS[game.active_battle].name}:`)
 	next_player_battle()
 }
 
 function new_sea_combat_round() {
-	if (can_add_battlegroup(game.active_battle)) game.state = "add_battle_group"
+	if (can_add_battlegroup(game.active_battle)) {
+		make_active(game.attacker)
+		game.state = "add_battle_group"}
 	else next_player_battle()
 }
 
@@ -2093,7 +2121,7 @@ function can_add_battlegroup(r) {
 function post_battle_teardown() {
 	if (game.hits) {resolve_damage(); return}
 	if (REGIONS[game.active_battle].type === 'sea') {
-		const fs = factions_in_region(game.active_battle)
+		const fs = factions_in_region(game.active_battle, true, true)
 		game.battle_winner = set_has(fs, game.attacker)? game.attacker : game.defender
 	}
 	determine_retreats(game.active_battle, true)
@@ -2105,6 +2133,7 @@ function post_battle_teardown() {
 
 function end_battle(){
 	clear_undo()
+	log_br()
 	update_battle(game.active_battle)
 	game.active_battle = null
 	make_active(game.attacker)
@@ -2113,6 +2142,58 @@ function end_battle(){
 	game.may_retreat = null
 	game.must_retreat = null
 	game.state = 'choose_battle'
+}
+
+// LOGS
+function log(msg) {
+	game.log.push(msg)
+}
+
+function log_br() {
+	if (game.log.length > 0 && game.log[game.log.length - 1] !== "")
+		game.log.push("")
+}
+
+//copied from PoG
+function logi(msg) {
+	game.log.push(">" + msg)
+}
+function logii(msg) {
+	game.log.push(">>" + msg)
+}
+
+function log_alert(msg) {
+	game.log.push("!" + msg)
+}
+
+function log_alert_i(msg) {
+	game.log.push(">!" + msg)
+}
+
+function log_h1(msg) {
+	log_br()
+	log(".h1 " + msg)
+	log_br()
+}
+
+function log_h2(msg) {
+	log_br()
+	log(".h2 " + msg)
+	log_br()
+}
+
+function log_h3(msg, faction) {
+	faction = faction || FACTIONS[game.activeNum]
+	log_br()
+	if (faction === FACTIONS[0])
+		log(".h3axis " + msg)
+	else if (faction === FACTIONS[1])
+		log(".h3west " + msg)
+	else if (faction === FACTIONS[2])
+		log(".h3ussr " + msg)
+	else
+		log(".h3 " + msg)
+	log_br()
 }
 
 // OTHER
@@ -2135,7 +2216,7 @@ states.setup = {
 	inactive: "setup",
 	prompt(){
 		const north_sea = (game.britania && game.activeNum === 1 && 
-				number_of_blocks_in_region(REGIONS.findIndex(x => x.name === "North Sea")) === 0)
+			number_of_blocks_in_region(REGIONS.findIndex(x => x.name === "North Sea")) === 0)
 		view.prompt = north_sea? "Place starting Cadres. Britania Rules the Waves: place an extra block in the North Sea." : "Place starting Cadres."
 		let i
 		let finish
@@ -2281,7 +2362,7 @@ states.production = {
 		view.actions.draw_action_card = game.count > 0? 1:0//logic if the deck is empty?
 		view.actions.draw_investment_card = game.count > 0? 1:0//logic if the deck is empty?
 		Gen_CV_and_Cadre_Actions()
-		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected))) {
+		if (!view.actions.reserve || (view.actions.reserve && !set_has(view.actions.reserve, game.selected_reserve))) {
 			clear_selected()
 		}
 	},
@@ -2299,7 +2380,7 @@ states.production = {
 	},
 	block(b){
 		push_undo()
-		log(`Step increased in ${REGIONS[game.block_location[b]].name}`)
+		log(`Step increased in r${game.block_location[b]}`)
 		game.block_steps[b] += 1
 		set_add(game.block_moved, b)
 		game.count -= 1
@@ -2310,7 +2391,7 @@ states.production = {
 	},
 	region(area){
 		push_undo()
-		log(`Cadre placed in ${REGIONS[area].name}`)
+		log(`Cadre placed in r${area}`)
 		set_add(game.block_moved, create_cadre(game.selected_reserve, area))
 		game.count -= 1
 		if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null
@@ -3558,7 +3639,12 @@ function  end_block_move(b){
 	const o = game.mvmt.origin_space
 	const c = REGIONS[r].country ? COUNTRIES.findIndex(x => x.name === REGIONS[r].country) : false
 
-	log(`Moved from ${REGIONS[o].name} to ${REGIONS[r].name}.`)
+	if (game.mvmt.aggression === 1) {
+		if (o === p) log(`r${o} !! r${r}.`)
+		else log(`r${o} -> r${p} !! r${r}.`)
+	}
+	else log(`r${o} -> r${r}.`)
+	
 	if (REGIONS[r].name === 'Ottawa' && !game.usa_satellite && game.activeNum === 0) usa_violation()
 	if (victory_check_atomic(game.activeNum, b)) {
 		goto_game_over(game.active, `The ${game.active} have successfully deployed an atomic bomb and achieved an Atomic Victory!`); return
@@ -3578,7 +3664,7 @@ function  end_block_move(b){
 		if (game.block_type[b] !== 1){
 			const border_id = get_border_id(r, p)
 			map_set(game.border_count, border_id, map_get(game.border_count, border_id, 0) + is_inf_or_tank(b))
-			if (REGIONS[p].type === "sea" && is_inf_or_tank(b)) {log("Sea Invasion!"); set_add(game.invasion_blocks, b)}
+			if (REGIONS[p].type === "sea" && is_inf_or_tank(b)) {log(">Sea Invasion!"); set_add(game.invasion_blocks, b)}
 		}
 	}
 	if (game.mvmt.aggression === 1) {
@@ -3717,6 +3803,8 @@ states.choose_battle = {
 	region(r){
 		set_delete(game.battle_required, r)
 		set_add(game.battle_fought, r)
+		log_br()
+		log(`*#B Battle in r${r}:`)
 		pre_battle_setup(r)
 	},
 	end_choose_battle(){
@@ -3759,7 +3847,7 @@ states.add_battle_group = {
 			for (let group in game.battle_groups) {
 				if (group%1000 !== game.active_battle) continue
 				for (let block of game.battle_groups[group]) {
-					if (!set_has(game.active_battle_blocks, block)) gen_action_block(block)
+					if (game.active_battle_blocks, block) gen_action_block(block)
 				}
 			}
 		}
@@ -3790,7 +3878,9 @@ function find_battle_group(b) {
 
 function add_battle_group(bg){
 	bg = find_battle_group(bg[0])
-	game.active_battle_blocks.push(...game.battle_groups[bg])
+	for (let b of game.battle_groups[bg]) 
+		set_add(game.active_battle_blocks, b)
+	//game.active_battle_blocks.push(...game.battle_groups[bg])
 	delete game.battle_groups[bg]
 }
 
@@ -3959,22 +4049,32 @@ states.damage = {
 	},
 	bblock(b) {
 		b = parseInt(b.replace("bb_", ""))
-		const combo = `${game.active}_${CLASSNAME[CLASS[game.block_type[b]]]}`
+		const t_class = CLASSNAME[CLASS[game.block_type[b]]]
+		const combo = `${game.active}_${t_class}`
+		const all_classes = []
+		for (let cmb in game.hits) {
+			if (cmb.substring(0,4) !== game.active) continue
+			all_classes.push(cmb.substring(5))
+		}
 		block_reduce(b)
 		if ((game.block_type[b] === 2) || (is_inf_or_tank(b) && REGIONS[game.block_location[b]].type === 'sea')) 
 			block_reduce(b)
 		game.hits[combo] -= 1
-		const targets = game.active_battle_blocks.filter(x => faction_of_block(x) === game.activeNum && 
-			CLASS[game.block_type[x]] === game.hit_class)
-		if (game.hits[combo] === 0 || targets.length === 0) {
+		const this_target = game.active_battle_blocks.filter(x => faction_of_block(x) === game.activeNum && 
+			t_class === CLASSNAME[CLASS[game.block_type[x]]])
+		const all_targets = game.active_battle_blocks.filter(x => faction_of_block(x) === game.activeNum && 
+			all_classes.includes(CLASSNAME[CLASS[game.block_type[x]]]))
+		if (this_target.length === 0)
 			delete game.hits[combo]
-			if (game.shootNscoot === false) resolve_damage()
-			else {
+		if (game.hits[combo] === 0 || all_targets.length === 0) {
+			delete game.hits[combo]
+			if (game.shootNscoot) {
 				clear_undo()
 				game.state = "retreat" 
 				game.selected_block = game.shootNscoot 
 				make_active(faction_of_block(game.selected_block))
 			}
+			else resolve_damage()
 		}
 	}
 }
@@ -4067,7 +4167,7 @@ states.retreat = {
 			push_undo()
 			log(`${NATIONS[game.block_nation[b]]} block retreated to ${REGIONS[r].name}`)
 		}
-		else {log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} retreated to ${REGIONS[r].name}`)}
+		else {log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} ${game.shootNscoot? 'scooted' : 'retreated'} to ${REGIONS[r].name}`)}
 		game.block_location[b] = r
 		set_delete(game.active_battle_blocks, b)
 		
@@ -4197,7 +4297,7 @@ states.vault_reveal = {
 		let tc = game.vault[f][index + (index%2 === 0? 1:-1)] //tech card
 		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
 		
-		log(`${game.active} has revealed ${tech}`)
+		log(`${game.active} revealed ${tech}`)
 		game.discard[1].push(Math.abs(game.vault[f].splice(index, 1)))
 		game.tech[f].push(game.vault[f].splice(index%2 === 0? index : index-1, 1)[0])
 	},
@@ -4939,7 +5039,8 @@ function sg_setup() {
 	const roll = roll_d6()
 	game.turn_order = TURNORDER[roll]
 	log_br()
-	log(`A ${roll} was rolled for Player Order: ${game.turn_order[0]} / ${game.turn_order[1]} / ${game.turn_order[2]}.`)
+	log(`Player Order Roll: W${roll}` )
+	log(`>${FACTIONS[game.turn_order[0]]} / ${FACTIONS[game.turn_order[1]]} / ${FACTIONS[game.turn_order[2]]}.`)
 	log_br()
 	make_active(game.turn_order[0])
 	game.state = "sg_setup"
@@ -4980,7 +5081,7 @@ states.sg_setup = {
 	},
 	block(b){
 		push_undo()
-		log(`Step increased in ${REGIONS[game.block_location[b]].name}`)
+		log(`Step increased in r${game.block_location[b]}`)
 		game.block_steps[b] += 1
 		game.count -= 1
 		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
@@ -4990,7 +5091,7 @@ states.sg_setup = {
 	},
 	region(area){
 		push_undo()
-		log(`Cadre placed in ${REGIONS[area].name}`)
+		log(`Cadre placed in r${area}`)
 		create_cadre(game.selected_reserve, area)
 		game.count -= 1
 		if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null
@@ -5425,7 +5526,7 @@ exports.view = function (state, player) {
 		battle_blocks: game.active_battle_blocks,
 		battle_required: game.battle_required,
 	}
-	if (game.defender === null || factions_in_group(game.active_battle_blocks).length < 2) view.battle = null
+	if (game.defender === null || factions_in_group(game.active_battle_blocks).length === 0) view.battle = null
 	mask_blocks(playerNum)
 	
 	if (game.state === "game_over") {
@@ -5512,13 +5613,14 @@ function query_trade(f) {
 /* COMMON FRAMEWORK */
 
 function goto_game_over(result, victory) {
-	log("# The End")
+	log_br()
+	log(".h1 The End")
 	game.active = "None"
 	game.activeNum = -1
 	game.state = "game_over"
 	game.result = result
 	game.victory = victory
-	log(".summary")
+	//log(".summary")
 	log(game.victory)
 	return true
 }
@@ -5608,16 +5710,6 @@ function gen_action_retreat(c) {
 }function gen_action_strategic_bombing(c) {
 	gen_action("strategic_bombing", c)
 }
-
-function log(msg) {
-	game.log.push(msg)
-}
-
-function log_br() {
-	if (game.log.length > 0 && game.log[game.log.length - 1] !== "")
-		game.log.push("")
-}
-
 
 /* COMMON LIBRARY */
 

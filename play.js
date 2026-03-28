@@ -761,12 +761,22 @@ function hoist_faction() {
 	ppl.insertBefore(document.getElementById(`${view.player}`), document.getElementById("Axis"))
 }
 
+var log_box_axis = 0
+var log_box_west = 0
+var log_box_ussr = 0
+var log_box_battle = 0
+var log_box_vp = 0
+var country = ""
+
 function on_log(text, ix) { //copied from POG
 	let p = document.createElement("div")
 
 	// Reset group box counter (when log is rewound)
-	// if (ix < log_box_ap) log_box_ap = 0
-	// if (ix < log_box_cp) log_box_cp = 0
+	if (ix < log_box_axis) log_box_axis = 0
+	if (ix < log_box_west) log_box_west = 0
+	if (ix < log_box_ussr) log_box_ussr = 0
+	if (ix < log_box_vp) log_box_vp = 0
+	if (ix < log_box_battle) log_box_battle = 0
 
 	if (text.startsWith(">")) {
 		text = text.substring(1)
@@ -778,81 +788,229 @@ function on_log(text, ix) { //copied from POG
 		p.classList.add("bold")
 	}
 
-	// if (text.startsWith("!")) {
-	// 	text = "\u2757 " + text.substring(1)
-	// }
+	if (text.startsWith("!")) {
+		text = "\u2757 " + text.substring(1)
+	}
 
-	// else if (text.startsWith("#cp")) {
-	// 	text = text.substring(4)
-	// 	p.className = "h4"
-	// 	log_box_cp = ix
-	// }
-	// else if (text.startsWith("#ap")) {
-	// 	text = text.substring(4)
-	// 	p.className = "h4"
-	// 	log_box_ap = ix
-	// }
+	else if (text.startsWith("#Axis")) {
+		text = text.substring(6)
+		p.classList.add("h4")
+		log_box_axis = ix
+	}
+
+	else if (text.startsWith("#West")) {
+		text = text.substring(6)
+		p.classList.add("h4")
+		log_box_west = ix
+	}
+
+	else if (text.startsWith("#USSR")) {
+		text = text.substring(6)
+		p.classList.add("h4")
+		log_box_ussr = ix
+	}
+
+	else if (text.startsWith("#vp")){
+		text = text.substring(4)
+		p.classList.add("h4")
+		log_box_vp = ix
+	}
+
+	else if (text.startsWith("#Spring")) {
+		text = text.substring(8)
+		p.classList.add("h2", "Spring")
+	}
+
+	else if (text.startsWith("#Summer")) {
+		text = text.substring(8)
+		p.classList.add("h2", "Summer")
+	}
+
+	else if (text.startsWith("#Fall")) {
+		text = text.substring(6)
+		p.classList.add("h2", "Fall")
+	}
+
+	else if (text.startsWith("#Winter")) {
+		text = text.substring(8)
+		p.classList.add("h2", "Winter")
+	}
+
+	else if (text.startsWith("#B")) {
+		let r = text.match(/r(\d+)/)
+		r = parseInt(r[1])
+		country = REGIONS[r].type === "sea" ? "sea" : COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
+		text = text.substring(3)
+		p.classList.add("h4")
+		log_box_battle = ix
+	}
 
 	else if (text.startsWith(".h1")) {
 		text = text.substring(4)
-		p.className = 'h1'
+		p.classList.add('h1')
 	}
 
 	else if (text.startsWith(".h2")) {
 		text = text.substring(4)
-		// if (text === 'AP')
-		// 	p.className = 'h2 ap'
-		// else if (text === 'CP')
-		// 	p.className = 'h2 cp'
-		// else
-		p.className = 'h2'
+		if (text === 'Axis')
+			p.classList.add('h2 axis')
+		else if (text === 'West')
+			p.classList.add('h2 west')
+		else if (text === 'USSR')
+			p.classList.add('h2 ussr')
+		else
+			p.classList.add('h2')
 	}
 
-	// else if (text.startsWith(".h3cp")) {
-	// 	text = text.substring(6)
-	// 	p.className = "h3 cp"
-	// }
-	// else if (text.startsWith(".h3ap")) {
-	// 	text = text.substring(6)
-	// 	p.className = "h3 ap"
-	// }
+	else if (text.startsWith(".h3axis")) {
+		text = text.substring(8)
+		p.classList.add("h3")
+		p.classList.add("axis")
+	}
+	else if (text.startsWith(".h3west")) {
+		text = text.substring(8)
+		p.classList.add("h3")
+		p.classList.add("west")
+	}
+	else if (text.startsWith(".h3ussr")) {
+		text = text.substring(8)
+		p.classList.add("h3")
+		p.classList.add("ussr")
+	}
 	else if (text.startsWith(".h3")) {
 		text = text.substring(4)
-		p.className = "h3"
+		p.classList.add("h3")
 	}
 
-	// else if (text === "") {
-	// 	log_box_ap = 0
-	// 	log_box_cp = 0
-	// }
+	else if (text === "") {
+		log_box_axis = 0
+		log_box_west = 0
+		log_box_ussr = 0
+		log_box_battle = 0
+		log_box_vp = 0
+	}
 
-	// if (log_box_ap)
-	// 	p.classList.add("group", "ap")
-	// if (log_box_cp)
-	// 	p.classList.add("group", "cp")
+	if (log_box_axis)
+		p.classList.add("group", "axis")
+	if (log_box_west)
+		p.classList.add("group", "west")
+	if (log_box_ussr)
+		p.classList.add("group", "ussr")
+	if (log_box_battle) {
+		p.classList.add("group")
+		if (p.classList.contains("h4")) {
+			if (country === "sea") {p.style = "background-color: rgba(181, 220, 236)"}
+			else p.style = `background-color: ${COUNTRIES[country].color1}`
+		}
+		else {
+			if (country === "sea") {p.style = "background-color: rgba(181, 220, 236, 0.5)"}
+			else p.style = `background-color: ${COUNTRIES[country].color2}`
+		} 
+	}
+	if (log_box_vp)
+		p.classList.add("group", "vp")		
 
 	p.innerHTML = escape_text(text)
 	return p
 }
 
-function escape_text(text) { //copied from POG
-	// text = text.replace(/---/g, "\u2014")
-	// text = text.replace(/--/g, "\u2013")
-	// text = text.replace(/->/g, "\u2192")
-	// text = text.replace(/-( ?[\d])/g, "\u2212$1")
-	// text = text.replace(/&/g, "&amp;")
-	// text = text.replace(/</g, "&lt;")
-	// text = text.replace(/>/g, "&gt;")
-	// text = text.replace(/s(\d+)/g, sub_space_name)
-	// text = text.replace(/p(\d+)/g, sub_piece_name_reduced)
-	// text = text.replace(/P(\d+)/g, sub_piece_name)
-	// text = text.replace(/c(\d+)/g, sub_card_name)
-	// text = text.replace(/\b[BW]\d\b/g, sub_icon)
-	// text = text.replace(" 1 spaces", " 1 space")
-	// text = text.replace(/\+\d VP/g, match => `<span class="cpvp">${match}</span>`)
-	// text = text.replace(/[-−]\d VP/g, match => `<span class="apvp">${match}</span>`)
+function escape_text(text) {
+	text = text.replace(/---/g, "\u2014")
+	text = text.replace(/--/g, "\u2013")
+	text = text.replace(/-( ?[\d])/g, "\u2212$1")
+	text = text.replace(/->/g, "\u2192")
+	text = text.replace(/&/g, "&amp;")
+	text = text.replace(/</g, "&lt;")
+	text = text.replace(/>/g, "&gt;")
+	text = text.replace(/!!/g, '<span style="color: red;">\u2192</span>')
+
+	text = text.replace(/r(\d+)/g, sub_region_name)
+	text = text.replace(/p(\d+)/g, sub_piece_name_reduced)
+	text = text.replace(/P(\d+)/g, sub_piece_name)
+	text = text.replace(/c(\d+)/g, sub_card_name)
+	text = text.replace(/\b[BW]\d\b/g, sub_icon)
+	text = text.replace(/\+\d VP/g, match => `<span class="cpvp">${match}</span>`)
+	text = text.replace(/[-−]\d VP/g, match => `<span class="apvp">${match}</span>`)
 	return text
 }
+
+function sub_region_name(match, p1) {
+    let s = p1 | 0
+    let n = REGIONS[s].name
+    return `<span class="spacetip" onmouseenter="on_focus_region_tip(${s})" onmouseleave="on_blur_region_tip(${s})" onclick="on_click_region_tip(${s})">${n}</span>`
+}
+
+//Needs work
+function sub_card_name(match, p1) {
+    let c = p1 | 0
+    let card = cards[c]
+    if (card) {
+        return `<span class="cardtip ${c <= HIGHEST_AP_CARD ? "ap-card" : "cp-card"}" onmouseenter="on_focus_card_tip(${c})" onmouseleave="on_blur_card_tip()" onclick="on_click_card_tip(${c})">${card.name}</span>`
+    } else {
+        return `Unknown Card`
+    }
+}
+
+//Needs work
+function sub_piece_name(match, p1) {
+    let p = p1 | 0
+    let piece = pieces[p]
+    if (piece) {
+        return `<span class="piecetip ${piece.faction + "-unit"}" onmouseenter="on_focus_piece_tip(${p})" onmouseleave="on_blur_piece_tip(${p})" onclick="on_click_piece_tip(${p})">${piece.name}</span>`
+    } else {
+        return `Unknown Piece`
+    }
+}
+
+//Needs work
+function sub_piece_name_reduced(match, p1) {
+    let p = p1 | 0
+    let piece = pieces[p]
+    if (piece) {
+        return `<span class="piecetip ${piece.faction + "-unit"}" onmouseenter="on_focus_piece_tip(${p})" onmouseleave="on_blur_piece_tip(${p})" onclick="on_click_piece_tip(${p})">(${piece.name})</span>`
+    } else {
+        return `Unknown Piece`
+    }
+}
+
+const ICONS_SVG = {
+    B1: '<span class="die hit d1"></span>',
+    B2: '<span class="die hit d2"></span>',
+    B3: '<span class="die hit d3"></span>',
+    B4: '<span class="die hit d4"></span>',
+    B5: '<span class="die hit d5"></span>',
+    B6: '<span class="die hit d6"></span>',
+    W1: '<span class="die d1"></span>',
+    W2: '<span class="die d2"></span>',
+    W3: '<span class="die d3"></span>',
+    W4: '<span class="die d4"></span>',
+    W5: '<span class="die d5"></span>',
+    W6: '<span class="die d6"></span>',
+}
+
+function sub_icon(match) {
+    return ICONS_SVG[match]
+}
+
+// === Focus and Blur === //
+
+function on_focus_region_tip() {}
+function on_blur_region_tip() {}
+function on_click_region_tip() {}
+
+function on_focus_card_tip() {}
+function on_blur_card_tip() {}
+function on_click_card_tip() {}
+
+function on_focus_piece_tip() {}
+function on_blur_piece_tip() {}
+function on_click_piece_tip() {}
+
+function on_focus_bblock() {}
+function on_blur_bblock() {}
+
+function on_focus_region() {}
+function on_blur_region() {}
 
 function action_menu_item(action) {
 	let menu = document.getElementById(action + "_menu")
