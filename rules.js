@@ -166,7 +166,7 @@ function new_year(){
 	reshuffle(0)
 	reshuffle(1)
 	for (let p = 0; p <= 2; ++p){
-		if (game.peace_eligible[p] === 1){
+		if (game.peace_eligible[p] === 1 && game.relationship[p].length === 0){
 			let draw = random_bigint(game.peace_dividend_bag.length)
 			game.peace_dividend[p].push(game.peace_dividend_bag[draw])
 			array_remove(game.peace_dividend_bag, draw)
@@ -432,7 +432,7 @@ function determine_turn_order_command(){
 			const c = game.command_card[i]
 			if (c > 0) {
 				if (game.season === "Winter" || ACARDS[c].season === game.phase)
-					log(`${FACTIONS[i]} played ${ACARDS[c].initiative}${ACARDS[c].value} (A#${c}).`)
+					log(`${FACTIONS[i]} played ${ACARDS[c].initiative}-${ACARDS[c].value} (A#${c}).`)
 				else log(`${FACTIONS[i]} played the ${ACARDS[c].season} ${ACARDS[c].initiative} (A#${c}) for emergency command.`)
 				order.push({
 					"faction": i, 
@@ -1539,7 +1539,7 @@ function arm_minor(country, f) {
 	//remove influence, unless at 2 and OTHER faction attacked
 	if (game.influence[c]%10 === 2 && Math.floor(game.influence[c]/10) !== f){
 		game.influence[c] -=2
-		log(`The ${game.active} declared a VoN on ${country}, which is a protectorate of the ${FACTIONS[game.influence[c]/10]}, giving them control.`)
+		log(`${country} is a protectorate of the ${FACTIONS[game.influence[c]/10]}, giving them control.`)
 		set_add(game.gained_control[game.influence[c]/10], c)
 		set_add(game.aggression_met, game.influence[c]/10)
 	} else {game.influence[c] = -1; set_add(game.armed_minors, c)}
@@ -4532,6 +4532,35 @@ function sea_battle_check(f1, f2){ //when war is declared, there needs to be com
 	}
 }
 
+function make_peace(f1, f2) { //f1 is the attacker and f2 is the victim
+	log(`The ${FACTIONS[f1]} and ${FACTIONS[f2]} are back at peace... but for how long?`)
+	const r1 = game.relationship[f1]
+	const r2 = game.relationship[f2]
+	if (f1 === 0) {
+		if (f2 === 1) { //Axis peace with West
+			r1[0] = 0; r2[0] = 0
+		} else { //Axis peace with USSR
+			r1[1] = 0; r2[0] = 0
+		}
+	}
+	if (f1 === 1) {
+		if (f2 === 0) { //West peace with Axis
+			r1[0] = 0; r2[0] = 0
+		} else { //West peace with USSR
+			r1[1] = 0; r2[1] = 0
+		}
+	}
+	if (f1 === 2) {
+		if (f2 === 0) { //USSR peace with Axis
+			r1[0] = 0; r2[1] = 0
+		} else { //USSR peace with West
+			r1[1] = 0; r2[1] = 0
+		}
+	}
+	if (r1[0] === 0 && r1[1] === 0) game.relationship[f1] = []
+	if (r2[0] === 0 && r2[1] === 0) game.relationship[f2] = []
+}
+
 states.declare_war = {
 	inactive: "movement",
 	prompt(){
@@ -4553,15 +4582,13 @@ states.declare_war = {
 				are_enemies(Math.floor(game.influence[c]/10), game.activeNum)) //...or you are at war with the patron.
 			) gen_action_region(i) 
 		}
-		//if there are armed minors that you are not the aggressor of
-		//view.actions.partition = partition_list(game.activeNum)? 1 : 0
 		view.actions.intervention = intervention_list(game.activeNum)? 1 : 0
 	},
 	axis(){
 		push_undo()
 		log(`The ${game.active} have declared war on the Axis.`)
-		game.peace_eligible[game.activeNum] = 0
-		game.peace_eligible[0] = 0
+		// game.peace_eligible[game.activeNum] = 0
+		// game.peace_eligible[0] = 0
 		set_add(game.surprise, 0)
 		if (game.activeNum === 1){
 			if (game.relationship[1].length === 0) game.relationship[1] = [-1,0]
@@ -4581,8 +4608,8 @@ states.declare_war = {
 	west(){
 		push_undo()
 		log(`The ${game.active} have declared war on the West.`)
-		game.peace_eligible[game.activeNum] = 0
-		game.peace_eligible[1] = 0
+		// game.peace_eligible[game.activeNum] = 0
+		// game.peace_eligible[1] = 0
 		set_add(game.surprise, 1)
 		if (game.activeNum === 0){
 			if (game.relationship[0].length === 0) game.relationship[0] = [-1,0]
@@ -4603,8 +4630,8 @@ states.declare_war = {
 		push_undo()
 		log(`The ${game.active} have declared war on the USSR.`)
 		set_add(game.surprise, 2)
-		game.peace_eligible[game.activeNum] = 0
-		game.peace_eligible[2] = 0
+		// game.peace_eligible[game.activeNum] = 0
+		// game.peace_eligible[2] = 0
 		if (game.activeNum === 0){
 			if (game.relationship[0].length === 0) game.relationship[0] = [0,-1]
 			else game.relationship[0][1] = -1
@@ -4620,31 +4647,92 @@ states.declare_war = {
 		determine_control(game.activeNum)
 		game.state = "movement"
 	},
-	// partition(){
-	// 	push_undo()
-	// 	game.state = "partition"
-	// },
 	intervention(){
 		push_undo()
 		game.state = "intervention"
 	},
 	region(r){
 		push_undo()
-		arm_minor(REGIONS[r].country, game.activeNum)
-		game.state = "movement"
+		const c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
+		if (game.influence[c]%10 === 2 && set_has(game.surprise, Math.floor(game.influence[c]/10))) {//a country with 2 influence, and you just went to war with the patron
+			game.state = "confirm_VoN"
+			game.selected_other = c
+		}
+		else {
+			arm_minor(REGIONS[r].country, game.activeNum)
+			game.state = "movement"
+		}
+
 	}
 }
 
-// function partition_list(f) { //armed minor countries that are not your enemy
-// 	const list = []
-// 	for (let i = 0; i < game.influence.length; i++){
-// 		//clause for already declared partition/intervetion countries
-// 		if (game.minor_aggressor[i] && !game.minor_aggressor[i].includes(f) &&
-// 			!set_has(game.intervention_required, i) && !set_has(game.surprise, i) //clause for already declared partition/intervetion countries
-// 		) list.push(COUNTRIES[i].name)
-// 	}
-// 	return list.length === 0? false : list
-// }
+states.confirm_VoN = {
+	inactive: "movement",
+	//disable_negotiation: 1,
+	disable_vault: 1,
+	prompt(){
+		view.prompt = "Are you sure? Your opponent will have the opportunity to repudiate to try to remain at peace (CANNOT UNDO)"
+		view.actions.confirm = 1
+	},
+	confirm(){
+		clear_undo()
+		log("VoN on a protectorate -- will the patron honor the defensive pact?")
+		make_active(Math.floor(game.influence[game.selected_other]/10))
+		game.state = "repudiation"
+	}
+}
+
+states.repudiation = {
+	inactive: "potentially repudiate in an attempt to avoid war",
+	//disable_negotiation: 1,
+	disable_vault: 1,
+	prompt(){
+		view.prompt = `The ${FACTIONS[game.turn_order_command[0]]} have declared a VoN on ${COUNTRIES[game.selected_other].name}. Do you wish to repudiate your influence with them in an attempt to avoid war?`
+		view.actions.repudiate = 1
+		view.actions.support = 1
+	},
+	repudiate(){
+		log(`The ${game.active} withdrew their support. ${COUNTRIES[game.selected_other].name} must fight alone.`)
+		make_active(game.turn_order_command[0])
+		game.state = "roll_back_war"
+	},
+	support(){
+		log(`The ${game.active} confirmed their support of ${COUNTRIES[game.selected_other].name}.`)
+		make_active(game.turn_order_command[0])
+		arm_minor(COUNTRIES[game.selected_other].name, game.activeNum)
+		game.selected_other = null
+		game.state = "movement"
+	},
+}
+
+states.roll_back_war = {
+	inactive: "potentially roll back DoW",
+	//disable_negotiation: 1,
+	disable_vault: 1,
+	prompt(){
+		view.prompt = `Do you wish to roll back your Declaration of War with the ${FACTIONS[Math.floor(game.influence[game.selected_other]/10)]}`
+		view.actions.war = 1
+		view.actions.peace = 1
+	},
+	war(){
+		push_undo()
+		log("The attempt at peace failed. So it is to be war!")
+		game.influence[game.selected_other] = -1
+		arm_minor(COUNTRIES[game.selected_other].name, game.activeNum)
+		game.selected_other = null
+		game.state = "movement"
+	},
+	peace(){
+		push_undo()
+		const f = Math.floor(game.influence[game.selected_other]/10)
+		set_delete(game.surprise, f)
+		make_peace(game.activeNum, f)
+		game.influence[game.selected_other] = -1
+		arm_minor(COUNTRIES[game.selected_other].name, game.activeNum)
+		game.selected_other = null
+		game.state = "movement"
+	}
+}
 
 function intervention_list(f) { //armed minor countries that are your enemy's enemy.
 
@@ -4664,27 +4752,6 @@ function intervention_list(f) { //armed minor countries that are your enemy's en
 	}
 	return list.length === 0? false : list
 }
-
-// states.partition = {
-// 	inactive: "movement",
-// 	prompt(){
-// 		view.prompt = "Declare Partition."
-// 		const list = partition_list(game.activeNum)
-// 		for (let i = 0; i < REGIONS.length; i++) {
-// 			if (REGIONS[i].country && list.includes(REGIONS[i].country)) {
-// 				gen_action_region(i)
-// 			}
-// 		}
-// 	},
-// 	region(r){
-// 		push_undo()
-// 		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
-// 		log(`The ${game.active} have enacted a partition of ${REGIONS[r].country}. They are now enemies.`)
-// 		game.minor_aggressor[c].push(game.activeNum)
-// 		//set_add(game.surprise, c)
-// 		game.state = 'movement'
-// 	},
-// }
 
 states.intervention = {
 	inactive: "movement",

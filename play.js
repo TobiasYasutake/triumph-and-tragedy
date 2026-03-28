@@ -1093,7 +1093,12 @@ function on_update(){
 	action_button("undo", "Undo")
 	action_button("reveal", "Reveal")
 	action_button("vault", "Place in Vault")
-
+ 
+	action_button("repudiate", "Repudiate!")
+	action_button("support", "Support!")
+	action_button("peace", "Peace")
+	action_button("war", "War!")
+	
 	action_button("mark_all", 'Mark All Blockades')
 
 	action_button("reveal_vault", 'Reveal tech from vault')
