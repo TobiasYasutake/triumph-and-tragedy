@@ -2487,7 +2487,7 @@ function special_countries(wild, f) {
 	case "Birds of a Feather ":
 		switch (f){
 		case 0: cs = ["Portugal", "Spain", "Yugoslavia", "Latin America"]; break
-		case 1: cs = ["USA", "Low Countries", "Denmark", "Sweden"]; break
+		case 1: cs = ["USA", "Norway", "Denmark", "Sweden"]; break
 		case 2: cs = ["Spain"]; break
 		}; break
 	case "Ties That Bind":
@@ -2812,6 +2812,7 @@ states.government_wildcard = {
 		update_production()
 
 		let s = ACARDS[game.selected_Acard].special
+		if (s === "Birds of a Feather ") s = "Birds of a Feather"
 		log(`${game.active} used ${s} to influence ${COUNTRIES[c].name}.`)
 		if (s === "Foreign Aid") {
 			game.ind[game.activeNum] -= 1
