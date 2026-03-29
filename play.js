@@ -179,14 +179,6 @@ function make_a_card(ac){}
 function make_i_card(ic){}
 
 function on_init() {
-	ui.pieces = [
-		//create_pieces() 
-		//in friedrich, this just creates all the generals, 
-		//but in this because the blocks are created piece meal, I need to loop through the list of existing blocks.
-		//are there other pieces that need to be created?
-		//is there a good reason why the pieces don't just exist on the html? clenliness?
-	] 
-
 	//blocks
 	for (let i=0; i < 198; i++){
 		ui.blocks_element.appendChild(create_piece("block", i, "block dead"))
@@ -196,6 +188,8 @@ function on_init() {
 	for (let i = 0; i < REGIONS.length; i++){
 		let e = document.getElementById(REGIONS[i].name)
 		register_action(e, "region", i)
+		e.onmouseenter = () => on_focus_region(i)
+		e.onmouseleave = () => on_blur_region(i)
 		//need to add the onmouseenter event to make the related blocks bigger!
 		//and of course the onmouseleave to blur/make the blocks regular size
 	}
@@ -364,6 +358,12 @@ function update_battle() {
 			block.classList.toggle("r3", s === 4)
 			block.classList.toggle("selected", view.selected_block === block.id)
 			register_action(block, "bblock", block.id)
+			let r = map_get(view.aggressed_from, b, false)
+			let text = r?  
+				`Aggressed from ${REGIONS[r[0]].name}` : 
+				"In region at start of movement"
+			block.onmouseenter = () => on_focus_bblock(text)
+			block.onmouseleave = () => on_blur_bblock()
 
 			faction_of_block(b) === view.attacker? ui.attacker.appendChild(block) : ui.defender.appendChild(block)
 		}
@@ -994,9 +994,15 @@ function sub_icon(match) {
 
 // === Focus and Blur === //
 
-function on_focus_region_tip() {}
-function on_blur_region_tip() {}
-function on_click_region_tip() {}
+function on_focus_region_tip(i) {
+	document.getElementById(REGIONS[i].name).classList.add("tip")
+}
+function on_blur_region_tip(i) {
+	document.getElementById(REGIONS[i].name).classList.remove("tip")
+}
+function on_click_region_tip(i) {
+	scroll_into_view(document.getElementById(REGIONS[i].name))
+}
 
 function on_focus_card_tip() {}
 function on_blur_card_tip() {}
@@ -1006,11 +1012,20 @@ function on_focus_piece_tip() {}
 function on_blur_piece_tip() {}
 function on_click_piece_tip() {}
 
-function on_focus_bblock() {}
-function on_blur_bblock() {}
+function on_focus_bblock(text) {
+	document.getElementById("status").textContent = text
+}
+function on_blur_bblock() {
+	document.getElementById("status").textContent = ""
+}
 
-function on_focus_region() {}
-function on_blur_region() {}
+function on_focus_region(r) {
+	let text = REGIONS[r].name
+	document.getElementById("status").textContent = text
+}
+function on_blur_region(evt) {
+	document.getElementById("status").textContent = ""
+}
 
 function action_menu_item(action) {
 	let menu = document.getElementById(action + "_menu")
@@ -1161,6 +1176,22 @@ function map_has(map, key) {
 			return true
 	}
 	return false
+}
+
+function map_get(map, key, missing) {
+	let a = 0
+	let b = (map.length >> 1) - 1
+	while (a <= b) {
+		let m = (a + b) >> 1
+		let x = map[m<<1]
+		if (key < x)
+			b = m - 1
+		else if (key > x)
+			a = m + 1
+		else
+			return map[(m<<1)+1]
+	}
+	return missing
 }
 
 function binarySearch(arr, key) {
