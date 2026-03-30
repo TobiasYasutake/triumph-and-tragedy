@@ -366,7 +366,7 @@ function end_movement_phase(){
 		return
 	}
 	//resolve battle (look for game.battle for land, and required combat for sea/required)
-	//can also have a battle where escaped sub! need to add that in
+	//can also have a battle where escaped sub!
 	let battles = false
 	game.block_moved = []
 	game.border_count = []
@@ -1245,9 +1245,7 @@ function no_ground_support(r, f) { //this is only used after the supply check: g
 }
 
 function check_supply(f) {
-
 	determine_control(f)
-
 	let is = [] //in supply
 	let checked = []
 	for (let sp of SUPPLY_POINTS[f]) {
@@ -1317,7 +1315,7 @@ function retreat_locations(r, b) {
 }
 
 function rebase_locations(r, b, retreat) {
-	const net = [r]
+	const net = []
 	const air = game.block_type[b] === 1
 	const sub = game.block_type[b] === 3
 	const f = faction_of_block(b)
@@ -1352,7 +1350,7 @@ function rebase_locations(r, b, retreat) {
 			if (!set_has(net, s) &&
 				!(set_has(rss, s)) && 
 				!( !(air || sub) && battle && retreat) &&
-				(space !== r || !retreat || f !== game.attacker || os === undefined || s === os) && //if you are retreating, the first step must be the original space
+				(distance !== movement || !retreat || f !== game.attacker || os === undefined || s === os) && //if you are retreating, the first step must be the original space
  				((air || sub || !contains_enemy_blocks(s, f, true)) ||(c && is_neutral(c) && !is_armed_minor(c) && type === 'strait')) && //cannot move through enemy blocks
 				(!c || !is_neutral(c) || is_armed_minor(c) || (type === 'strait' && !(game.territorial_straits && (s === 22 || s === 96)))) && //cannot move through neutral unless armed or strait
  				(air || bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, s))
@@ -1975,11 +1973,37 @@ function neutral_firing_solution() {
 	}
 }
 
-function completely_destroyed() {return false} //Needs Work
-//should cycle through the hits and compare the hits to the damage 
+function class_completely_destroyed(f, c){
+	const hits = game.hits[`${FACTIONS[f]}_${CLASSNAME[c]}`] ?? 0
+	let steps = 0
+	for (let b of game.active_battle_blocks) {
+		if (game.block_location[b] === game.active_battle && CLASS[game.block_type[b]] === c && faction_of_block(b) === f){ //convoys?
+			const s = game.block_steps[b]
+			const dd = game.block_type[b] === 2 || (c === 2 && REGIONS[game.block_location[b]].type === 'sea')
+			steps += dd? Math.ceil(s/2) : s
+		} 
+	}
+	return hits >= steps
+}
+
+function faction_completely_destroyed(f) {
+// cycle through the hits and compare the hits to the damage 
 // (remember to take into acount double damage) 
 // and return true if there is enough damage to kill everything
 // (to prevent "cheat" retreat actions after killing everything)
+	for (let i = 0; i < 5; i++)
+		if (!class_completely_destroyed(f, i)) return false
+	return true
+}
+
+function completely_destroyed_enemies(f) {
+	if (f !== game.attacker) return faction_completely_destroyed(game.attacker)
+	if (!Array.isArray(game.defender)) return faction_completely_destroyed(game.defender)
+	for (let d of game.defender) {
+		if (!faction_completely_destroyed(d)) return false
+	}
+	return true
+}
 
 function process_attack(b, c, s) {//block, class, shootnscoot
 	if (game.target === null && Array.isArray(game.defender) && faction_of_block(b) === game.attacker){
@@ -2010,10 +2034,10 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 			next_player_battle()
 		} else {
 			const target = faction_of_block(b) !== game.attacker? game.attacker : game.target === null? game.defender : game.target
-			game.hits ??= {}
+			if (!game.hits) game.hits = {}
 			if (game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`]) game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] += hits
 			else game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] = hits
-			if (game.block_nation[b] === 6 || completely_destroyed()) resolve_damage()
+			if (game.block_nation[b] === 6 || completely_destroyed_enemies(game.activeNum)) resolve_damage()
 			else next_player_battle()
 		}
 	} else if (s) {
@@ -3568,7 +3592,7 @@ states.movement_move = {
 		let message = ''
 
 		if (dec.length !== 0) {
-			message += "Still must attack "
+			message += "Still must attack"
 			for (let c = 0; c < dec.length; c++){
 				if (dec[c] > 2) message += ` ${COUNTRIES[dec[c]].name}`
 				else message += ` ${FACTIONS[dec[c]]}`
@@ -3722,8 +3746,8 @@ function update_mvmt(b, m, r){
 		(m.move_type && m.move_type === 'land' && region.type === 'sea') || //land cannot go to sea
 		(eb && region.type !== 'sea' && !all_eb) || //there must either be no enemies in the space, or is a sea, or you must be enemies with all in the space (intervention exception)
 		//(c && is_neutral(c) && !(set_has(game.intervention_required, c) || (game.minor_aggressor[c] && game.minor_aggressor[c].includes(f)) || //cannot invade neutrals, unless intervention or is enemy of minor (like partition)
-		(c && is_neutral(c) && (!is_armed_minor(c) || //may not invade a neutral for any reason, unless it is an AM, then can always invade it
-			(region.type === 'strait' && !set_has(game.armed_minors, c) && (!m.move_type || m.move_type !== 'land')))) || //or, another exception: you may go through neutral straits with sea/air movement
+		(c && is_neutral(c) && !(is_armed_minor(c) || //may not invade a neutral for any reason, unless it is an AM, then can always invade it
+			(region.type === 'strait' && (!m.move_type || m.move_type !== 'land')))) || //or, another exception: you may go through neutral straits with sea/air movement
 		(game.territorial_straits && (r === 22 || r === 96) && !(f === ctrl || are_enemies(f, ctrl, r))) || //may not move into suez/istanbul with variant on unless you own it or you are at war. 
 		(game.phase === "Winter" && c !== 5) //5 === ussr
 	) m.must_stop = 1

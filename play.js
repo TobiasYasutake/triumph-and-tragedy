@@ -485,6 +485,7 @@ function update_cards() {
 		for (let j = 0; j < v.length; j++) {
 			let e = document.createElement("div")
 			shell = document.createElement("div")
+			shell.classList.add("vault_shell")
 			e.className = `card i number_${Math.abs(v[j])}`
 			if (v[j] <= 0) e.classList.add("flip")
 			tech_vault.appendChild(shell)
@@ -503,6 +504,7 @@ function update_cards() {
 			if (j%2 === 0) {
 				e.style.marginBottom = "-280px"
 				shell = document.createElement("div")
+				shell.classList.add("vault_shell")
 				shell.appendChild(e)
 			} else {
 				shell.appendChild(e)
