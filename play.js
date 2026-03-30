@@ -81,15 +81,10 @@ const ui = {
 		document.getElementById("West").querySelector(".hand_box .panel_body"),
 		document.getElementById("USSR").querySelector(".hand_box .panel_body"),
 	],
-	tech: [
-		document.getElementById("Axis").querySelector(".tech"),
-		document.getElementById("West").querySelector(".tech"),
-		document.getElementById("USSR").querySelector(".tech"),
-	],
-	vault: [
-		document.getElementById("Axis").querySelector(".vault"),
-		document.getElementById("West").querySelector(".vault"),
-		document.getElementById("USSR").querySelector(".vault"),
+	tech_vault: [
+		document.getElementById("Axis").querySelector(".tech_vault"),
+		document.getElementById("West").querySelector(".tech_vault"),
+		document.getElementById("USSR").querySelector(".tech_vault"),
 	],
 	dividends: [
 		document.getElementById("Axis").querySelector(".dividends_box .panel_body"),
@@ -467,7 +462,7 @@ function update_cards() {
 				let spy = (card.special && spy_actions.indexOf(card.special) !== -1)
 				let child = document.createElement('div')
 				child.className = tnb ? "card_button top" : "card_button special"
-				if ((view.selected_Icard && Array.isArray(view.selected_Icard) && view.selected_Icard.indexOf(v) !== -1) || 
+				if ((view.selected_Icard && Array.isArray(view.selected_Icard) && view.selected_Icard.findIndex(x => Math.abs(x) === v) !== -1) || 
 					Math.abs(view.selected_Icard) === v) e.classList.add("selected")
 				e.appendChild(child)
 				register_action(child, spy? "intelligence" : "technology", v)
@@ -480,24 +475,22 @@ function update_cards() {
 			}
 		}
 	}
-	//tech
+	//tech vault
 	for (let i = 0; i < 3; i++){
-		const tech = ui.tech[i]
+		const tech_vault = ui.tech_vault[i]
+		let shell
+		tech_vault.innerHTML = ""
+
 		v = view.tech[i]
-		tech.innerHTML = ""
 		for (let j = 0; j < v.length; j++) {
 			let e = document.createElement("div")
+			shell = document.createElement("div")
 			e.className = `card i number_${Math.abs(v[j])}`
 			if (v[j] <= 0) e.classList.add("flip")
-			tech.appendChild(e)
+			tech_vault.appendChild(shell)
+			shell.appendChild(e)
 		}
-	}
-
-	//vault
-	for (let i = 0; i < 3; i++){
-		const val = ui.vault[i]
 		v = view.vault[i]
-		val.innerHTML = ""
 		for (let j = 0; j < v.length; j++) {
 			let e = document.createElement("div")
 			if (v[j] === 0) {
@@ -506,8 +499,15 @@ function update_cards() {
 				e.className = `card i number_${Math.abs(v[j])}`
 				if (v[j] <= 0) e.classList.add("flip")
 			}
-			val.appendChild(e)
 			register_action(e, "industry_card", v[j])
+			if (j%2 === 0) {
+				e.style.marginBottom = "-280px"
+				shell = document.createElement("div")
+				shell.appendChild(e)
+			} else {
+				shell.appendChild(e)
+				tech_vault.appendChild(shell)
+			}
 		}
 	}
 	
@@ -925,12 +925,13 @@ function escape_text(text) {
 	text = text.replace(/!!/g, '<span style="color: red;">\u2192</span>')
 
 	text = text.replace(/r(\d+)/g, sub_region_name)
-	text = text.replace(/p(\d+)/g, sub_piece_name_reduced)
-	text = text.replace(/P(\d+)/g, sub_piece_name)
-	text = text.replace(/c(\d+)/g, sub_card_name)
+	//text = text.replace(/p(\d+)/g, sub_piece_name_reduced)
+	//text = text.replace(/P(\d+)/g, sub_piece_name)
+	text = text.replace(/A(\d+)/g, sub_a_card_name)
+	text = text.replace(/I(\d+)/g, sub_i_card_name)
 	text = text.replace(/\b[BW]\d\b/g, sub_icon)
-	text = text.replace(/\+\d VP/g, match => `<span class="cpvp">${match}</span>`)
-	text = text.replace(/[-−]\d VP/g, match => `<span class="apvp">${match}</span>`)
+	//text = text.replace(/\+\d VP/g, match => `<span class="cpvp">${match}</span>`)
+	//text = text.replace(/[-−]\d VP/g, match => `<span class="apvp">${match}</span>`)
 	return text
 }
 
@@ -941,37 +942,47 @@ function sub_region_name(match, p1) {
 }
 
 //Needs work
-function sub_card_name(match, p1) {
+function sub_a_card_name(match, p1) {
     let c = p1 | 0
-    let card = cards[c]
+    let card = ACARDS[c]
     if (card) {
-        return `<span class="cardtip ${c <= HIGHEST_AP_CARD ? "ap-card" : "cp-card"}" onmouseenter="on_focus_card_tip(${c})" onmouseleave="on_blur_card_tip()" onclick="on_click_card_tip(${c})">${card.name}</span>`
+        return `<span class="cardtip" onmouseenter="on_focus_card_tip('a', ${c})" onmouseleave="on_blur_card_tip()" onclick="on_click_card_tip(${c})">A#${c}</span>`
     } else {
         return `Unknown Card`
     }
 }
 
-//Needs work
-function sub_piece_name(match, p1) {
-    let p = p1 | 0
-    let piece = pieces[p]
-    if (piece) {
-        return `<span class="piecetip ${piece.faction + "-unit"}" onmouseenter="on_focus_piece_tip(${p})" onmouseleave="on_blur_piece_tip(${p})" onclick="on_click_piece_tip(${p})">${piece.name}</span>`
+function sub_i_card_name(match, p1) {
+    let c = p1 | 0
+    let card = ICARDS[c]
+    if (card) {
+        return `<span class="cardtip" onmouseenter="on_focus_card_tip('i', ${c})" onmouseleave="on_blur_card_tip()" onclick="on_click_card_tip(${c})">I#${c}</span>`
     } else {
-        return `Unknown Piece`
+        return `Unknown Card`
     }
 }
 
-//Needs work
-function sub_piece_name_reduced(match, p1) {
-    let p = p1 | 0
-    let piece = pieces[p]
-    if (piece) {
-        return `<span class="piecetip ${piece.faction + "-unit"}" onmouseenter="on_focus_piece_tip(${p})" onmouseleave="on_blur_piece_tip(${p})" onclick="on_click_piece_tip(${p})">(${piece.name})</span>`
-    } else {
-        return `Unknown Piece`
-    }
-}
+// //Needs work
+// function sub_piece_name(match, p1) {
+//     let p = p1 | 0
+//     let piece = pieces[p]
+//     if (piece) {
+//         return `<span class="piecetip ${piece.faction + "-unit"}" onmouseenter="on_focus_piece_tip(${p})" onmouseleave="on_blur_piece_tip(${p})" onclick="on_click_piece_tip(${p})">${piece.name}</span>`
+//     } else {
+//         return `Unknown Piece`
+//     }
+// }
+
+// //Needs work
+// function sub_piece_name_reduced(match, p1) {
+//     let p = p1 | 0
+//     let piece = pieces[p]
+//     if (piece) {
+//         return `<span class="piecetip ${piece.faction + "-unit"}" onmouseenter="on_focus_piece_tip(${p})" onmouseleave="on_blur_piece_tip(${p})" onclick="on_click_piece_tip(${p})">(${piece.name})</span>`
+//     } else {
+//         return `Unknown Piece`
+//     }
+// }
 
 const ICONS_SVG = {
     B1: '<span class="die hit d1"></span>',
@@ -1004,8 +1015,16 @@ function on_click_region_tip(i) {
 	scroll_into_view(document.getElementById(REGIONS[i].name))
 }
 
-function on_focus_card_tip() {}
-function on_blur_card_tip() {}
+function on_focus_card_tip(type, c) {
+	let e = document.getElementById("tooltip")
+	e.classList = ""
+	e.classList.add("card", type, `number_${c}`)
+}
+function on_blur_card_tip() {
+	let e = document.getElementById("tooltip")
+	e.classList = ""
+	e.classList.add("hide")
+}
 function on_click_card_tip() {}
 
 function on_focus_piece_tip() {}

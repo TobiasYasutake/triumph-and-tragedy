@@ -491,6 +491,14 @@ body.shift .block.known:hover {
 	margin-left: -200px;
 }
 
+.tech_vault_box .card:not(:first-child){
+	margin-left: 0px
+}
+
+.tech_vault{
+	display: flex;
+}
+
 .card {
 	position: relative;
 	width: 250px;
@@ -568,6 +576,16 @@ body.shift .block.known:hover {
 	transform: rotate(-90deg) !important;
 	z-index: auto;
 }
+
+#tooltip{
+	pointer-events: none;
+	position: fixed;
+	z-index: 600;
+	right: 240px;
+	top: 60px;
+	box-shadow: 0 0 12px 12px #0004;
+}
+
 
 /* LAYOUT */
 

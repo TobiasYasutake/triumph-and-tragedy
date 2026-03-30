@@ -149,7 +149,7 @@ function end_setup(){
 }
 
 function new_year(){
-	game.phase = "new year"
+	game.phase = "new_year"
 	++game.turn
 
 	log_br()
@@ -432,8 +432,8 @@ function determine_turn_order_command(){
 			const c = game.command_card[i]
 			if (c > 0) {
 				if (game.season === "Winter" || ACARDS[c].season === game.phase)
-					log(`${FACTIONS[i]} played ${ACARDS[c].initiative}-${ACARDS[c].value} (A#${c}).`)
-				else log(`${FACTIONS[i]} played the ${ACARDS[c].season} ${ACARDS[c].initiative} (A#${c}) for emergency command.`)
+					log(`${FACTIONS[i]} played ${ACARDS[c].initiative}-${ACARDS[c].value}. (A${c})`)
+				else log(`${FACTIONS[i]} played off season for emergency command! (A${c})`)
 				order.push({
 					"faction": i, 
 					"initiative": ACARDS[c].initiative, 
@@ -441,7 +441,7 @@ function determine_turn_order_command(){
 				})
 			} else
 			{
-				log(`${FACTIONS[i]} played investment card (I#${c*-1}) as a bluff!`)
+				log(`${FACTIONS[i]} played investment card as a bluff! (I${c*-1})`)
 				game.discard[1].push(c*-1)
 				game.command_card[i] = null
 			}
@@ -2738,11 +2738,11 @@ states.government = {
 		let cards = ""
 		for (let card of game.selected_Icard) {
 			array_remove_item(game.hand[game.activeNum][1], card)
-			cards += `(I#${Math.abs(card)}) `
+			cards += `I${Math.abs(card)} `
 		}
 		game.ind[game.activeNum] += 1
 		game.factory_increase[game.activeNum] += 1
-		log(`${game.active} has built a factory using the following cards: ${cards}.`)
+		log(`${game.active} has built a factory (${cards}).`)
 		next_player()
 	},
 	configure_autopass(){
@@ -2770,14 +2770,14 @@ states.government_diplomacy = {
 	},
 	confirm(){
 		const ic = game.selected_Acard
-		log(`${game.active} influenced ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}.`)
+		log(`${game.active} influenced ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}. (A${Math.abs(ic)})`)
 		game.pass_count = 0
 		array_remove_item(game.hand[game.activeNum][0], Math.abs(ic))
 		let match = check_matching_diplomacy(ic, game.activeNum)
 		if (match) {
 			let f = match[0]
 			let card = match[1]
-			log(`The card (A#${Math.abs(ic)}) canceled the ${FACTIONS[f]}'s card (A#${Math.abs(card)}).`)
+			log(`> Canceled ${FACTIONS[f]}'s card. (A${Math.abs(card)})`)
 			game.discard[0].push(Math.abs(ic))
 			game.discard[0].push(Math.abs(card))
 			array_remove_item(game.diplomacy[f], card)
@@ -2813,7 +2813,7 @@ states.government_wildcard = {
 
 		let s = ACARDS[game.selected_Acard].special
 		if (s === "Birds of a Feather ") s = "Birds of a Feather"
-		log(`${game.active} used ${s} to influence ${COUNTRIES[c].name}.`)
+		log(`${game.active} used ${s}  to influence ${COUNTRIES[c].name} (A${game.selected_Acard})`)
 		if (s === "Foreign Aid") {
 			game.ind[game.activeNum] -= 1
 			log("They lost one industry.")
@@ -2894,7 +2894,7 @@ states.government_invent = {
 		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
 		let f = game.activeNum
 		if (tech.includes("Atomic")) game.atomic[f].push(game.turn)
-		log(`${game.active} invented ${tech}`)
+		log(`${game.active} invented ${tech}, (discard: I${c})`)
 		game.tech[f].push(game.hand[f][1].splice(game.hand[f][1].indexOf(Math.abs(tc)), 1)[0]*side)
 		game.discard[1].push(game.hand[f][1].splice(game.hand[f][1].indexOf(c), 1)[0])
 		game.pass_count = 0
@@ -2935,13 +2935,13 @@ states.government_discard = {
 		push_undo()
 		let hand = game.hand[game.activeNum]
 		game.discard[0].push(hand[0].splice(hand[0].indexOf(c), 1)[0])
-		log(`Discarded Action card (A#${c}).`)
+		log(`Discarded A${c}.`)
 	},
 	industry_card(c) {
 		push_undo()
 		let hand = game.hand[game.activeNum]
 		game.discard[1].push(hand[1].splice(hand[1].indexOf(c), 1)[0])
-		log(`Discarded Investment card (I#${c}).`)
+		log(`Discarded I${c}).`)
 	},
 	done() {
 		clear_undo()
@@ -2982,7 +2982,7 @@ function discarded_double_agent() {
 }
 function resolve_target(f) {
 	push_undo()
-	log(`The ${game.active} targeted the ${FACTIONS[f]} with ${ICARDS[game.selected_Icard].special}`)
+	log(`The ${game.active} targeted the ${FACTIONS[f]} with ${ICARDS[game.selected_Icard].special} (I${game.selected_Icard})`)
 	game.espionage = game.activeNum
 	game.target = f
 	if (game.autopass && game.autopass[f].length > 0) disable_autopass(f)
@@ -4298,7 +4298,7 @@ states.vault_reveal = {
 		let tc = game.vault[f][index + (index%2 === 0? 1:-1)] //tech card
 		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
 		
-		log(`${game.active} revealed ${tech}`)
+		log(`${game.active} revealed ${tech} (discard: I${Math.abs(c)})`)
 		game.discard[1].push(Math.abs(game.vault[f].splice(index, 1)))
 		game.tech[f].push(game.vault[f].splice(index%2 === 0? index : index-1, 1)[0])
 	},
@@ -4333,7 +4333,7 @@ states.vault_reveal_battle = {
 		let tc = game.vault[f][index + (index%2 === 0? 1:-1)] //tech card
 		let tech = tc > 0 ? ICARDS[tc].left : ICARDS[Math.abs(tc)].right
 		
-		log(`${game.active} has revealed ${tech}`)
+		log(`${game.active} revealed ${tech} (discard: I${Math.abs(c)})`)
 		game.discard[1].push(Math.abs(game.vault[f].splice(index, 1)))
 		game.tech[f].push(game.vault[f].splice(index%2 === 0? index : index-1, 1))
 		game.pass_count = 0
