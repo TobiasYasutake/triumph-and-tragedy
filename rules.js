@@ -1829,7 +1829,7 @@ function can_retreat(b) {
 	return false
 }
 function can_hit_air(b, e) {
-	if (!contains_type(e, 1)) return false
+	if (!contains_type(e, 1) || class_completely_destroyed(e, 0)) return false
 	switch (game.block_type[b]) {
 	case 0: case 1: case 2: case 4: return true
 	case 6: return REGIONS[game.active_battle].type !== 'sea'
@@ -1837,7 +1837,7 @@ function can_hit_air(b, e) {
 	}
 }
 function can_hit_naval(b, e) {
-	if (!contains_type(e, 2) && !contains_type(e, 4)) return false
+	if ((!contains_type(e, 2) && !contains_type(e, 4)) || class_completely_destroyed(e, 1)) return false
 	switch (game.block_type[b]) {
 	case 0: case 1: case 2: case 3: case 4: return true
 	case 6: return REGIONS[game.active_battle].type !== 'sea'
@@ -1845,6 +1845,7 @@ function can_hit_naval(b, e) {
 	}
 }
 function can_hit_sub(b, e) {
+	if (class_completely_destroyed(e, 3)) return false
 	if (!contains_type(e, 3)) return false
 	switch (game.block_type[b]) {
 	case 0: case 1: case 2: case 4: return true
@@ -1852,10 +1853,12 @@ function can_hit_sub(b, e) {
 	}
 }
 function can_hit_ground(b, e) {
+	if (class_completely_destroyed(e, 2)) return false
 	return (REGIONS[game.active_battle].type !== 'sea' && game.block_type[b] !== 3 &&
 		(contains_type(e, 0) || contains_type(e, 5) || contains_type(e, 6)))
 }
 function can_hit_convoy(b, e) {
+	if (class_completely_destroyed(e, 2)) return false
 	return (REGIONS[game.active_battle].type === 'sea' && game.block_type[b] !== 5 && game.block_type[b] !== 6 &&
 		(contains_type(e, 5) || contains_type(e, 6)))
 }
@@ -1973,35 +1976,28 @@ function neutral_firing_solution() {
 	}
 }
 
-function class_completely_destroyed(f, c){
-	const hits = game.hits[`${FACTIONS[f]}_${CLASSNAME[c]}`] ?? 0
-	let steps = 0
-	for (let b of game.active_battle_blocks) {
-		if (game.block_location[b] === game.active_battle && CLASS[game.block_type[b]] === c && faction_of_block(b) === f){ //convoys?
-			const s = game.block_steps[b]
-			const dd = game.block_type[b] === 2 || (c === 2 && REGIONS[game.block_location[b]].type === 'sea')
-			steps += dd? Math.ceil(s/2) : s
-		} 
+function class_completely_destroyed(blocks, c){
+	const fs = factions_in_group(blocks)
+	for (let f of fs) {
+		const hits = (game.hits && game.hits[`${FACTIONS[f]}_${CLASSNAME[c]}`]) ? 
+			game.hits[`${FACTIONS[f]}_${CLASSNAME[c]}`] : 0
+		let steps = 0
+		for (let b of blocks) {
+			if (CLASS[game.block_type[b]] === c && faction_of_block(b) === f){ //convoys?
+				const s = game.block_steps[b]
+				const dd = game.block_type[b] === 2 || (c === 2 && REGIONS[game.block_location[b]].type === 'sea')
+				steps += dd? Math.ceil(s/2) : s
+				if (steps > hits) return false
+			} 
+		}
 	}
-	return hits >= steps
-}
-
-function faction_completely_destroyed(f) {
-// cycle through the hits and compare the hits to the damage 
-// (remember to take into acount double damage) 
-// and return true if there is enough damage to kill everything
-// (to prevent "cheat" retreat actions after killing everything)
-	for (let i = 0; i < 5; i++)
-		if (!class_completely_destroyed(f, i)) return false
 	return true
 }
 
 function completely_destroyed_enemies(f) {
-	if (f !== game.attacker) return faction_completely_destroyed(game.attacker)
-	if (!Array.isArray(game.defender)) return faction_completely_destroyed(game.defender)
-	for (let d of game.defender) {
-		if (!faction_completely_destroyed(d)) return false
-	}
+	const blocks = filter_local_enemy(f)
+	for (let i = 0; i < 4; i++)
+		if (!class_completely_destroyed(blocks, i)) return false
 	return true
 }
 
@@ -2034,6 +2030,7 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 			next_player_battle()
 		} else {
 			const target = faction_of_block(b) !== game.attacker? game.attacker : game.target === null? game.defender : game.target
+			if (convoy) c = 2
 			if (!game.hits) game.hits = {}
 			if (game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`]) game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] += hits
 			else game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] = hits

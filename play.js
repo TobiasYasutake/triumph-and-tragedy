@@ -314,7 +314,7 @@ function update_battle() {
 	else {
 		const r = REGIONS[view.battle]
 		ui.battle_table.classList.remove("hidden")
-		ui.battle_header.innerText = `Battle in ${REGIONS[view.battle].name}`
+		ui.battle_header.innerText = `Battle in ${r.name}`
 		ui.battle_table.style.top = (r.y >= 350 ? r.y - 350 : r.y + 350) + "px"
 		ui.battle_table.style.left = (r.x >= 312 ? r.x - 297 : 15) + "px"
 		battle_button('battle_air', 'air')
@@ -330,7 +330,9 @@ function update_battle() {
 		for (const combo in view.hits) {
 			let line = document.createElement("div")
 			line.classList.add("battle_line")
+			if (r.type === "sea") line.innerText = combo.replace("Ground", "Convoy")
 			line.innerText = combo.replace("_", " ") + ": "
+			
 			for (let i = 0; i < view.hits[combo]; i++) {
 				let block = document.createElement("div")
 				block.classList.add("damage")
