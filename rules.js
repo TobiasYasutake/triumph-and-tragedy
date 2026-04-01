@@ -1348,12 +1348,13 @@ function rebase_locations(r, b, retreat) {
 			const bt = border_type(space, s)
 			if (remaining < 0) continue
 			if (!set_has(net, s) &&
-				!(set_has(rss, s)) && 
+				!(distance === movement && set_has(rss, s)) && //!(set_has(rss, s)) is the old form, if you cannot go through rss at all!
 				!( !(air || sub) && battle && retreat) &&
 				(distance !== movement || !retreat || f !== game.attacker || os === undefined || s === os) && //if you are retreating, the first step must be the original space
  				((air || sub || !contains_enemy_blocks(s, f, true)) ||(c && is_neutral(c) && !is_armed_minor(c) && type === 'strait')) && //cannot move through enemy blocks
 				(!c || !is_neutral(c) || is_armed_minor(c) || (type === 'strait' && !(game.territorial_straits && (s === 22 || s === 96)))) && //cannot move through neutral unless armed or strait
- 				(air || bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, s))
+ 				(air || bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, s)) && //air, or coastal-water
+				(!air || type !== 'land' || (game.control[s] === f || are_enemies(f, game.control[s]))) //air cannot fly over rival land territory unless enemies
  			) {
  				if (!battle) set_add(net, s)
  				if ((air || type !== 'land') && remaining !== 0)
@@ -1956,7 +1957,10 @@ function process_attack_industry(b) {
 	if (hits > 0) {
 		let victim = CAPITALS.indexOf(REGIONS[game.block_location[b]].name)
 		if (victim === -1) throw new Error("Cannot find the capital to bomb!")
-		else game.ind[victim] -= hits
+		else {
+			game.ind[victim] -= hits
+			if (game.ind[victim] < 0) game.ind[victim] = 0
+		}
 	}
 	next_player_battle()
 }
@@ -4158,8 +4162,8 @@ states.retreat = {
 		view.prompt = "Retreat block."
 		const block = game.selected_block
 		const region = game.block_location[block]
-		const retreat = (game.must_retreat === null || (game.defender === null && set_has(game.must_retreat, block)) 
-			|| (REGIONS[game.active_battle].type === "sea" && game.block_type[block] === 1)) //an airplane at sea is always retreating
+		const retreat = (game.must_retreat === null || set_has(game.must_retreat, block))//(game.defender === null && set_has(game.must_retreat, block)) 
+			//|| (REGIONS[game.active_battle].type === "sea" && game.block_type[block] === 1)) //an airplane at sea is always retreating //not true! if it never joined the battle it is not a retreat?
 
 		let cannot_retreat = true
 		if (is_ans(block)) {//rebase
