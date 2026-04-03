@@ -3060,9 +3060,9 @@ function  resolve_espionage(){
 	case 'Spy Ring': game.draw = spy_ring_steal(game.target); make_active(game.target); break
 	case 'Sabotage': game.ind[game.target] -= 1; log("They lost one industry"); cleanup_intel(); return
 	case 'Mole':
-	case 'Agent':
-	case 'Coup':
-	case 'Code Break': make_active(game.espionage); break
+	case 'Agent': 
+	case 'Code Break': clear_undo(); make_active(game.espionage); break
+	case 'Coup': make_active(game.espionage); break
 		
 	}
 	game.state = state_from_special(ICARDS[game.selected_Icard].special)
@@ -3145,7 +3145,7 @@ states.mole = {
 	technology(ic){
 		push_undo()
 		game.state = "government_invent_mole"
-		game.selected = [ic, 31] //31 is the mole. rewriting the selected card.
+		game.selected_Icard = [ic, 31] //31 is the mole. rewriting the selected card.
 	}
 }
 states.government_invent_mole = {
@@ -3206,7 +3206,7 @@ states.government_invent_mole = {
 	}
 }
 states.acknowledge_mole = {
-	inactive: "resolve Mole",
+	inactive: "acknowledge Mole tech",
 	prompt(){
 		const vault = game.vault[game.espionage]
 		const card = vault[vault.length-2]
@@ -5177,7 +5177,7 @@ states.sg_setup = {
 		log(`Step increased in r${game.block_location[b]}`)
 		game.block_steps[b] += 1
 		game.count -= 1
-		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
+		if (game.count === 0){ game.selected_reserve = null; view.selected_reserve = null}
 	},
 	reserve(r){
 		game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r
@@ -5188,7 +5188,7 @@ states.sg_setup = {
 		create_cadre(game.selected_reserve, area)
 		game.count -= 1
 		if (game.reserves[game.selected_reserve] === 0) game.selected_reserve = null
-		if (game.count === 0){ game.selected_reserve = null; view.selected = null}
+		if (game.count === 0){ game.selected_reserve = null; view.selected_reserve = null}
 	},
 	end_production(){
 		clear_undo()
