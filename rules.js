@@ -3061,11 +3061,12 @@ function  resolve_espionage(){
 	case 'Sabotage': game.ind[game.target] -= 1; log("They lost one industry"); cleanup_intel(); return
 	case 'Mole':
 	case 'Agent': 
-	case 'Code Break': clear_undo(); make_active(game.espionage); break
+	case 'Code Break':
 	case 'Coup': make_active(game.espionage); break
 		
 	}
 	game.state = state_from_special(ICARDS[game.selected_Icard].special)
+	if (game.state === 'mole' || game.state === 'agent' || game.state === 'code_break') clear_undo()
 }
 states.double_agent = {
 	disable_vault: 1,
