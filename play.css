@@ -542,7 +542,7 @@ body.shift .block.known:hover {
     fill-opacity:0.40;
 }
 
-.card:hover:not(.hidden) {
+.card:hover:not(.hidden):not(.wrapper *) {
 	transform: scale(1.2) !important;
 	transition: 100ms;
 	z-index: 100;
@@ -577,14 +577,25 @@ body.shift .block.known:hover {
 .card.a .card_button.special{top: 20px; height: 95px}
 .card.i .card_button.special{top: 20px; height: 125px}
 
-.command_box {width: 370px; height: 270px;}
+.command_box {width: 428px; min-height: 288px;}
 .command_box .card{
-	transform: rotate(-90deg);
+	transform-origin: top left;
+  	transform: rotate(-90deg) translateX(-100%);
 	margin-left: 0px;
 }
 .command_box .card:hover {
-	transform: rotate(-90deg) !important;
+	transform-origin: top left;
+  	transform: rotate(-90deg) translateX(-100%);
+	margin-left: 0px;
 	z-index: auto;
+}
+.wrapper {
+  width: 350px;
+  height: 250px;
+  position: relative;
+}
+.wrapper:not(:first-child) {
+	margin-top: -55px;
 }
 
 #tooltip{
