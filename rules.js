@@ -197,6 +197,7 @@ function new_year(){
 	determine_control(game.activeNum)
 	log(`#${game.active} ${game.active} Production`)
 	game.count = determine_production(game.activeNum)
+	game.count_owner = game.activeNum
 	log(`${game.count} production points`)
 
 	if (game.activeNum === 1 && game.usa_satellite && game.usa_reinforcements > 0 && game.usa_reinforcements < 4) {
@@ -233,6 +234,7 @@ function end_production(){
 			log_br()
 			log(`#${game.active} ${game.active} Production`)
 			game.count = determine_production(game.activeNum)
+			game.count_owner = game.activeNum
 			log(`${game.count} production points`)
 
 			if (game.activeNum === 1 && game.usa_satellite && game.usa_reinforcements > 0 && game.usa_reinforcements < 4) {
@@ -302,6 +304,7 @@ function check_gained_control() {
 		if (is_short_setup()) {
 			if (game.hand[0][0].length === 18) {
 				game.count = 7; game.state = "sg_axis_diplomacy"
+				game.count_owner = 0
 			}
 			else game.state = "sg_draw_dividends"
 		}
@@ -571,10 +574,12 @@ function next_player_turn(){
 		let card = ACARDS[game.command_card[game.activeNum]]
 		if (card.season === game.phase || game.phase === "Winter") {
 			game.count = card.value
+			game.count_owner = game.activeNum
 			log(`${game.count} moves:`)
 			game.emergency = 0
 		} else {
 			game.activeNum === 0? game.count = 4 : game.count = 2
+			game.count_owner = game.activeNum
 			log("Emergency movement!")
 			game.emergency = 1
 		}
@@ -1001,7 +1006,7 @@ function is_coastal_region(r){
 //TRADE AND PRODUCTION
 function determine_production(f, end_of_game){
 	const war = game.relationship[f].length !== 0
-	if (war && game.control[REGIONS.findIndex(x => x.name === CAPITALS[f])] !== f) {game.count = 0; return}
+	if (war && game.control[REGIONS.findIndex(x => x.name === CAPITALS[f])] !== f) return 0
 	let r = war ? game.res[f] - game.blockaded_res[f] : 25  //aka not the limiter
 	let i = game.ind[f]
 	let p = game.pop[f] - game.blockaded_pop[f]
@@ -2429,6 +2434,7 @@ states.production = {
 	end_production_confirm(){
 		clear_undo()
 		game.count = 0
+		game.count_owner = null
 		end_production()
 	}
 }
@@ -5139,9 +5145,9 @@ function sg_setup() {
 	make_active(game.turn_order[0])
 	game.state = "sg_setup"
 	switch (game.activeNum) {
-	case 0: game.count = 20; break
-	case 1: game.count = 8; break
-	case 2: game.count = 14; break
+	case 0: game.count_owner = 0; game.count = 20; break
+	case 1: game.count_owner = 1; game.count = 8; break
+	case 2: game.count_owner = 2; game.count = 14; break
 	}
 	determine_control(game.activeNum)
 	log(`.h3 ${game.active} begins special setup`)
@@ -5155,9 +5161,9 @@ function sg_end_setup() {
 		game.state = "sg_setup"
 		next_player()
 		switch (game.activeNum) {
-		case 0: game.count = 20; break
-		case 1: game.count = 8; break
-		case 2: game.count = 14; break
+		case 0: game.count_owner = 0; game.count = 20; break
+		case 1: game.count_owner = 1; game.count = 8; break
+		case 2: game.count_owner = 2; game.count = 14; break
 		}
 	} else {
 		log("Everyone has finished. Starting the game.")
@@ -5566,8 +5572,10 @@ exports.view = function (state, player) {
 	let playerNum = FACTIONS.indexOf(player)
 	view = {
 		player: player,
-		active: game.active,
-		activeNum: game.activeNum,
+		//active: game.active, //only ever used to show the count token
+		//activeNum: game.activeNum, 
+
+		//count is shown during production and during seasonal movement
 		prompt: null,
 		actions: null,
 		log: game.log,
@@ -5578,6 +5586,7 @@ exports.view = function (state, player) {
 		selected_other: game.selected_other,
 		selected_reserve: game.selected_reserve,
 		count: game.count,
+		count_owner: game.count_owner?? game.activeNum,
 		turn_order: findTurnOrderIndex(game.turn_order),
 		turn_order_roles: game.turn_order,
 

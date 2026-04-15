@@ -650,8 +650,10 @@ function update_tokens(){
 	//count
 	let count = document.getElementById("count")
 	let count_xy
+	let count_owner_changed = false
 	if (view.count) {
-		count.className = `token control ${view.active}`
+		if (!count.classList.contains(FACTIONS[view.count_owner])) count_owner_changed = true
+		count.className = `token control ${FACTIONS[view.count_owner]}`
 	} else {
 		count.className = "token hide"
 	}
@@ -660,7 +662,7 @@ function update_tokens(){
 	for (let i = 0; i <= 2; i++){
 		switch_table(i)
 		let ic = 0 //include count
-		if (view.count && i === view.activeNum) {
+		if (view.count && i === view.count_owner) {
 			ic = 1
 			count_xy = table[view.count]
 		}
@@ -704,8 +706,13 @@ function update_tokens(){
 		res.style.left = res_xy["x"]+o[2][0]+"px"
 		res.style.top = res_xy["y"]+o[2][1]+"px"
 		if (ic) {
+			if (count_owner_changed) count.style.transition = 'none'
 			count.style.left = count_xy["x"]+o[3][0]+"px";
 			count.style.top = count_xy["y"]+o[3][1]+"px";
+			if (count_owner_changed) {
+				count.offsetHeight;
+				count.style.transition = ''
+			}
 		}
 	}
 
