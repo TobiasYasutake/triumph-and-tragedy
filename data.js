@@ -13,7 +13,7 @@ const PHASES = {new_year:{x:3303, y:1972}, production: {x:3303, y:2037}, governm
 const COUNTRIES = [
     {capital: "Berlin", name: "Germany", x: 1360, y: 834, color1: "rgb(166, 166, 166)", color2: "rgb(166, 166, 166, 0.5)"},
     {capital: "Rome", name: "Italy", x: 1267, y: 1469, color1: "rgb(159, 157, 137)", color2: "rgb(159, 157, 137, 0.5)"},
-    {capital: "London", name: "Britain", x: 918, y: 906, color1: "rgb(103, 194, 199)", color2: "rgb(103, 194, 199, 0.5)"},
+    {capital: "London", name: "Britain", x: 918, y: 906, color1: "rgb(65, 176, 216)", color2: "rgb(65, 176, 216, 0.5)"},
     {capital: "Paris", name: "France", x: 904, y: 1066, color1: "rgb(103, 194, 199)", color2: "rgb(103, 194, 199, 0.5)"},
     {capital: "Washington", name: "USA", x: 122, y: 668, color1: "rgb(135, 185, 131)", color2: "rgb(135, 185, 131, 0.5)"},
     {capital: "Moscow", name: "USSR", x: 2221, y: 519, color1: "rgb(245, 144, 140)", color2: "rgb(245, 144, 140, 0.5)"},
