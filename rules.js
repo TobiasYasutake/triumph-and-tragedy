@@ -560,6 +560,7 @@ function cleanup_player_turn(){
 	game.raid_retreat_blocks = []
 	game.intervention_required = []
 	//game.cannot_von = []
+	delete game.commited
 	next_player_turn()
 }
 
@@ -636,6 +637,7 @@ function victory_check(){// if someone has 25 vps (remember to count hidden vps 
 	const public_points = []
 	log("#vp Victory Check")
 	for (let i = 0; i < 3; i++) {
+		let caps = vps[i]
 		vps[i] *= 2 //capitals are worth 2 points
 		vps[i] += determine_production(i)
 		vps[i] += minus_war_vps(i)
@@ -643,7 +645,20 @@ function victory_check(){// if someone has 25 vps (remember to count hidden vps 
 		for (let div of game.peace_dividend[i])
 			vps[i] += div
 		vps[i] += game.atomic[i].length
-		if (vps[i] >= 25) {goto_game_over(FACTIONS[i], `The ${FACTIONS[i]} have ${vps[i]} VPs and have won an Economic Victory!`); return}
+		if (vps[i] >= 25) {
+			let prod = determine_production(i)
+			let atomic = game.atomic[i].length
+			let war = minus_war_vps(i)
+			let peace = 0
+			for (let div of game.peace_dividend[i])
+				peace += div		
+			goto_game_over(FACTIONS[i], `The ${FACTIONS[i]} have ${vps[i]} VPs and have won an Economic Victory!`)
+			if (prod) log (`> ${prod} from Production`)
+			if (peace) log (`> ${peace} from Peace Dividends`)
+			if (atomic) log (`> ${atomic} from Atomic Research`)
+			if (caps) log (`> ${caps} from captured Capitals`)
+			if (war) log (`> negative ${war} from declarations of War`)
+			return}
 	}
 
 	for (let i = 0; i < 3; i++) {
@@ -659,13 +674,21 @@ function victory_check_hegemony(){
 	log ("The game is over due to turn limit: the winner is the faction with the most points!")
 	const vps = captured_capitals()
 	for (let i = 0; i < 3; i++) {
-		vps[i] *= 2 //capitals are worth 2 points
-		vps[i] += determine_production(i, true)
-		vps[i] -= minus_war_vps(i)
+		let caps = vps[i] * 2
+		let prod = determine_production(i, true)
+		let war = minus_war_vps(i)
+		let peace = 0
+		let atomic = game.atomic[i].length
 		for (let div of game.peace_dividend[i])
-			vps[i] += div
-		vps[i] += game.atomic[i].length
-		log (`The ${FACTIONS[i]} have ${vps[i]} VPs.`)
+			peace += div
+		vps[i] = caps + prod + peace + atomic - war
+		log_br()
+		log (`The ${FACTIONS[i]} have ${vps[i]} VPs:`)
+		if (prod) log (`> ${prod} from Production (blockades are ignored)`)
+		if (peace) log (`> ${peace} from Peace Dividends`)
+		if (atomic) log (`> ${atomic} from Atomic Research`)
+		if (caps) log (`> ${caps} from captured Capitals`)
+		if (war) log (`> negative ${war} from declarations of War`)
 	}
 	const highest = Math.max(...vps)
 	let factions_with_highest = 0
@@ -4593,6 +4616,56 @@ function make_peace(f1, f2) { //f1 is the attacker and f2 is the victim
 	if (r2[0] === 0 && r2[1] === 0) game.relationship[f2] = []
 }
 
+function make_war(f1, f2) { //f1 is the attacker and f2 is the victim
+	log(`The ${FACTIONS[f1]} have declared war on the ${FACTIONS[f2]}.`)
+	set_add(game.surprise, f2)
+	let r1 = game.relationship[f1]
+	let r2 = game.relationship[f2]
+	if (f1 === 0){ 
+		if (f2 === 1) {//Axis war with West
+			if (r1.length === 0) r1 = [-1, 0]
+			else r1[0] = -1
+			if (r2.length === 0) r2 = [ 1, 0]
+			else r2[0] = 1
+		} else {//Axis war with USSR
+			if (r1.length === 0) r1 = [ 0,-1]
+			else r1[1] = -1
+			if (r2.length === 0) r2 = [ 1, 0]
+			else r2[0] = 1
+		}
+	}
+	if (f1 === 1){
+		if (f2 === 0) {//West war with Axis
+			if (r1.length === 0) r1 = [-1, 0]
+			else r1[0] = -1
+			if (r2.length === 0) r2 = [ 1, 0]
+			else r2[0] = 1
+		} else {//West war with USSR
+			if (r1.length === 0) r1 = [ 0,-1]
+			else r1[1] = -1
+			if (r2.length === 0) r2 = [ 0, 1]
+			else r2[1] = 1			
+		}
+	}
+	if (f1 === 2){
+		if (f2 === 0) {//USSR war with Axis
+			if (r1.length === 0) r1 = [-1, 0]
+			else r1[0] = -1
+			if (r2.length === 0) r2 = [ 0, 1]
+			else r2[1] = 1
+		} else {//USSR war with West
+			if (r1.length === 0) r1 = [ 0,-1]
+			else r1[1] = -1
+			if (r2.length === 0) r2 = [ 0, 1]
+			else r2[1] = 1
+		}
+	}
+	game.relationship[f1] = r1
+	game.relationship[f2] = r2
+	sea_battle_check(f1, f2)
+	determine_control(f1)
+}
+
 states.declare_war = {
 	inactive: "movement",
 	prompt(){
@@ -4609,74 +4682,26 @@ states.declare_war = {
 			if (REGIONS[i].type === 'sea') continue
 			const c = COUNTRIES.findIndex(x => x.name === REGIONS[i].country)
 			if (is_neutral(c) && !is_armed_minor(c) && 
-			(c !== 4 || (game.activeNum === 0 && are_enemies(0, 1))) && //no violating America (unless Axis and at war with the West)
-			(game.influence[c]%10 !== 2 || Math.floor(game.influence[c]/10) === game.activeNum || //no violating countries with 2 influence, unless you are the patron...
-				are_enemies(Math.floor(game.influence[c]/10), game.activeNum)) //...or you are at war with the patron.
+			(c !== 4 || (game.activeNum === 0 && are_enemies(0, 1))) //&& //no violating America (unless Axis and at war with the West)
+			//(game.influence[c]%10 !== 2 || Math.floor(game.influence[c]/10) === game.activeNum || //no violating countries with 2 influence, unless you are the patron...
+			//	are_enemies(Math.floor(game.influence[c]/10), game.activeNum)) //...or you are at war with the patron.
 			) gen_action_region(i) 
 		}
 		view.actions.intervention = intervention_list(game.activeNum)? 1 : 0
 	},
 	axis(){
 		push_undo()
-		log(`The ${game.active} have declared war on the Axis.`)
-		// game.peace_eligible[game.activeNum] = 0
-		// game.peace_eligible[0] = 0
-		set_add(game.surprise, 0)
-		if (game.activeNum === 1){
-			if (game.relationship[1].length === 0) game.relationship[1] = [-1,0]
-			else game.relationship[1][0] = -1
-			if (game.relationship[0].length === 0) game.relationship[0] = [ 1,0]
-			else game.relationship[0][0] = 1
-		} else {
-			if (game.relationship[2].length === 0) game.relationship[2] = [-1,0]
-			else game.relationship[2][0] = -1
-			if (game.relationship[0].length === 0) game.relationship[0] = [ 0,1]
-			else game.relationship[0][1] = 1
-		}
-		sea_battle_check(game.activeNum, 0)
-		determine_control(game.activeNum)
+		make_war(game.activeNum, 0)
 		game.state = "movement"
 	},
 	west(){
 		push_undo()
-		log(`The ${game.active} have declared war on the West.`)
-		// game.peace_eligible[game.activeNum] = 0
-		// game.peace_eligible[1] = 0
-		set_add(game.surprise, 1)
-		if (game.activeNum === 0){
-			if (game.relationship[0].length === 0) game.relationship[0] = [-1,0]
-			else game.relationship[0][0] = -1
-			if (game.relationship[1].length === 0) game.relationship[1] = [ 1,0]
-			else game.relationship[1][0] = 1
-		} else {
-			if (game.relationship[2].length === 0) game.relationship[2] = [0,-1]
-			else game.relationship[2][1] = -1
-			if (game.relationship[1].length === 0) game.relationship[1] = [0, 1]
-			else game.relationship[1][1] = 1
-		}
-		sea_battle_check(game.activeNum, 1)
-		determine_control(game.activeNum)
+		make_war(game.activeNum, 1)
 		game.state = "movement"
 	},
 	ussr(){
 		push_undo()
-		log(`The ${game.active} have declared war on the USSR.`)
-		set_add(game.surprise, 2)
-		// game.peace_eligible[game.activeNum] = 0
-		// game.peace_eligible[2] = 0
-		if (game.activeNum === 0){
-			if (game.relationship[0].length === 0) game.relationship[0] = [0,-1]
-			else game.relationship[0][1] = -1
-			if (game.relationship[2].length === 0) game.relationship[2] = [ 1,0]
-			else game.relationship[2][0] = 1
-		} else {
-			if (game.relationship[1].length === 0) game.relationship[1] = [0,-1]
-			else game.relationship[1][1] = -1
-			if (game.relationship[2].length === 0) game.relationship[2] = [ 0,1]
-			else game.relationship[2][1] = 1
-		}
-		sea_battle_check(game.activeNum, 2)
-		determine_control(game.activeNum)
+		make_war(game.activeNum, 2)
 		game.state = "movement"
 	},
 	intervention(){
@@ -4686,7 +4711,11 @@ states.declare_war = {
 	region(r){
 		push_undo()
 		const c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
-		if (game.influence[c]%10 === 2 && set_has(game.surprise, Math.floor(game.influence[c]/10))) {//a country with 2 influence, and you just went to war with the patron
+		if (game.influence[c]%10 === 2 && //a country with 2 influence will force a confirm VoN
+			!(Math.floor(game.influence[c]/10) === game.activeNum || //unless you are the patron
+			(are_enemies(game.activeNum, Math.floor(game.influence[c]/10)) && //or have been at war with the patron them before this turn
+			!set_has(game.surprise, Math.floor(game.influence[c]/10))) ||
+			(game.commited !== undefined && game.commited === Math.floor(game.influence[c]/10)))) { //or the patron has commited to war before this turn
 			game.state = "confirm_VoN"
 			game.selected_other = c
 		}
@@ -4725,11 +4754,22 @@ states.repudiation = {
 	},
 	repudiate(){
 		log(`The ${game.active} withdrew their support. ${COUNTRIES[game.selected_other].name} must fight alone.`)
+		if (are_enemies(game.activeNum, game.turn_order_command[0])) {
+			game.state = "roll_back_war"
+		}
+		else {
+			game.influence[game.selected_other] = -1
+			arm_minor(COUNTRIES[game.selected_other].name, game.turn_order_command[0])
+			game.state = "movement"
+		}
 		make_active(game.turn_order_command[0])
-		game.state = "roll_back_war"
 	},
 	support(){
 		log(`The ${game.active} confirmed their support of ${COUNTRIES[game.selected_other].name}.`)
+		game.commited = game.activeNum
+		if (!are_enemies(game.activeNum, game.turn_order_command[0])) {
+			make_war(game.turn_order_command[0], game.activeNum)
+		}
 		make_active(game.turn_order_command[0])
 		arm_minor(COUNTRIES[game.selected_other].name, game.activeNum)
 		game.selected_other = null
