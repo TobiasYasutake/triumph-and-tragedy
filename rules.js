@@ -431,40 +431,90 @@ function determine_turn_order_command(){
 	let order = []
 	log_br()
 	for (let i = 0; i <= 2; ++i){
-		if (game.command_card[i]) {
-			const c = game.command_card[i]
-			if (c > 0) {
-				if (game.season === "Winter" || ACARDS[c].season === game.phase)
-					log(`${FACTIONS[i]} played ${ACARDS[c].initiative}-${ACARDS[c].value}. (A${c})`)
-				else log(`${FACTIONS[i]} played off season for emergency command! (A${c})`)
+		if (game.command_card[i]) { //discard bluffs, then order cards, then compare cards to determine turn order.
+			let real_cards = 0
+			let off_season = false
+			let winter_season
+			log (FACTIONS[i] + ' command:')
+			for (let j = 0; j < game.command_card[i].length; j++) {
+				const c = game.command_card[i][j]
+				if (c < 0) {
+					log(`> Investment card as a bluff! (I${c*-1})`)
+					game.discard[1].push(c*-1)
+					array_remove(game.command_card[i], j)
+					j--
+				}
+				else if ((game.season !== "Winter" || (winter_season && winter_season !== ACARDS[c].season)) && ACARDS[c].season !== game.phase) {
+					log(`> ${ACARDS[c].initiative}-off season. (A${c})`)
+					if (off_season || winter_season) {
+						game.discard[0].push(c) 
+						array_remove(game.command_card[i], j)
+						j--
+					} //more than one off season card, then the first one selected was the 'real' one
+					else off_season = c
+				}
+				else {
+					real_cards++
+					if (game.season === "Winter") winter_season === ACARDS[c].season
+					log(`> ${ACARDS[c].initiative}-${ACARDS[c].value}. (A${c})`)
+				}
+			}
+		
+			if (real_cards) {
+				if (off_season) { //discard all off_season cards as a bluff
+					game.discard[0].push(off_season); array_remove_item(game.command_card[i], off_season)
+				}
+				game.command_card[i].sort((a, b) => { //sort
+					return ACARDS[a].initiative > ACARDS[b].initiative ? 1 : -1
+				})
 				order.push({
 					"faction": i, 
-					"initiative": ACARDS[c].initiative, 
-					"season": ACARDS[c].season
+					"initiative": ACARDS[game.command_card[i][0]].initiative, 
+					"season": ACARDS[game.command_card[i][0]].season
 				})
-			} else
-			{
-				log(`${FACTIONS[i]} played investment card as a bluff! (I${c*-1})`)
-				game.discard[1].push(c*-1)
-				game.command_card[i] = null
+				if (real_cards >= 3) {
+					order.push({
+						"faction": i, 
+						"initiative": ACARDS[game.command_card[i][2]].initiative, 
+						"season": ACARDS[game.command_card[i][2]].season
+					})
+				}
+			} else if (off_season) {
+				order.push({
+					"faction": i, 
+					"initiative": ACARDS[game.command_card[i][0]].initiative, 
+					"season": ACARDS[game.command_card[i][0]].season
+				})
 			}
 		}
 	}
 	order.sort((a, b) => {
 		if (a.initiative > b.initiative) return 1
 		if (a.initiative < b.initiative) return -1
-		set_add(game.tied_turn_order, a.faction)
-		set_add(game.tied_turn_order, b.faction)
+		set_add(game.tied_turn_order, a.initiative)
 		if (a.season === game.phase) {make_active(a.faction); game.state = "choose_initiative"}
 		else if (b.season === game.phase) {make_active(b.faction); game.state = "choose_initiative"}
+		if (game.state !== "choose_initiative") set_delete(game.tied_turn_order, a.initiative)
 		//what happens when both are out of season? Answer: two emergency commands, and it doesn't matter
 		return 0
 	})
-	if (game.tied_turn_order.length !== 0 && game.state !== "choose_initiative") game.tied_turn_order = []
 	order.forEach(a => {
-		if (set_has(game.tied_turn_order, a.faction)) game.turn_order_command.push(null)
+		if (game.state === "choose_initiative" && set_has(game.tied_turn_order, a.initiative)) game.turn_order_command.push([a.faction, a.initiative])
 		else game.turn_order_command.push(a.faction)}
-	)	
+	)
+
+	if (game.state !== "choose_initiative") {
+		game.tied_turn_order = []
+		if (order.length > 1) {
+			let message = ''
+			for (let o of order) {
+				message += FACTIONS[o.faction] + ", "
+			}
+			message = message.slice(0, -2)
+			log_br()
+			log('Turn order is: ' + message)
+		}
+	}
 }
 
 function next_player(){
@@ -488,17 +538,25 @@ function next_player(){
 }
 
 function next_player_command(){
+	game.state = "command"
 	next_player()
 	if (three_consecutive_passes()){
 		clear_undo()
 		start_player_turns()
-	} else if (game.command_card[game.activeNum] || game.phase === "Winter"){
+	} else if (game.phase === "Winter" || (game.command_card[game.activeNum] && (
+		(!game.offensive || game.command_card[game.activeNum].length >= 2) &&
+		(!game.blitz || game.command_card[game.activeNum].length >= 3 || ( //at a full 3 cards
+			game.command_card[game.activeNum].length === 2 && //at 2 cards and does not have the tech and has no hidden vault stuff
+			!has_tech(game.activeNum,"Heavy Tanks") && !has_tech(game.activeNum, "Motorized Infantry") &&
+			game.vault[game.activeNum].length === 0
+		))
+	))){
 		game.pass_count += 1
 		next_player_command()
 	}
 }
 
-function next_player_battle(){
+function next_player_battle(recusive){//recursive is used for delayed attacks
 	clear_selected()
 	//based on the participating blocks, the attacker, the defender(s), tech, surprise, and blocks moved, figure out who's turn it is
 	//in a three way, the attacker determines initiative ties, but to save on turn activation it will just happen in turn order.
@@ -520,19 +578,20 @@ function next_player_battle(){
 		const type = lowest_type(unused_blocks)
 		const fs = factions_with_type(unused_blocks, type)
 		fs.sort((a, b) => { //+1 if defender, +2 if ff
-			const aNum = 0 + (game.attacker !== a) + (has_ff(a, type) ? 2 : 0)
-			const bNum = 0 + (game.attacker !== b) + (has_ff(b, type) ? 2 : 0)
+			const aNum = 0 + (game.attacker !== a) + (2*(has_ff_from_surprise(a, type))) + (2*(has_ff_from_tech(a, type)))
+			const bNum = 0 + (game.attacker !== b) + (2*(has_ff_from_surprise(b, type))) + (2*(has_ff_from_tech(a, type)))
 			return bNum - aNum
 		})
-		if (game.hits && fs[0] !== game.activeNum && fs[0] !== -1) {
+		if ((!recusive || s.length === 0) && game.hits && fs[0] !== game.activeNum && fs[0] !== -1) {
 			resolve_damage()
-		} else if (s.length > 0 && (type === -1 || type > game.block_type[s[0]])) {
-			log("Processing delayed attack")
+		} else if (s.length > 0 && (type === -1 || type > game.block_type[s[0]] || 
+			(!has_ff_from_tech(fs[0], type) && has_ff_from_tech(faction_of_block(s[0]), type)))) { //Should work
 			const b = s[0]
 			const t = s[1]
+			log(`*Delayed attack against the ${FACTIONS[t[0]]}:`)
 			map_remove(s, s[0])
 			game.target = t[0]
-			process_attack(b, t[1], t[2])
+			process_attack(b, t[1], t[2], true)
 			game.target = null
 		} else if (fs[0] === -1) {
 			neutral_firing_solution()
@@ -544,9 +603,13 @@ function next_player_battle(){
 }
 
 function cleanup_player_turn(){
-	game.discard[0].push(game.command_card[game.activeNum])
-	game.command_card[game.activeNum] = null
+	game.active_cc = null
 	game.turn_order_command.shift()
+	if (!game.turn_order_command.includes(game.activeNum)){
+		game.discard[0].push(...game.command_card[game.activeNum])
+		game.command_card[game.activeNum] = null
+	}
+	
 	game.surprise = []
 	game.block_moved = []
 	game.battle_groups = {}
@@ -559,9 +622,19 @@ function cleanup_player_turn(){
 	game.invasion_blocks = []
 	game.raid_retreat_blocks = []
 	game.intervention_required = []
+	delete game.no_strategic
 	//game.cannot_von = []
 	delete game.commited
 	next_player_turn()
+}
+
+function second_season_move(f){
+	if (game.command_card[f].length !== 3) return false
+	let moves = 0
+	for (let faction of game.turn_order_command) {
+		if (faction === f) moves++
+	}
+	return moves === 1
 }
 
 function next_player_turn(){
@@ -570,27 +643,35 @@ function next_player_turn(){
 		next_season()
 	} else {
 		make_active(game.turn_order_command[0])
+		const f = game.activeNum
 		log_br()
 		log_h3(`${game.active} Movement`, game.active)
-		let card = ACARDS[game.command_card[game.activeNum]]
+		game.active_cc = second_season_move(f)? game.command_card[f][2] : game.command_card[f][0]
+		const card = ACARDS[game.active_cc]
 		if (card.season === game.phase || game.phase === "Winter") {
 			game.count = card.value
 			game.count_owner = game.activeNum
+			if (game.command_card[f].length === 2) game.count += 4
+			if (game.command_card[f].length === 3) {
+				game.no_strategic = 1
+				log(`${second_season_move(f)? "Second":"First"} blitz turn`)
+				log("> No strategic movement")
+			}
 			log(`${game.count} moves:`)
-			game.emergency = 0
+			//game.emergency = 0
 		} else {
-			game.activeNum === 0? game.count = 4 : game.count = 2
 			game.count_owner = game.activeNum
+			f === 0? game.count = 4 : game.count = 2
 			log("Emergency movement!")
-			game.emergency = 1
+			//game.emergency = 1
 		}
 		
-		determine_control(game.activeNum)
+		determine_control(f)
 
 		//create sub-hunting battle groups
 		for (let i = 0; i < game.block_location.length; i++) {
 			let r = game.block_location[i]; if (r === null) continue
-			if (REGIONS[r].type !== 'sea' || faction_of_block(i) !== game.activeNum || !contains_hiding_enemy_sub(r, game.activeNum)) break
+			if (REGIONS[r].type !== 'sea' || faction_of_block(i) !== f || !contains_hiding_enemy_sub(r, f)) break
 			if (game.battle_groups[r]) game.battle_groups[r].push(i)
 			else game.battle_groups[r] = [i]
 		}
@@ -1941,12 +2022,12 @@ function multiple_enemies(r) {
 	return false
 }
 
-function has_ff(f, type) {
+function has_ff_from_surprise(f, type) {
 	if (f === game.attacker) {
 		let factions = factions_in_group(game.active_battle_blocks)
 		for (let faction of factions) if (faction !== f && set_has(game.surprise, faction)) return true
 	}
-	return has_ff_from_tech(f, type)
+	return false
 }
 
 function has_ff_from_tech(f, type) {
@@ -2033,7 +2114,7 @@ function completely_destroyed_enemies(f) {
 	return true
 }
 
-function process_attack(b, c, s) {//block, class, shootnscoot
+function process_attack(b, c, s, recusive) {//block, class, shootnscoot recursive is used for delayed attacks
 	if (game.target === null && Array.isArray(game.defender) && faction_of_block(b) === game.attacker){
 		push_undo()
 		game.target = [b, c, s]
@@ -2067,13 +2148,13 @@ function process_attack(b, c, s) {//block, class, shootnscoot
 			if (game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`]) game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] += hits
 			else game.hits[`${FACTIONS[target]}_${CLASSNAME[c]}`] = hits
 			if (game.block_nation[b] === 6 || completely_destroyed_enemies(game.activeNum)) resolve_damage()
-			else next_player_battle()
+			else next_player_battle(recusive)
 		}
 	} else if (s) {
 		game.state = "retreat"
 		game.selected_block = b
 	} else (
-		next_player_battle()
+		next_player_battle(recusive)
 	)
 	game.target = null
 }
@@ -2678,11 +2759,11 @@ states.government = {
 		view.actions.pass = 1
 		view.actions.configure_autopass = 1
 		if (game.selected_Icard && Array.isArray(game.selected_Icard) && can_make_factory(game.selected_Icard, f)){
-			view.actions.build_factory = 1
+			view.actions.build_INDustry = 1
 		}
 		if (can_make_factory(game.hand[f][1], f)){
 			for (let card of game.hand[f][1]) {
-				gen_action_industry(card)
+				gen_action_investment(card)
 			}
 		}
 		const spy_actions = ["Mole","Agent","Sabotage","Spy Ring","Code Break","Coup"] //and Double Agent
@@ -2776,7 +2857,7 @@ states.government = {
 		game.selected_Icard = ic
 		game.state = "choose_target_intelligence"
 	},
-	industry_card(c){
+	investment_card(c){
 		if (!game.selected_Icard || !Array.isArray(game.selected_Icard)) {
 			clear_selected(); game.selected_Icard = [c] 
 		}
@@ -2786,7 +2867,7 @@ states.government = {
 		} 
 		else game.selected_Icard.push(c)
 	},
-	build_factory(){
+	build_INDustry(){
 		game.pass_count = 0
 		game.discard[1].push(...game.selected_Icard)
 		let cards = ""
@@ -2796,7 +2877,7 @@ states.government = {
 		}
 		game.ind[game.activeNum] += 1
 		game.factory_increase[game.activeNum] += 1
-		log(`${game.active} has built a factory (${cards}).`)
+		log(`${game.active} has built INDustry (${cards}).`)
 		next_player()
 	},
 	configure_autopass(){
@@ -2938,10 +3019,10 @@ states.government_invent = {
 		let pair = pair_has_tech_printed(game.selected_Icard[0], game.selected_Icard[1], tech)
 		for (let i = 0; i < hand.length; i++){
 			if ((hand[i] === Math.abs(game.selected_Icard[0]) || hand[i] === Math.abs(game.selected_Icard[1]))
-				&& (pair || !card_has_tech_printed(hand[i], tech))) gen_action_industry(hand[i])
+				&& (pair || !card_has_tech_printed(hand[i], tech))) gen_action_investment(hand[i])
 		}
 	},
-	industry_card(c){ //discard card
+	investment_card(c){ //discard card
 		clear_undo()
 		let tc = c === Math.abs(game.selected_Icard[0])? game.selected_Icard[1] : game.selected_Icard[0] //tech card
 		let side = tc > 0 ? 1 : -1		
@@ -2981,7 +3062,7 @@ states.government_discard = {
 				gen_action_action(card)
 			}
 			for (let card of hand[1]){
-				gen_action_industry(card)
+				gen_action_investment(card)
 			}
 		}
 	},
@@ -2991,7 +3072,7 @@ states.government_discard = {
 		game.discard[0].push(hand[0].splice(hand[0].indexOf(c), 1)[0])
 		log(`Discarded A${c}.`)
 	},
-	industry_card(c) {
+	investment_card(c) {
 		push_undo()
 		let hand = game.hand[game.activeNum]
 		game.discard[1].push(hand[1].splice(hand[1].indexOf(c), 1)[0])
@@ -3185,9 +3266,9 @@ states.government_invent_mole = {
 		view.prompt = `Inventing ${tech}: Discard the mole or place inside your vault.`
 		view.vault[game.target] = game.vault[game.target]
 		game.vault[game.activeNum].length >= HANDSIZE[game.activeNum]*2 ? view.actions.vault = 0 : view.actions.vault = 1
-		gen_action_industry(31)
+		gen_action_investment(31)
 	},
-	industry_card(c){ //discard card
+	investment_card(c){ //discard card
 		clear_undo()
 		let original_faction
 		for (let i = 0; i < 3; i++){
@@ -3365,41 +3446,56 @@ states.draw_von = {
 	}
 }
 
+
+function command_limit(f){
+	if (!game.offensive) return 1
+	if (game.blitz && (has_tech(f, "Heavy Tanks") || has_tech(f, "Motorized Infantry"))) return 3
+	return 2
+}
+
 //COMMAND
 states.command = {
 	inactive: "play a Command card",
 	prompt(){
-		view.prompt = `${game.phase}: Play a card for Command or pass.`
-		if (game.command_card[game.activeNum]){
+		view.prompt = `${game.phase}: Command or pass.`
+		if (game.selected_Acard || game.selected_Icard){
 			view.actions.pass = 0
-			if (game.command_card[game.activeNum] < 0 ) 
+			if (game.selected_Icard) 
 				view.actions.confirm_investment = 1
-			else if (game.phase !== 'Winter' && ACARDS[game.command_card[game.activeNum]].season !== game.phase)
-				view.actions.confirm_season = 1
-			else view.actions.confirm = 1
+			else {
+				let off_season = false
+				for (let card of game.selected_Acard)
+					if (game.phase !== 'Winter' && ACARDS[card].season !== game.phase) off_season = true
+				if (off_season)	view.actions.confirm_season = 1
+				else view.actions.confirm = 1
+			}
 		}
 		else {
 			view.actions.pass = 1
 			view.actions.confirm = 0
+		}
+		if (!game.command_card[game.activeNum] || game.command_card[game.activeNum].length < command_limit()) {
 			let hand = game.hand[game.activeNum]
 			for (let card of hand[0]){
 				gen_action_action(card)
 			}
 			for (let card of hand[1]) {
-				gen_action_industry(card)
+				gen_action_investment(card)
 			}
 		}
 	},
 	action_card(c){
 		push_undo()
-		log(`${game.active} played a Command card.`)
-		game.command_card[game.activeNum] = c
+		game.selected_Acard = game.selected_Acard ?? []
+		game.selected_Acard.push(c)
+		game.command_card[game.activeNum]? game.command_card[game.activeNum].push(c) : game.command_card[game.activeNum] = [c]
 		array_remove_item(game.hand[game.activeNum][0], c)
 	},
-	industry_card(c){
+	investment_card(c){
 		push_undo()
-		log(`${game.active} played a Command card.`)
-		game.command_card[game.activeNum] = c*-1
+		game.selected_Icard = game.selected_Icard ?? []
+		game.selected_Icard.push(c)
+		game.command_card[game.activeNum]? game.command_card[game.activeNum].push(c) : game.command_card[game.activeNum] = [c*-1]
 		array_remove_item(game.hand[game.activeNum][1], c)
 	},
 	pass(){
@@ -3409,16 +3505,42 @@ states.command = {
 	},
 	confirm(){
 		game.pass_count = 0
+		let num = game.selected_Acard.length
+		if (num === 1) log(`${game.active} played a Command card.`)
+		else log(`${game.active} played ${num} Command cards.`)
+		clear_selected()
 		next_player_command()
 	},
 	confirm_investment(){
 		game.pass_count = 0
+		let num = game.selected_Icard.length + (game.selected_Acard ? game.selected_Acard.length : 0)
+		if (num === 1) log(`${game.active} played a Command card.`)
+		else log(`${game.active} played ${num} Command cards.`)
+		clear_selected()
 		next_player_command()
 	},
 	confirm_season(){
 		game.pass_count = 0
+		let num = game.selected_Acard.length
+		if (num === 1) log(`${game.active} played a Command card.`)
+		else log(`${game.active} played ${num} Command cards.`)
+		clear_selected()
 		next_player_command()
 	}
+}
+
+states.command_confirm = {
+	inactive: "play a Command card",
+	prompt(){
+		view.prompt = `Confirm command card.`
+		view.actions.pass = 0
+		if (game.selected_Icard) 
+			view.actions.confirm_investment = 1
+		else if (game.phase !== 'Winter' && ACARDS[game.selected_Acard].season !== game.phase)
+			view.actions.confirm_season = 1
+		else view.actions.confirm = 1
+	},
+
 }
 
 //MOVEMENT
@@ -3446,14 +3568,14 @@ function unit_move_type(b) {
 }
 
 function strategic_possible(b) { //not if disengaging, caught elsewhere
-	if (game.block_type[b] === 1 && REGIONS[game.block_location[b]].type === 'sea' ||
+	if (game.no_strategic || game.block_type[b] === 1 && REGIONS[game.block_location[b]].type === 'sea' ||
 		contains_hiding_enemy_sub(game.block_location[b])
 	) return 0 //not air at sea, not if enemy sub hiding in location
 	return 1
 }
 
 function aggression_possible(b){ //not if disengaging, caught elsewhere
-	if ((ACARDS[game.command_card[game.activeNum]].season !== game.phase && game.phase !== 'Winter') || //not with emergency command
+	if ((ACARDS[game.active_cc].season !== game.phase && game.phase !== 'Winter') || //not with emergency command
 		(game.block_type[b] === 1 && REGIONS[game.block_location[b]].type === 'sea')) //not air at sea
 		return 0
 	return 1
@@ -3558,7 +3680,7 @@ states.movement = {
 		view.prompt = `Move units: ${game.count} ${move} left. ${message}`
 		
 		view.actions.declare_war = (game.block_moved.length === 0 && 
-			(ACARDS[game.command_card[game.activeNum]].season === game.phase || game.phase === 'Winter'))? 1 : 0
+			(ACARDS[game.active_cc].season === game.phase || game.phase === 'Winter'))? 1 : 0
 		if (game.count === 0) view.actions.end_movement = dec.length === 0 && int.length === 0 ? 1 : 0
 		else {
 			view.actions.end_movement_confirm = dec.length === 0 && int.length === 0 ? 1 : 0
@@ -3790,6 +3912,18 @@ function update_mvmt(b, m, r){
 	else {m.sea_combat = 0; m.land_combat = 0}
 }
 
+function home_sea_violation(f, r) {
+	if (!game.home_seas || REGIONS[r].type !== 'sea') return false
+	//dealing with a sea. What Factions have home territory next to this sea?
+	const fs = []
+	for (const adj of BORDERS[r]) {
+		if (REGIONS[adj].country && GREATPOWERS.includes(REGIONS[adj].country)) fs.push(GREATPOWERS.indexOf(REGIONS[adj].country))
+	}
+	if (fs.length === 0 || fs.includes(f)) return false
+	for (const faction of fs) if (!are_enemies(f, faction)) return true
+	return false
+}
+
 function legal_end_space(b, m, r){
 	const region = REGIONS[r]
 	const c = region.country ? COUNTRIES.findIndex(x => x.name === region.country) : false
@@ -3812,6 +3946,7 @@ function legal_end_space(b, m, r){
 			border_limit(m.previous_space, r) <= map_get(game.border_count, get_border_id(m.previous_space, r ), 0) -
 			(REGIONS[m.previous_space].type === 'sea' && has_tech(f, 'LSTs'))) || //-1 from the count for invasions
 		(m.sea_combat && !ans) || //convoys cannot attack
+		(home_sea_violation(f, r)) ||
 
 		//illegal moves from update_mvmt
 		(m.move_type && m.move_type === 'land' && region.type === 'sea') || //land cannot go to sea
@@ -3830,7 +3965,7 @@ states.choose_battle = {
 	prompt(){
 		view.prompt = "Choose where to battle next."
 		view.actions.end_choose_battle = game.battle_required.length === 0 ? 1 : 0
-		const emergency = ACARDS[game.command_card[game.activeNum]].season !== game.phase && game.phase !== 'Winter'
+		const emergency = ACARDS[game.active_cc].season !== game.phase && game.phase !== 'Winter'
 		const winter = game.phase === 'Winter'
 		let battle_posible = false
 		if (emergency) {
@@ -3990,7 +4125,7 @@ states.battle_action = {
 }
 
 function attack_faction (f) {
-	log(`Attacker chooses to attack the ${FACTIONS[f]}.`)
+	log(`*Attack against the ${FACTIONS[f]}:`)
 	let b = game.target[0]
 	let c = game.target[1]
 	let s = game.target[2]
@@ -4004,15 +4139,27 @@ The mixup happens the attacker might get FF only if they are attacking a certain
 The attacker will lose FF if they do not attack that faction, and might lose priority.
 
 The question is: would losing FF make them lower on the attack order?
-A: They can't lose FF from having tech, so the question is moot
-B: They can't go down if they don't have FF, they are already at the bottom!
-C: Similarly, they wouldn't go down on the order if both defenders have FF, but we can discount this because D is a better test
-D: This only happens if there are units of the same type with lower priority */
-	//A and B
-	if (!has_ff(game.attacker, type) || has_ff_from_tech(game.attacker, type)) return false
+A: They can't go down if they don't have FF, they are already at the bottom!
+B: Similarly, they wouldn't go down on the order if both defenders have FF, but we can discount this because D is a better test
+C: This only happens if there are units of the same type with lower priority 
+
+*/
+	//A 
+	if (!has_ff_from_surprise(game.attacker, type)) return false
 	//defenders with lower priority:
 	const blocks = game.active_battle_blocks.filter(x => game.block_type[x] === type && faction_of_block(x) !== game.attacker && !set_has(game.block_moved, x))
-	if (blocks.length === 0) return false
+	
+	//will attacking without surprise FF change the block's priority?
+	if (blocks.length === 0) return false //If there are no blocks, then there is no problem
+	if (has_ff_from_tech(game.attacker, type)) {//if there is no tech, it WILL matter and we continue
+		const fs = factions_in_group(blocks)
+		let no_change = true
+		for (let f in fs) {
+			if (has_ff_from_tech(f, type)) no_change = false //if someone who has yet to act has the FF tech, it WILL matter and we continue
+		}
+		if (no_change) return false
+	}
+	
 	//finally, does the attacker have surprise on both enemies? if not, which one does he NOT have surprise on?
 	for (let i = 0; i < 3; i++) {
 		if (i !== game.attacker && !set_has(game.surprise, i)) return i
@@ -4021,7 +4168,7 @@ D: This only happens if there are units of the same type with lower priority */
 }
 
 function slate_block_to_attack (f) {
-	log(`The ${FACTIONS[game.attacker]} are attacking against the faction they don't have surprise First Fire against.`)
+	log(`${FACTIONS[game.attacker]} primed an attack.`)
 	map_set(game.slated_to_attack, game.target[0], [f, game.target[1], game.target[2]])
 	set_add(game.block_moved, game.target[0])
 	game.target = null
@@ -4221,9 +4368,9 @@ states.retreat = {
 		const previous_space = game.block_location[b]
 		if (game.must_retreat !== null) {
 			push_undo()
-			log(`${NATIONS[game.block_nation[b]]} block retreated to ${REGIONS[r].name}`)
+			log(`${NATIONS[game.block_nation[b]]} block retreated to r${r}`)
 		}
-		else {log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} ${game.shootNscoot? 'scooted' : 'retreated'} to ${REGIONS[r].name}`)}
+		else {log(`${NATIONS[game.block_nation[b]]} ${TYPE[game.block_type[b]]} ${game.shootNscoot? 'scooted' : 'retreated'} to r${r}`)}
 		game.block_location[b] = r
 		set_delete(game.active_battle_blocks, b)
 		
@@ -4304,9 +4451,9 @@ states.supply_loss = {
 	},
 	block(b) {
 		const r = game.block_location[b]
-		log(`${game.active} reduced block in ${REGIONS[r].name} due to Supply Attrition.`)
 		set_delete(game.oos_loss, b)
 		if (block_reduce(b)) {
+			log(`${game.active} eliminated block in r${r} due to Supply Attrition.`)
 			const ngs = no_ground_support(r, game.activeNum)
 			if (ngs && ngs.length > 0 && REGIONS[r].type !== 'sea' && game.control[r] !== game.activeNum) {
 				log(`${game.active} ANS blocks without ground support must retreat.`)
@@ -4315,6 +4462,7 @@ states.supply_loss = {
 				for (let block of ngs) set_add(game.must_retreat, block)
 			}
 		}
+		else log(`${game.active} reduced block in r${r} due to Supply Attrition.`)
 	},
 	done(){
 		if (game.oos_loss.length === 0) game.must_retreat? next_player_retreat() : next_season(true)
@@ -4340,12 +4488,12 @@ states.vault_reveal = {
 			const card1 = ICARDS[Math.abs(v[i])]
 			const card2 = ICARDS[Math.abs(v[i+1])]
 			if ((v[i+1] > 0 && card2.left && card2.left !== "Industrial Espionage") ||
-				(v[i+1] < 0 && card2.right && card2.right !== "Industrial Espionage")) gen_action_industry(v[i])
+				(v[i+1] < 0 && card2.right && card2.right !== "Industrial Espionage")) gen_action_investment(v[i])
 			if ((v[i] > 0 && card1.left && card1.left !== "Industrial Espionage") ||
-				(v[i] < 0 && card1.right && card1.right !== "Industrial Espionage")) gen_action_industry(v[i+1])
+				(v[i] < 0 && card1.right && card1.right !== "Industrial Espionage")) gen_action_investment(v[i+1])
 		}
 	},
-	industry_card(c){ //discard card
+	investment_card(c){ //discard card
 		push_undo()
 		const f = game.activeNum
 		const index = game.vault[f].indexOf(c)
@@ -4375,12 +4523,12 @@ states.vault_reveal_battle = {
 			const card1 = ICARDS[Math.abs(v[i])]
 			const card2 = ICARDS[Math.abs(v[i+1])]
 			if ((v[i+1] > 0 && card2.left && card2.left !== "Industrial Espionage") ||
-				(v[i+1] < 0 && card2.right && card2.right !== "Industrial Espionage")) gen_action_industry(v[i])
+				(v[i+1] < 0 && card2.right && card2.right !== "Industrial Espionage")) gen_action_investment(v[i])
 			if ((v[i] > 0 && card1.left && card1.left !== "Industrial Espionage") ||
-				(v[i] < 0 && card1.right && card1.right !== "Industrial Espionage")) gen_action_industry(v[i+1])
+				(v[i] < 0 && card1.right && card1.right !== "Industrial Espionage")) gen_action_investment(v[i+1])
 		}
 	},
-	industry_card(c){ //discard card
+	investment_card(c){ //discard card
 		push_undo()
 		const f = game.activeNum
 		const index = game.vault[f].indexOf(c)
@@ -5462,10 +5610,11 @@ exports.setup = function (seed, scenario, options) {
 		game.usa_reinforcements = -3
 	}
 
-	//game.blitz = options.Blitz? 1 : 0
+	game.offensive = options.Offensive_Turns || options.Blitz? 1 : 0
+	game.blitz = options.Blitz? 1 : 0
 	game.britania = options.Britannia_Rules_the_Waves? 1 : 0
 	game.territorial_straits = options.Territorial_Straits? 1 : 0
-	//game.home_seas = options.Home_Seas? 1 : 0
+	game.home_seas = options.Home_Seas? 1 : 0
 
 	game.deck[0] = make_deck()
 	game.deck[1] = make_deck()
@@ -5554,7 +5703,11 @@ function mask_command_card(player){
 	const cards = object_copy(game.command_card)
 	if (game.state === "command" || game.previous_state === "command") {
 		for (let p = 0; p <= 2; p++){
-			if (player !== p && cards[p]) cards[p] = 0
+			if (player !== p && cards[p]) {
+				for (let c in cards[p]) {
+					cards[p][c] = 0
+				}
+			}
 		}
 	}
 	return cards
@@ -5816,8 +5969,8 @@ function gen_action_reserve(r) {
 function gen_action_action(c) {
 	gen_action("action_card", c)
 }
-function gen_action_industry(c) {
-	gen_action("industry_card", c)
+function gen_action_investment(c) {
+	gen_action("investment_card", c)
 }
 function gen_action_technology(c) {
 	gen_action("technology", c)

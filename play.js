@@ -458,7 +458,7 @@ function update_cards() {
 			else {
 				e.className = `card i number_${v}`;
 				inv.appendChild(e)
-				register_action(e, "industry_card", v)
+				register_action(e, "investment_card", v)
 				let card = ICARDS[v]
 				let tnb = (card.left !== undefined || card.right !== undefined)
 				let spy = (card.special && spy_actions.indexOf(card.special) !== -1)
@@ -502,7 +502,7 @@ function update_cards() {
 				e.className = `card i number_${Math.abs(v[j])}`
 				if (v[j] <= 0) e.classList.add("flip")
 			}
-			register_action(e, "industry_card", v[j])
+			register_action(e, "investment_card", v[j])
 			if (j%2 === 0) {
 				e.style.marginBottom = "-280px"
 				shell = document.createElement("div")
@@ -534,11 +534,17 @@ function update_cards() {
 		v = view.command_card[i]
 		cc.innerHTML = ""
 		if (v !== null) {
-			let e = document.createElement("div")
-			if (v === 0) e.className = "card hidden";
-			else if (v >= 0) e.className = `card a number_${v}`
-			else e.className = `card i number_${Math.abs(v)}`;
-			cc.appendChild(e)
+			v = typeof v === "number" ? [v] : v //to not break older versions
+			for (let card of v) {
+				let e = document.createElement("div")
+				if (card === 0) e.className = "card hidden";
+				else if (card >= 0) e.className = `card a number_${card}`
+				else e.className = `card i number_${Math.abs(card)}`;
+				let w = document.createElement("div")
+				w.classList.add("wrapper")
+				w.appendChild(e)
+				cc.appendChild(w)
+			}
 		}
 	}
 }
@@ -1093,7 +1099,7 @@ function on_update(){
 	action_button("draw_action_card", "Draw Action Card")
 	action_button("draw_investment_card", "Draw Investment Card")
 
-	action_button("build_factory", "Build Factory")
+	action_button("build_INDustry", "Build Industry")
 
 	action_button("end_setup", "End setup")
 	action_button("end_production", "End Production")
@@ -1102,9 +1108,9 @@ function on_update(){
 
 	action_button("confirm", "Confirm")
 	confirm_action_button("confirm_investment", "Confirm",
-		"An investment card used during the command phase is a wasted bluff! \nAre you sure you want to use it?")
+		"An investment card used during the command phase is a wasted bluff! \nAre you sure?")
 	confirm_action_button("confirm_season", "Confirm",
-		"This card is the wrong season, you will only be able to do emergency movement! \nAre you sure you want to use it?")
+		"Cards with the wrong season only count for emergency movement! \nAre you sure?")
 
 	action_button("end_turn", "End turn")
 	action_button("end_movement", "End movement")
