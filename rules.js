@@ -495,7 +495,7 @@ function determine_turn_order_command(){
 		if (a.season === game.phase) {make_active(a.faction); game.state = "choose_initiative"}
 		else if (b.season === game.phase) {make_active(b.faction); game.state = "choose_initiative"}
 		if (game.state !== "choose_initiative") set_delete(game.tied_turn_order, a.initiative)
-		//what happens when both are out of season? Answer: two emergency commands, and it doesn't matter
+		//what happens when both are out of season? Answer: two emergency commands, and it doesn't matter //Needs work no! the earlier in season goes first!
 		return 0
 	})
 	order.forEach(a => {
