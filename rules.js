@@ -2730,11 +2730,11 @@ states.government = {
 		view.actions.pass = 1
 		view.actions.configure_autopass = 1
 		if (game.selected_Icard && Array.isArray(game.selected_Icard) && can_make_factory(game.selected_Icard, f)){
-			view.actions.build_factory = 1
+			view.actions.build_INDustry = 1
 		}
 		if (can_make_factory(game.hand[f][1], f)){
 			for (let card of game.hand[f][1]) {
-				gen_action_industry(card)
+				gen_action_investment(card)
 			}
 		}
 		const spy_actions = ["Mole","Agent","Sabotage","Spy Ring","Code Break","Coup"] //and Double Agent
@@ -2828,7 +2828,7 @@ states.government = {
 		game.selected_Icard = ic
 		game.state = "choose_target_intelligence"
 	},
-	industry_card(c){
+	investment_card(c){
 		if (!game.selected_Icard || !Array.isArray(game.selected_Icard)) {
 			clear_selected(); game.selected_Icard = [c] 
 		}
@@ -2838,7 +2838,7 @@ states.government = {
 		} 
 		else game.selected_Icard.push(c)
 	},
-	build_factory(){
+	build_INDustry(){
 		game.pass_count = 0
 		game.discard[1].push(...game.selected_Icard)
 		let cards = ""
@@ -2990,10 +2990,10 @@ states.government_invent = {
 		let pair = pair_has_tech_printed(game.selected_Icard[0], game.selected_Icard[1], tech)
 		for (let i = 0; i < hand.length; i++){
 			if ((hand[i] === Math.abs(game.selected_Icard[0]) || hand[i] === Math.abs(game.selected_Icard[1]))
-				&& (pair || !card_has_tech_printed(hand[i], tech))) gen_action_industry(hand[i])
+				&& (pair || !card_has_tech_printed(hand[i], tech))) gen_action_investment(hand[i])
 		}
 	},
-	industry_card(c){ //discard card
+	investment_card(c){ //discard card
 		clear_undo()
 		let tc = c === Math.abs(game.selected_Icard[0])? game.selected_Icard[1] : game.selected_Icard[0] //tech card
 		let side = tc > 0 ? 1 : -1		
@@ -3033,7 +3033,7 @@ states.government_discard = {
 				gen_action_action(card)
 			}
 			for (let card of hand[1]){
-				gen_action_industry(card)
+				gen_action_investment(card)
 			}
 		}
 	},
@@ -3043,7 +3043,7 @@ states.government_discard = {
 		game.discard[0].push(hand[0].splice(hand[0].indexOf(c), 1)[0])
 		log(`Discarded A${c}.`)
 	},
-	industry_card(c) {
+	investment_card(c) {
 		push_undo()
 		let hand = game.hand[game.activeNum]
 		game.discard[1].push(hand[1].splice(hand[1].indexOf(c), 1)[0])
@@ -3237,9 +3237,9 @@ states.government_invent_mole = {
 		view.prompt = `Inventing ${tech}: Discard the mole or place inside your vault.`
 		view.vault[game.target] = game.vault[game.target]
 		game.vault[game.activeNum].length >= HANDSIZE[game.activeNum]*2 ? view.actions.vault = 0 : view.actions.vault = 1
-		gen_action_industry(31)
+		gen_action_investment(31)
 	},
-	industry_card(c){ //discard card
+	investment_card(c){ //discard card
 		clear_undo()
 		let original_faction
 		for (let i = 0; i < 3; i++){
@@ -3451,7 +3451,7 @@ states.command = {
 				gen_action_action(card)
 			}
 			for (let card of hand[1]) {
-				gen_action_industry(card)
+				gen_action_investment(card)
 			}
 		}
 	},
@@ -3462,7 +3462,7 @@ states.command = {
 		game.command_card[game.activeNum]? game.command_card[game.activeNum].push(c) : game.command_card[game.activeNum] = [c]
 		array_remove_item(game.hand[game.activeNum][0], c)
 	},
-	industry_card(c){
+	investment_card(c){
 		push_undo()
 		game.selected_Icard = game.selected_Icard ?? []
 		game.selected_Icard.push(c)
@@ -4459,12 +4459,12 @@ states.vault_reveal = {
 			const card1 = ICARDS[Math.abs(v[i])]
 			const card2 = ICARDS[Math.abs(v[i+1])]
 			if ((v[i+1] > 0 && card2.left && card2.left !== "Industrial Espionage") ||
-				(v[i+1] < 0 && card2.right && card2.right !== "Industrial Espionage")) gen_action_industry(v[i])
+				(v[i+1] < 0 && card2.right && card2.right !== "Industrial Espionage")) gen_action_investment(v[i])
 			if ((v[i] > 0 && card1.left && card1.left !== "Industrial Espionage") ||
-				(v[i] < 0 && card1.right && card1.right !== "Industrial Espionage")) gen_action_industry(v[i+1])
+				(v[i] < 0 && card1.right && card1.right !== "Industrial Espionage")) gen_action_investment(v[i+1])
 		}
 	},
-	industry_card(c){ //discard card
+	investment_card(c){ //discard card
 		push_undo()
 		const f = game.activeNum
 		const index = game.vault[f].indexOf(c)
@@ -4494,12 +4494,12 @@ states.vault_reveal_battle = {
 			const card1 = ICARDS[Math.abs(v[i])]
 			const card2 = ICARDS[Math.abs(v[i+1])]
 			if ((v[i+1] > 0 && card2.left && card2.left !== "Industrial Espionage") ||
-				(v[i+1] < 0 && card2.right && card2.right !== "Industrial Espionage")) gen_action_industry(v[i])
+				(v[i+1] < 0 && card2.right && card2.right !== "Industrial Espionage")) gen_action_investment(v[i])
 			if ((v[i] > 0 && card1.left && card1.left !== "Industrial Espionage") ||
-				(v[i] < 0 && card1.right && card1.right !== "Industrial Espionage")) gen_action_industry(v[i+1])
+				(v[i] < 0 && card1.right && card1.right !== "Industrial Espionage")) gen_action_investment(v[i+1])
 		}
 	},
-	industry_card(c){ //discard card
+	investment_card(c){ //discard card
 		push_undo()
 		const f = game.activeNum
 		const index = game.vault[f].indexOf(c)
@@ -5920,8 +5920,8 @@ function gen_action_reserve(r) {
 function gen_action_action(c) {
 	gen_action("action_card", c)
 }
-function gen_action_industry(c) {
-	gen_action("industry_card", c)
+function gen_action_investment(c) {
+	gen_action("investment_card", c)
 }
 function gen_action_technology(c) {
 	gen_action("technology", c)

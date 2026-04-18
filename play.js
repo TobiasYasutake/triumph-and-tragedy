@@ -458,7 +458,7 @@ function update_cards() {
 			else {
 				e.className = `card i number_${v}`;
 				inv.appendChild(e)
-				register_action(e, "industry_card", v)
+				register_action(e, "investment_card", v)
 				let card = ICARDS[v]
 				let tnb = (card.left !== undefined || card.right !== undefined)
 				let spy = (card.special && spy_actions.indexOf(card.special) !== -1)
@@ -502,7 +502,7 @@ function update_cards() {
 				e.className = `card i number_${Math.abs(v[j])}`
 				if (v[j] <= 0) e.classList.add("flip")
 			}
-			register_action(e, "industry_card", v[j])
+			register_action(e, "investment_card", v[j])
 			if (j%2 === 0) {
 				e.style.marginBottom = "-280px"
 				shell = document.createElement("div")
@@ -1092,7 +1092,7 @@ function on_update(){
 	action_button("draw_action_card", "Draw Action Card")
 	action_button("draw_investment_card", "Draw Investment Card")
 
-	action_button("build_factory", "Build Factory")
+	action_button("build_INDustry", "Build Industry")
 
 	action_button("end_setup", "End setup")
 	action_button("end_production", "End Production")
