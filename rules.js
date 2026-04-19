@@ -1211,17 +1211,17 @@ function check_blockades_still_in_effect (){
 		for (let i = game.blockade_transafrica.length -1; i >= 0; i--) {
 			if (trade_partner(game.blockade_transafrica[i]) !== f) continue
 			if (set_has(network, game.blockade_transafrica[i])) {
-				log(`${REGIONS[game.blockade_transafrica[i]].name} no longer blockaded.`)
+				log(`r${game.blockade_transafrica[i]} no longer blockaded.`)
 				array_remove_item(game.blockade_transafrica, game.blockade_transafrica[i])
 			}
 		}
 		for (let i = game.blockade.length -1; i >= 0; i--) {
 			if (trade_partner(game.blockade[i]) !== f) continue
 			if (set_has(network, game.blockade[i])) {
-				log(`${REGIONS[game.blockade[i]].name} no longer blockaded.`)
+				log(`r${game.blockade[i]} no longer blockaded.`)
 				array_remove_item(game.blockade, game.blockade[i])
 			} else if (set_has(ta_network, game.blockade[i])) {
-				log(`${REGIONS[game.blockade[i]].name} downgraded to MED blockade.`)
+				log(`r${game.blockade[i]} downgraded to MED blockade.`)
 				game.blockade_transafrica.push(game.blockade[i])
 				array_remove_item(game.blockade, game.blockade_transafrica[i])
 			}
@@ -2569,7 +2569,7 @@ states.production_usa = {
 	reserve(r){game.selected_reserve === r ? game.selected_reserve = null : game.selected_reserve = r},
 	region(r){		
 		push_undo()
-		log(`USA reinforcement placed in ${REGIONS[r].name}.`)
+		log(`USA reinforcement placed in r${r}.`)
 		const b = create_cadre(game.selected_reserve, r)
 		set_delete(game.usa_reinforcements_types, game.block_type[b])
 		game.block_steps[b] = game.usa_reinforcements
@@ -3349,7 +3349,7 @@ states.agent = {
 	},
 	region(r) { //Needs work figure out the logic to have this be in the replay file?
 		clear_undo()
-		log(`The ${game.active} viewed the blocks in ${REGIONS[r].name}.`)
+		log(`The ${game.active} viewed the blocks in r${r}.`)
 		game.view_region = r
 	},
 	done(){
@@ -3376,6 +3376,7 @@ states.coup = {
 		view.actions.pass = 1
 		for (let i = 0; i < REGIONS.length; i++) {
 			if (REGIONS[i].type === 'sea') continue
+			if (REGIONS[i].country === "USA") continue
 			const c = COUNTRIES.findIndex(x => x.name === REGIONS[i].country)
 			const v = game.influence[c]
 			if (v !== -1 && Math.floor(v/10) === game.target && v%10 !== 0) gen_action_region(i)
@@ -3384,7 +3385,7 @@ states.coup = {
 	region(r){
 		const c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
 		game.influence[c] = -1
-		log(`The ${game.active} performed a coup in ${REGIONS[r].country}.`)
+		log(`The ${game.active} performed a coup in r${r}.`)
 		cleanup_intel()
 	},
 	pass(){
