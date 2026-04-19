@@ -5639,13 +5639,19 @@ exports.setup = function (seed, scenario, options) {
 		REGIONS.findIndex(x => x.name === 'Karachi'))
 
 	if (game.britania) {
-		log("Variant rule: Britannia Rules the Waves")
 		create_cadre(
 			(NATIONS.indexOf("Britain")*7) + TYPE.indexOf("Fleet"), 
 			REGIONS.findIndex(x => x.name === 'Glasgow'))
 	}
-
-	if (game.territorial_straits) log("Variant rule: Territorial Straits")
+	
+	let variants = false
+	log(`Variant rules:`)
+	if (game.britania) {variants = true; log("> Britania Rules the Waves.") }
+	if (game.territorial_straits) {variants = true; log("> Territorial Straits.")}
+	if (game.home_seas) {variants = true; log("> Home Seas.")}
+	if (game.offensive) {variants = true; log("> Offensive Turns.")}
+	if (game.blitz) {variants = true; log("> Blitz Turns.")}
+	if (variants === false) log("> None.")
 
 	for (let i = 0; i < COUNTRIES.length; i++){
 		game.influence[i] = -1
