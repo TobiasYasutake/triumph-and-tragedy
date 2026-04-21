@@ -579,7 +579,7 @@ function next_player_battle(recusive){//recursive is used for delayed attacks
 		const fs = factions_with_type(unused_blocks, type)
 		fs.sort((a, b) => { //+1 if defender, +2 if ff
 			const aNum = 0 + (game.attacker !== a) + (2*(has_ff_from_surprise(a, type))) + (2*(has_ff_from_tech(a, type)))
-			const bNum = 0 + (game.attacker !== b) + (2*(has_ff_from_surprise(b, type))) + (2*(has_ff_from_tech(a, type)))
+			const bNum = 0 + (game.attacker !== b) + (2*(has_ff_from_surprise(b, type))) + (2*(has_ff_from_tech(b, type)))
 			return bNum - aNum
 		})
 		if ((!recusive || s.length === 0) && game.hits && fs[0] !== game.activeNum && fs[0] !== -1) {
