@@ -308,7 +308,7 @@ function check_gained_control() {
 			}
 			else game.state = "sg_draw_dividends"
 		}
-		else if (game.phase === "government") next_season()
+		else if (game.phase === "government") next_season(true)
 		else {make_active(game.turn_order_command[0]); end_movement_phase()}
 	} else {
 		game.state = "gain_control"
