@@ -4561,30 +4561,41 @@ states.vault_reveal_battle = {
 
 states.choose_initiative = {//used in the rare case where two initiative cards are played of the same value.
 	inactive: "choose initiative",
-	prompt(){ 
-		view.prompt = `Some command cards are tied for initiative. Choose the order in which they should act.`
-		if (set_has(game.tied_turn_order, 0)) view.actions.axis = 1
-		if (set_has(game.tied_turn_order, 1)) view.actions.west = 1
-		if (set_has(game.tied_turn_order, 2)) view.actions.ussr = 1
+	prompt(){
+		const X = game.tied_turn_order[0]
+		const fs = []
+		view.prompt = `Some command cards are tied for initiative. Who should go first?`
+		for (let order of game.turn_order_command) {
+			if (typeof order === "object" && order[1] === X) set_add(fs, order[0])
+		}
+		if (set_has(fs, 0)) view.actions.axis = 1
+		if (set_has(fs, 1)) view.actions.west = 1
+		if (set_has(fs, 2)) view.actions.ussr = 1
 		if (game.tied_turn_order.length === 0)view.actions.done = 1
 	},
 	axis(){
 		push_undo()
-		set_delete(game.tied_turn_order, 0)
-		let index = game.turn_order_command.findIndex(x => x === null)
+		const X = game.tied_turn_order.shift()
+		let index = game.turn_order_command.findIndex(x => typeof x === "object" && x[1] === X)
+		let f = game.turn_order_command[index][0] === 0? game.turn_order_command[index +1][0] : game.turn_order_command[index][0]
 		game.turn_order_command[index] = 0
+		game.turn_order_command[index + 1] = f
 	},
 	west(){
 		push_undo()
-		set_delete(game.tied_turn_order, 1)
-		let index = game.turn_order_command.findIndex(x => x === null)
+		const X = game.tied_turn_order.shift()
+		let index = game.turn_order_command.findIndex(x => typeof x === "object" && x[1] === X)
+		let f = game.turn_order_command[index][0] === 1? game.turn_order_command[index +1][0] : game.turn_order_command[index][0]
 		game.turn_order_command[index] = 1
+		game.turn_order_command[index + 1] = f
 	},
 	ussr(){
 		push_undo()
-		set_delete(game.tied_turn_order, 2)
-		let index = game.turn_order_command.findIndex(x => x === null)
+		const X = game.tied_turn_order.shift()
+		let index = game.turn_order_command.findIndex(x => typeof x === "object" && x[1] === X)
+		let f = game.turn_order_command[index][0] === 2? game.turn_order_command[index +1][0] : game.turn_order_command[index][0]
 		game.turn_order_command[index] = 2
+		game.turn_order_command[index + 1] = f
 	},
 	done(){
 		let message = ''
