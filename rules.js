@@ -1278,9 +1278,9 @@ function next_blockades(start) {
 	if (!start && is_last_in_turn_order()){
 		const p = game.blockaded_pop; const r = game.blockaded_res
 		let message = ""
-		if (p[0]) message += `Axis have ${p[0]} blockaded pop, `; if (r[0]) message += `Axis have ${p[0]} blockaded res, `
-		if (p[1]) message += `West have ${p[1]} blockaded pop, `; if (r[1]) message += `West have ${p[1]} blockaded res, `
-		if (p[2]) message += `USSR have ${p[2]} blockaded pop, `; if (r[2]) message += `USSR have ${p[2]} blockaded res, `
+		if (p[0]) message += `Axis have ${p[0]} blockaded pop, `; if (r[0]) message += `Axis have ${r[0]} blockaded res, `
+		if (p[1]) message += `West have ${p[1]} blockaded pop, `; if (r[1]) message += `West have ${r[1]} blockaded res, `
+		if (p[2]) message += `USSR have ${p[2]} blockaded pop, `; if (r[2]) message += `USSR have ${r[2]} blockaded res, `
 		if (message !== "") {
 			log(`Blockade report: ${message}.`)
 		}
