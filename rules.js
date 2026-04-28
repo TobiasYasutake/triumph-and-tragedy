@@ -913,7 +913,8 @@ function factions_in_region(region, skip_esubs, skip_rrbs) { //rrbs = raid retre
 function factions_in_group(blocks){
 	let factions = []
 	for (const block of blocks) {
-		set_add(factions, faction_of_block(block))
+		let f = faction_of_block(block)
+		if (f !== false) set_add(factions, faction_of_block(block))
 	}
 	return factions
 }
