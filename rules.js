@@ -380,6 +380,7 @@ function end_movement_phase(){
 	}
 	if (battles || Object.keys(game.battle_groups).length !== 0){
 		determine_control(game.activeNum)
+		if (game.state === 'game_over') return
 		determine_raids()
 		log_br()
 		log_h3(`${game.active} Combat`, game.active)
@@ -707,8 +708,8 @@ function usa_satellite(){
 function minus_war_vps(faction){
 	let result = 0
 	if (game.relationship[faction].length !== 0) {
-		if (game.relationship[faction][0] === -1) result -= 1
-		if (game.relationship[faction][1] === -1) result -= 1
+		if (game.relationship[faction][0] === -1) result += 1
+		if (game.relationship[faction][1] === -1) result += 1
 	}
 	return result
 }
@@ -721,7 +722,7 @@ function victory_check(){// if someone has 25 vps (remember to count hidden vps 
 		let caps = vps[i]
 		vps[i] *= 2 //capitals are worth 2 points
 		vps[i] += determine_production(i)
-		vps[i] += minus_war_vps(i)
+		vps[i] -= minus_war_vps(i)
 		public_points[i] = vps[i]
 		for (let div of game.peace_dividend[i])
 			vps[i] += div
@@ -732,13 +733,17 @@ function victory_check(){// if someone has 25 vps (remember to count hidden vps 
 			let war = minus_war_vps(i)
 			let peace = 0
 			for (let div of game.peace_dividend[i])
-				peace += div		
-			goto_game_over(FACTIONS[i], `The ${FACTIONS[i]} have ${vps[i]} VPs and have won an Economic Victory!`)
+				peace += div
+
+			log_br()
+			log(".h1 The End")
+
+			goto_game_over(FACTIONS[i], `#vp The ${FACTIONS[i]} have ${vps[i]} VPs and have won an Economic Victory!`)
 			if (prod) log (`> ${prod} from Production`)
 			if (peace) log (`> ${peace} from Peace Dividends`)
 			if (atomic) log (`> ${atomic} from Atomic Research`)
 			if (caps) log (`> ${caps} from captured Capitals`)
-			if (war) log (`> negative ${war} from declarations of War`)
+			if (war) log (`> -${war} from declarations of War`)
 			return}
 	}
 
@@ -752,6 +757,8 @@ function victory_check_atomic(f, b){
 }
 
 function victory_check_hegemony(){
+	log_br()
+	log(".h1 The End")
 	log ("The game is over due to turn limit: the winner is the faction with the most points!")
 	const vps = captured_capitals()
 	for (let i = 0; i < 3; i++) {
@@ -764,13 +771,14 @@ function victory_check_hegemony(){
 			peace += div
 		vps[i] = caps + prod + peace + atomic - war
 		log_br()
-		log (`The ${FACTIONS[i]} have ${vps[i]} VPs:`)
+		log (`#vp The ${FACTIONS[i]} have ${vps[i]} VPs:`)
 		if (prod) log (`> ${prod} from Production (blockades are ignored)`)
 		if (peace) log (`> ${peace} from Peace Dividends`)
 		if (atomic) log (`> ${atomic} from Atomic Research`)
 		if (caps) log (`> ${caps} from captured Capitals`)
-		if (war) log (`> negative ${war} from declarations of War`)
+		if (war) log (`> -${war} from declarations of War`)
 	}
+	 log_br()
 	const highest = Math.max(...vps)
 	let factions_with_highest = 0
 	for (let i = 0; i < 3; i++) {
@@ -1891,7 +1899,13 @@ function determine_control(f){
 	let capitals = captured_capitals()
 	for (let i = 0; i < 3; i++) {
 		if (capitals[i] >= 2) {
-			goto_game_over(i, `The ${FACTIONS[i]} have won a Military Victory!`)
+			log_br()
+			log(`The ${FACTIONS[i]} control two rival capitals!`)
+
+			log_br()
+			log(".h1 The End")
+
+			goto_game_over(FACTIONS[i], `The ${FACTIONS[i]} have won a Military Victory!`)
 			break
 		}
 	}
@@ -5928,8 +5942,6 @@ function query_trade(f) {
 /* COMMON FRAMEWORK */
 
 function goto_game_over(result, victory) {
-	log_br()
-	log(".h1 The End")
 	game.active = "None"
 	game.activeNum = -1
 	game.state = "game_over"
