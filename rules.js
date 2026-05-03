@@ -1472,7 +1472,7 @@ function rebase_locations(r, b, retreat) {
  				((air || sub || !contains_enemy_blocks(s, f, true)) ||(c && is_neutral(c) && !is_armed_minor(c) && type === 'strait')) && //cannot move through enemy blocks
 				(!c || !is_neutral(c) || is_armed_minor(c) || (type === 'strait' && !(game.territorial_straits && (s === 22 || s === 96)))) && //cannot move through neutral unless armed or strait
  				(air || bt === 'w' || bt === 'c' || bt === 's' || shares_sea(space, s)) && //air, or coastal-water
-				(!air || type !== 'land' || (game.control[s] === f || are_enemies(f, game.control[s]))) //air cannot fly over rival land territory unless enemies
+				(!air || type !== 'land' || (game.control[s] === f || are_enemies(f, game.control[s], s))) //air cannot fly over rival land territory unless enemies
  			) {
  				if (!battle) set_add(net, s)
  				if ((air || type !== 'land') && remaining !== 0)
