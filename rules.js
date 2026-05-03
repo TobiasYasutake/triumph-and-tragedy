@@ -3490,7 +3490,7 @@ states.command = {
 			view.actions.pass = 1
 			view.actions.confirm = 0
 		}
-		if (!game.command_card[game.activeNum] || game.command_card[game.activeNum].length < command_limit()) {
+		if (!game.command_card[game.activeNum] || game.command_card[game.activeNum].length < command_limit(game.activeNum)) {
 			let hand = game.hand[game.activeNum]
 			for (let card of hand[0]){
 				gen_action_action(card)
