@@ -280,17 +280,17 @@ function resolve_diplomacy(){
 			}
 			log_br()
 		}
-		for (let i = 0; i < game.influence.length; i++){ //gain control
-			if (game.influence[i]%10 >= 3) {
-				if (COUNTRIES[i].name === "USA"){
-					if (Math.floor(game.influence[i]/10) !== 1) {
-						game.influence[i] = (Math.abs(game.influence[i]/10) + 3)
-					} else usa_satellite()
-				} else {
-					game.influence[i] -= game.influence[i]%10
-					log(`The ${FACTIONS[game.influence[i]/10]} gained control of ${COUNTRIES[i].name}.`)
-					game.gained_control[game.influence[i]/10].push(i)
-				}
+	}
+	for (let i = 0; i < game.influence.length; i++){ //gain control
+		if (game.influence[i]%10 >= 3) {
+			if (COUNTRIES[i].name === "USA"){
+				if (Math.floor(game.influence[i]/10) !== 1) {
+					game.influence[i] = (Math.abs(game.influence[i]/10) + 3)
+				} else usa_satellite()
+			} else {
+				game.influence[i] -= game.influence[i]%10
+				log(`The ${FACTIONS[game.influence[i]/10]} gained control of ${COUNTRIES[i].name}.`)
+				game.gained_control[game.influence[i]/10].push(i)
 			}
 		}
 	}
@@ -2963,10 +2963,10 @@ states.government_wildcard = {
 
 		let s = ACARDS[game.selected_Acard].special
 		if (s === "Birds of a Feather ") s = "Birds of a Feather"
-		log(`${game.active} used ${s}  to influence ${COUNTRIES[c].name} (A${game.selected_Acard})`)
+		log(`${game.active} used ${s} to influence ${COUNTRIES[c].name} (A${game.selected_Acard})`)
 		if (s === "Foreign Aid") {
 			game.ind[game.activeNum] -= 1
-			log("They lost one industry.")
+			log(">They lost one industry.")
 		}
 
 		game.discard[0].push(game.hand[game.activeNum][0].splice(game.hand[game.activeNum][0].indexOf(game.selected_Acard), 1)[0])
