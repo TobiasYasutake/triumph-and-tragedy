@@ -673,6 +673,9 @@ function update_tokens(){
 			count_xy = table[view.count]
 		}
 		let val = [view.pop[i] - view.bpop[i], view.ind[i], view.res[i] - view.bres[i]]
+		if (val[0] > 26) val[0] = 26
+		if (val[1] > 26) val[1] = 26
+		if (val[2] > 26) val[2] = 26
 		if (ic) val.push(view.count)
 
 		let pop = document.getElementById(`${FACTIONS[i]}_pop`); let pop_xy = table[val[0]]
