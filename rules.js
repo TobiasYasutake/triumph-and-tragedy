@@ -3918,6 +3918,7 @@ function update_mvmt(b, m, r){
 		(c && is_neutral(c) && !(is_armed_minor(c) || //may not invade a neutral for any reason, unless it is an AM, then can always invade it
 			(region.type === 'strait' && (!m.move_type || m.move_type !== 'land')))) || //or, another exception: you may go through neutral straits with sea/air movement
 		(game.territorial_straits && (r === 22 || r === 96) && !(f === ctrl || are_enemies(f, ctrl, r))) || //may not move into suez/istanbul with variant on unless you own it or you are at war. 
+		(m.disengage && game.block_type[b] !== 1 && game.block_type[b] !== 3 && m.aggression) || //while disengaging, none of the spaces may be enemy controled (unless passing through as sub/air)
 		(game.phase === "Winter" && c !== 5) //5 === ussr
 	) m.must_stop = 1
 
