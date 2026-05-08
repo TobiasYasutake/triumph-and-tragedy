@@ -3864,7 +3864,7 @@ function  end_block_move(b){
 		if (game.block_type[b] !== 1){
 			const border_id = get_border_id(r, p)
 			map_set(game.border_count, border_id, map_get(game.border_count, border_id, 0) + is_inf_or_tank(b))
-			if (REGIONS[p].type === "sea" && is_inf_or_tank(b)) {log(">Sea Invasion!"); set_add(game.invasion_blocks, b)}
+			if (/*REGIONS[p].type === "sea"*/ game.mvmt.move_type && game.mvmt.move_type === "sea" && is_inf_or_tank(b)) {log(">Sea Invasion!"); set_add(game.invasion_blocks, b)}
 		}
 	}
 	if (game.mvmt.aggression === 1) {
@@ -3872,10 +3872,12 @@ function  end_block_move(b){
 		if (first_block_in(b, r) && (contains_rival_blocks(r, game.activeNum) || can_hit_industry(b))) set_add(game.battle_required, r)
 		if (can_hit_industry(b) && !map_has(game.battle, r)) map_set(game.battle, r, [game.control[r], game.activeNum]) //for bombing specifically, make it a battle so you don't conquere with air
 		if (game.block_type[b] !== 1 && !contains_enemy_blocks(r, game.activeNum) && set_has(game.battle_required, r)) {set_delete(game.battle_required, r); map_remove(game.battle, r)} //for bombing specifically, remove 
-		// const fs = factions_in_region(r)
-		// if (fs.length === 1) set_add(game.aggression_met, game.control[r] === -1 ? c : game.control[r])
-		// else for (let f of fs) 
-		// 	if (f !== game.activeNum) set_add(game.aggression_met, f === -1 ? c : f)
+
+		if (!game.mvmt.land_combat && REGIONS[r].type !== 'sea' && game.mvmt.move_type && game.mvmt.move_type === "sea" && is_inf_or_tank(b)) {//sea invasion into empty enemy territory must respect border limits
+			const border_id = get_border_id(r, p)
+			map_set(game.border_count, border_id, map_get(game.border_count, border_id, 0) + 1)
+			log(">Sea Invasion!"); set_add(game.invasion_blocks, b)
+		}
 	}
 
 	clear_selected()
@@ -3965,7 +3967,7 @@ function legal_end_space(b, m, r){
 			REGIONS[m.previous_space].type === 'land' && !shares_sea(m.previous_space, r)) || //Sea move must share coastline
 		(game.block_type[b] === 1 && (ctrl !== f || region.type === 'sea') && //airplane must end at a base if...
 			(m.strategic_move || REGIONS[m.origin_space].type === 'sea')) || //strategic move or started at sea		
-		(m.land_combat && !ans && //Border limits
+		(!ans && (m.land_combat || (m.aggression && m.move_type && m.move_type === 'sea')) && //Border limits, which should include sea invasions
 			border_limit(m.previous_space, r) <= map_get(game.border_count, get_border_id(m.previous_space, r ), 0) -
 			(REGIONS[m.previous_space].type === 'sea' && has_tech(f, 'LSTs'))) || //-1 from the count for invasions
 		(m.sea_combat && !ans) || //convoys cannot attack
