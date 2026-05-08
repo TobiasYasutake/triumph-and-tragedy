@@ -742,7 +742,7 @@ function victory_check(){// if someone has 25 vps (remember to count hidden vps 
 			if (prod) log (`> ${prod} from Production`)
 			if (peace) log (`> ${peace} from Peace Dividends`)
 			if (atomic) log (`> ${atomic} from Atomic Research`)
-			if (caps) log (`> ${caps} from captured Capitals`)
+			if (caps) log (`> ${caps*2} from captured Capitals`)
 			if (war) log (`> -${war} from declarations of War`)
 			return}
 	}
@@ -775,7 +775,7 @@ function victory_check_hegemony(){
 		if (prod) log (`> ${prod} from Production (blockades are ignored)`)
 		if (peace) log (`> ${peace} from Peace Dividends`)
 		if (atomic) log (`> ${atomic} from Atomic Research`)
-		if (caps) log (`> ${caps} from captured Capitals`)
+		if (caps) log (`> ${caps*2} from captured Capitals`)
 		if (war) log (`> -${war} from declarations of War`)
 	}
 	 log_br()
@@ -3665,7 +3665,12 @@ function update_battle(r){
 		map_set(game.battle, r, battle)
 	}
 	else if (cxb) {
-		map_set(game.battle, r, [game.control[r], game.activeNum])
+		if (game.control[r] === game.activeNum) { //weird situation where the player moved out fully from the region and then moved other blocks in, deleting the battle and then creating a new one
+			const fs = factions_in_region(r)
+			set_delete (fs, game.activeNum)
+			if  (fs.length !== 1) throw Error ("Weird battle exception malfunction")
+			map_set(game.battle, r, [game.activeNum ,fs[0]])
+		} else map_set(game.battle, r, [game.control[r], game.activeNum])
 	}
 }
 
