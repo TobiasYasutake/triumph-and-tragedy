@@ -276,7 +276,7 @@ function resolve_diplomacy(){
 				let country = game.diplomacy[i][j] > 0? COUNTRIES.findIndex(c => c.name === card.left) : COUNTRIES.findIndex(c => c.name === card.right)
 				influence_country(country, i)
 				game.discard[0].push(Math.abs(game.diplomacy[i].splice(j,1)[0]))
-				log(COUNTRIES[country].name)
+				log("c"+country)
 			}
 			log_br()
 		}
@@ -289,7 +289,7 @@ function resolve_diplomacy(){
 				} else usa_satellite()
 			} else {
 				game.influence[i] -= game.influence[i]%10
-				log(`The ${FACTIONS[game.influence[i]/10]} gained control of ${COUNTRIES[i].name}.`)
+				log(`The ${FACTIONS[game.influence[i]/10]} gained control of c${[i]}.`)
 				game.gained_control[game.influence[i]/10].push(i)
 			}
 		}
@@ -1649,14 +1649,15 @@ function conquest_influence(){
 }
 
 function arm_minor(country, f) {
-	if (country === 'USA') {usa_violation(); return}
-	if (f === 3) log(`${country} became neutral, and armed for colonial independence!`)
-	else log(`The ${game.active} declared a VoN on ${country}, which armed for defense!`)
 	let c = COUNTRIES.findIndex(x => x.name === country)
+	if (country === 'USA') {usa_violation(); return}
+	if (f === 3) log(`c${c} became neutral, and armed for colonial independence!`)
+	else log(`The ${game.active} declared a VoN on c${c}, which armed for defense!`)
+
 	//remove influence, unless at 2 and OTHER faction attacked
 	if (game.influence[c]%10 === 2 && Math.floor(game.influence[c]/10) !== f){
 		game.influence[c] -=2
-		log(`${country} is a protectorate of the ${FACTIONS[game.influence[c]/10]}, giving them control.`)
+		log(`c${c} is a protectorate of the ${FACTIONS[game.influence[c]/10]}, giving them control.`)
 		set_add(game.gained_control[game.influence[c]/10], c)
 		set_add(game.aggression_met, game.influence[c]/10)
 	} else {game.influence[c] = -1; set_add(game.armed_minors, c)}
@@ -1682,7 +1683,7 @@ function arm_minor(country, f) {
 
 function defeat_minor(c) {
 	const country = COUNTRIES[c].name
-	log(`${country} has been defeated.`)
+	log(`c${c} has been defeated.`)
 	set_delete(game.armed_minors, c)
 	game.minor_aggressor[c] = undefined
 	for (let i = 0; i < game.block_location.length; i++) {
@@ -1694,7 +1695,7 @@ function defeat_major(c) {
 	if (set_has(game.defeated_major_powers, c)) return
 	const name = COUNTRIES[c].name
 	const n = NATIONS.findIndex(x => x === name)
-	log(`${name} has been defeated.`)
+	log(`n${n} has been defeated.`)
 	for (let i = 0; i < game.block_location.length; i++) {
 		if (game.block_nation[i] === n) remove_block(i)
 	}
@@ -1706,7 +1707,7 @@ function defeat_major(c) {
 			arm_minor(COUNTRIES[c].name, 3) //if 'aggressor' is 3, then no interventions will be possible.
 			game.control[r] = -1
 		} else {
-			log(`${colony} is controlled by the ${FACTIONS[game.control[r]]}, giving them control.`)
+			log(`c${c} is controlled by the ${FACTIONS[game.control[r]]}, giving them control.`)
 			game.influence[c] = game.control[r]*10
 		}
 	}
@@ -2892,7 +2893,7 @@ states.government = {
 		}
 		game.ind[game.activeNum] += 1
 		game.factory_increase[game.activeNum] += 1
-		log(`${game.active} has built INDustry (${cards}).`)
+		log(`${game.active} has built IND (${cards}).`)
 		next_player()
 	},
 	configure_autopass(){
@@ -2920,7 +2921,7 @@ states.government_diplomacy = {
 	},
 	confirm(){
 		const ic = game.selected_Acard
-		log(`${game.active} influenced ${ic > 0 ? ACARDS[ic].left : ACARDS[Math.abs(ic)].right}. (A${Math.abs(ic)})`)
+		log(`${game.active} influenced c${ic > 0 ? COUNTRIES.findIndex(x => x.name === ACARDS[ic].left) : COUNTRIES.findIndex(x => x.name === ACARDS[Math.abs(ic)].right)}. (A${Math.abs(ic)})`)
 		game.pass_count = 0
 		array_remove_item(game.hand[game.activeNum][0], Math.abs(ic))
 		let match = check_matching_diplomacy(ic, game.activeNum)
@@ -2963,7 +2964,7 @@ states.government_wildcard = {
 
 		let s = ACARDS[game.selected_Acard].special
 		if (s === "Birds of a Feather ") s = "Birds of a Feather"
-		log(`${game.active} used ${s} to influence ${COUNTRIES[c].name} (A${game.selected_Acard})`)
+		log(`${game.active} used ${s} to influence c${c} (A${game.selected_Acard})`)
 		if (s === "Foreign Aid") {
 			game.ind[game.activeNum] -= 1
 			log(">They lost one industry.")
@@ -3400,7 +3401,7 @@ states.coup = {
 	region(r){
 		const c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
 		game.influence[c] = -1
-		log(`The ${game.active} performed a coup in r${r}.`)
+		log(`The ${game.active} performed a coup in c${c}.`)
 		cleanup_intel()
 	},
 	pass(){
@@ -3812,7 +3813,7 @@ states.movement_move = {
 			const fs = factions_in_region(r)
 			if (c && is_neutral(c) && is_armed_minor(c) && !set_has(game.intervention_required, c) && !game.minor_aggressor[c].includes(game.activeNum)) {
 				game.minor_aggressor[c].push(game.activeNum)
-				log(`The ${game.active} have enacted a partition of ${REGIONS[r].country}. They are now enemies.`)
+				log(`The ${game.active} have enacted a partition of c${c}. They are now enemies.`)
 			}
 			if (fs.length === 1) set_add(game.aggression_met, game.control[r] === -1 ? c : game.control[r])
 			else for (let f of fs) 
@@ -4929,7 +4930,7 @@ states.repudiation = {
 		view.actions.support = 1
 	},
 	repudiate(){
-		log(`The ${game.active} withdrew their support. ${COUNTRIES[game.selected_other].name} must fight alone.`)
+		log(`The ${game.active} withdrew their support. c${game.selected_other} must fight alone.`)
 		if (are_enemies(game.activeNum, game.turn_order_command[0])) {
 			game.state = "roll_back_war"
 		}
@@ -4941,7 +4942,7 @@ states.repudiation = {
 		make_active(game.turn_order_command[0])
 	},
 	support(){
-		log(`The ${game.active} confirmed their support of ${COUNTRIES[game.selected_other].name}.`)
+		log(`The ${game.active} confirmed their support of c${game.selected_other}.`)
 		game.commited = game.activeNum
 		if (!are_enemies(game.activeNum, game.turn_order_command[0])) {
 			make_war(game.turn_order_command[0], game.activeNum)
@@ -5015,7 +5016,7 @@ states.intervention = {
 	region(r){
 		push_undo()
 		let c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
-		log(`The ${game.active} have declared an intervetion of ${REGIONS[r].country}, which will becomes its satelite.`)
+		log(`The ${game.active} have declared an intervetion of c${c}, which will becomes its satelite.`)
 		set_add(game.intervention_required, c)
 		game.state = 'movement'
 	},
@@ -5092,7 +5093,7 @@ states.remove_influence = {
 	region(r) {
 		const country = REGIONS[r].country
 		const c = COUNTRIES.findIndex(x => x.name === country)
-		log(`${game.active} removed an influence from ${country}.`)
+		log(`${game.active} removed an influence from c${c}.`)
 		game.deleted_something = 1
 		if (game.influence[c]%10 === 1) game.influence[c] = -1
 		else game.influence[c] -= 1

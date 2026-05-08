@@ -945,6 +945,7 @@ function escape_text(text) {
 	text = text.replace(/!!/g, '<span style="color: red;">\u2192</span>')
 
 	text = text.replace(/r(\d+)/g, sub_region_name)
+	text = text.replace(/c(\d+)/g, sub_country_name)
 	//text = text.replace(/p(\d+)/g, sub_piece_name_reduced)
 	//text = text.replace(/P(\d+)/g, sub_piece_name)
 	text = text.replace(/A(\d+)/g, sub_a_card_name)
@@ -959,6 +960,12 @@ function sub_region_name(match, p1) {
     let s = p1 | 0
     let n = REGIONS[s].name
     return `<span class="spacetip" onmouseenter="on_focus_region_tip(${s})" onmouseleave="on_blur_region_tip(${s})" onclick="on_click_region_tip(${s})">${n}</span>`
+}
+
+function sub_country_name(match, p1) {
+    let s = p1 | 0
+    let n = COUNTRIES[s].name
+    return `<span class="spacetip" onmouseenter="on_focus_country_tip(${s})" onmouseleave="on_blur_country_tip(${s})" onclick="on_click_country_tip(${s})">${n}</span>`
 }
 
 //Needs work
@@ -1024,6 +1031,18 @@ function sub_icon(match) {
 }
 
 // === Focus and Blur === //
+function on_focus_country_tip(i) {
+	if (COUNTRIES[i].name === "USSR") document.getElementById("USSRC").classList.add("tip")
+	else document.getElementById(COUNTRIES[i].name).classList.add("tip")
+}
+function on_blur_country_tip(i) {
+	if (COUNTRIES[i].name === "USSR") document.getElementById("USSRC").classList.add("tip")
+	else document.getElementById(COUNTRIES[i].name).classList.remove("tip")
+}
+function on_click_country_tip(i) {
+	if (COUNTRIES[i].name === "USSR") document.getElementById("USSRC").classList.add("tip")
+	else scroll_into_view(document.getElementById(COUNTRIES[i].name))
+}
 
 function on_focus_region_tip(i) {
 	document.getElementById(REGIONS[i].name).classList.add("tip")
