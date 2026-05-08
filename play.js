@@ -1196,9 +1196,17 @@ function on_update(){
 	process_actions()
 	update_turn_order_display()
 	update_action_menu()
+	update_favicon()
 }
 
-/* copied from FRIEDRICH */
+function update_favicon() {
+	if (view.player) {
+		const e = document.getElementById("favicon")
+		if (view.player === "Axis") e.href = "tokens/control_axis.jpeg"
+		if (view.player === "West") e.href = "tokens/control_west.jpeg"
+		if (view.player === "USSR") e.href = "tokens/control_ussr.jpeg"
+	}
+}
 
 function toggle_pieces() {
 	// Cycle between showing everything, only pieces, and nothing.
