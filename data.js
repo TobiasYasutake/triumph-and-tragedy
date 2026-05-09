@@ -22,7 +22,7 @@ const COUNTRIES = [
     {capital: "Gibraltar", name: "Gibraltar", x: 512, y: 1722, color1: "rgb(133, 183, 206)", color2: "rgb(133, 183, 206, 0.5)"},
     {capital: "Delhi", name: "India", x: 3287, y: 1462, color1: "rgb(155, 205, 230)", color2: "rgb(155, 205, 230, 0.5)"},
     {capital: "Malta", name: "Malta", x: 1330, y: 1825, color1: "rgb(130, 180, 203)", color2: "rgb(130, 180, 203, 0.5)"},
-    {capital: "Suez", name: "Middle East", x: 2210, y: 1881, color1: "rgb(139, 189, 212)", color2: "rgb(139, 189, 212 0.5)"},
+    {capital: "Suez", name: "Middle East", x: 2210, y: 1881, color1: "rgb(139, 189, 212)", color2: "rgb(139, 189, 212, 0.5)"},
     {capital: "Algiers", name: "French North Africa", x: 727, y: 1782, color1: "rgb(181, 219, 221)", color2: "rgb(181, 219, 221, 0.5)"},
     {capital: "Damascus", name: "Syria", x: 2390, y: 1776, color1: "rgb(181, 219, 221)", color2: "rgb(181, 219, 221, 0.5)"},
     {capital: "Kabul", name: "Afghanistan", x: 3112, y: 1498, color1: "rgb(193, 174, 136)", color2: "rgb(193, 174, 136, 0.5)"},

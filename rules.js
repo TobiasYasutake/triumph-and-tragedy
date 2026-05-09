@@ -1518,6 +1518,22 @@ function determine_retreats(r, finished){
 	}
 }
 
+function only_convoys(){
+	if (!game.active_battle || REGIONS[game.active_battle].type !== "sea" || can_add_battlegroup(game.active_battle) || factions_in_group(game.active_battle_blocks).length === 1) return false
+	for (const b of game.active_battle_blocks) if (is_ans(b)) return false
+	return true
+	//at sea
+	//no incoming battle groups
+	//all 
+}
+
+function convoy_suicide(){
+	log(`The outbreak of the war has left Convoys on both side flatfooted. The soldiers try to navigate home. In an amazing display of incompetence, they mess up starting the engine. All the ships explode.`)
+	for (let i = game.active_battle_blocks.length -1; i >= 0; i--) remove_block(game.active_battle_blocks[i])
+	game.defender = null
+	end_battle()
+}
+
 function next_player_retreat(){
 	const group = object_copy(game.must_retreat)
 	group.push(...game.may_retreat)
@@ -1526,7 +1542,10 @@ function next_player_retreat(){
 		game.must_retreat = null ; game.may_retreat = null //general cleanup
 		const fsr = factions_in_region(game.active_battle)
 		if (game.attacker === null) {game.must_retreat = null; game.may_retreat = null; next_season(true)}  //if attacker is null then this is during the supply check phase
-		else if (game.defender !== null && set_has(fsr, game.defender)) new_sea_combat_round() //defender should be null for all land battles by this point.
+		else if (game.defender !== null && set_has(fsr, game.defender)) {
+			if (only_convoys()) convoy_suicide()
+			else new_sea_combat_round() //defender should be null for all land battles by this point.
+		}
 		else if (REGIONS[game.active_battle].type === 'sea' && fsr.length >= 2 && are_enemies(fsr[0], fsr[1])){
 			log(`The ${game.attacker} have defeated one enemy, but now needs to fight the other.`)
 			create_emergency_battle_group() //will end up either in prebattle setup, or choose battlegroup
