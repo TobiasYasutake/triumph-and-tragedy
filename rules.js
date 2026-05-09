@@ -5063,7 +5063,7 @@ states.remove_blocks = {
 		view.actions.done = game.deleted_something? 1 : 0
 	},
 	block(b) {
-		log(`${game.active} removed a block from ${game.block_location[b]}.`)
+		log(`${game.active} removed a block from r${game.block_location[b]}.`)
 		game.deleted_something = 1
 		remove_block(b)
 	},

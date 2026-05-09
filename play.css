@@ -835,7 +835,6 @@ body.shift .block.known:hover {
 	background-size: 600% 100%;
 	background-repeat: no-repeat;
 	background-image: url(images/die_pale_pips.svg);
-	/* box-shadow: 0 0 0 1px #333, 1px 2px 3px 1px #0004; */
 }
 
 .d0 { display: none; }
@@ -846,27 +845,11 @@ body.shift .block.known:hover {
 .d5 { background-position: 80% 0; }
 .d6 { background-position: 100% 0; }
 
-/* .attacker .die {
-	background-color: #c98a89;
-	border-color: #d8a09f #b67473 #b67473 #d8a09f;
-} */
-
 .die.hit {
 	background-color: #9e302f;
 	border-color: #9c3b3a #701d1b #701d1b #9c3b3a;
 	background-image: url(images/die_gold_pips.svg);
 }
-/* 
-.defender .die {
-	background-color: #d1bdb0;
-	border-color: #dbcdc3 #c2aa99 #c2aa99 #dbcdc3;
-}
-
-.defender .die.hit {
-	background-color: #bb957b;
-	border-color: #d6af95 #a18069 #a18069 #d6af95;
-	background-image: url(images/die_gold_pips.svg);
-} */
 
 .die.action { box-shadow: 0 0 0 1px #333, 0 0 0px 3px white; }
 
@@ -913,17 +896,6 @@ body.shift .block.known:hover {
 #log div.bold { font-weight: bold }
 #log div.italic { font-style: italic }
 
-/* Country Colors */
-.Yugoslavia.h4 {background-color: d3edf6 ;}
-.Yugoslavia {background-color: rgb(215, 172, 115, 0.5);}
-
-/* 
-#log .axisvp { color: grey; }
-#log .westvp { color: blue; }
-#log .ussrvp { color: red; } 
-*/
-
-
 
 /* Dice */
 
@@ -946,16 +918,9 @@ body.shift .block.known:hover {
 
 #log .die.hit {
 	background-color: #eb2521;
-	/* border-color: #9c3b3a #701d1b #701d1b #9c3b3a; */
 	border: 1px solid #444;
 	background-image: url(images/die_white_pips.svg);
 }
-
-/* #log .die.cp {
-	background-image: url(pieces/die_black_pips.svg);
-	background-color: lightblue;
-	border: 1px solid #444;
-} */
 
 .d1 { background-position: 0% 0; }
 .d2 { background-position: 20% 0; }
