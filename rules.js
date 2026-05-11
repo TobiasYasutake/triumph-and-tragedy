@@ -2940,7 +2940,9 @@ states.government_diplomacy = {
 	},
 	confirm(){
 		const ic = game.selected_Acard
-		log(`${game.active} influenced c${ic > 0 ? COUNTRIES.findIndex(x => x.name === ACARDS[ic].left) : COUNTRIES.findIndex(x => x.name === ACARDS[Math.abs(ic)].right)}. (A${Math.abs(ic)})`)
+		const c = ic > 0 ? COUNTRIES.findIndex(x => x.name === ACARDS[ic].left) : COUNTRIES.findIndex(x => x.name === ACARDS[Math.abs(ic)].right)
+		log(`${game.active} influenced c${c}. (A${Math.abs(ic)})`)
+		autopass_defensive_check(c, game.activeNum)
 		game.pass_count = 0
 		array_remove_item(game.hand[game.activeNum][0], Math.abs(ic))
 		let match = check_matching_diplomacy(ic, game.activeNum)
@@ -2977,7 +2979,8 @@ states.government_wildcard = {
 		}
 	},
 	region(r){
-		let c = COUNTRIES.findIndex(c => c.name === (REGIONS[r].country))  
+		let c = COUNTRIES.findIndex(c => c.name === (REGIONS[r].country))
+		autopass_defensive_check(c, game.activeNum)
 		influence_country(c, game.activeNum)
 		update_production()
 
@@ -5217,6 +5220,9 @@ function translate_conditions(f){
 		if (c.type === "influence") {
 			message += `${FACTIONS[c.target]} have ${c.value} or more influence in ${c.country}, OR `
 		}
+		if (c.type === "defensive") {
+			message += `${game.active} loses influence in ${c.country === "any"? "any country" : c.country}, OR `
+		}
 	}
 	message = message.slice(0, message.length - 5) + "."
 	return message
@@ -5229,7 +5235,6 @@ function autopass_conditions_met(f){
 			game.hand[c.target][0].length + 
 			game.hand[c.target][1].length <= 
 			c.value) {disable_autopass(f); return true}
-		
 		if (c.type === "influence"){
 			if (c.country === "any country"){
 				for (let j = 0; j < game.influence.length; j++) {
@@ -5243,7 +5248,7 @@ function autopass_conditions_met(f){
 							if (country === COUNTRIES[j].name) val += c.target === i? 1 : -1
 						}
 					}
-					if (c.value <= val) {game.autopass[f] = []; return true}
+					if (c.value <= val) {disable_autopass(f); return true}
 				}
 			}
 			else {
@@ -5259,6 +5264,17 @@ function autopass_conditions_met(f){
 				if (c.value <= val) {disable_autopass(f); return true}
 			}
 		}
+		if (c.type === "defensive"){
+			if (game.autopass_defensive_triggered && game.autopass_defensive_triggered[f]) {
+				game.autopass_defensive_triggered[f] = false
+				if (game.autopass_defensive_triggered[0] === false &&
+					game.autopass_defensive_triggered[1] === false &&
+					game.autopass_defensive_triggered[2] === false
+				) delete game.autopass_defensive_triggered
+				disable_autopass(f)
+				return true
+			}
+		}
 	}
 	return false
 }
@@ -5270,6 +5286,35 @@ function disable_autopass(f){ //should always be gated behind "if (game.autopass
 	game.autopass_disabled[f] = true
 }
 
+function will_have_influence(c, f){
+	const country = COUNTRIES[c].name
+	if (c && game.influence[c] % 10 === 0) return false
+
+	let value = game.influence[c] === -1? 0: game.influence[c]%10
+	if (Math.floor(game.influence[c]/10) !== f) value *= -1
+	for (let i = 0; i < 3; i++){
+		for (let card of game.diplomacy[i]) {
+			const cntry = card > 0? ACARDS[card].left : ACARDS[Math.abs(card)].right
+			if (cntry === country) value += i === f? 1 : -1
+		}
+	}
+	return value > 0
+}
+
+function autopass_defensive_check(c, f){ //checks to see if there are any countries that trigger the defense check, and if so activates the end autopass.
+	if (!game.autopass) return
+	for (let i = 0; i < 3; i++){
+		if (i === f) continue
+		if (game.autopass[i].length > 0 && will_have_influence(c, i)) {
+			for (const condition of game.autopass[i]) {
+				if (condition.type === "defensive" && (condition.country === "any" || condition.country === COUNTRIES[c].name)){
+					game.autopass_defensive_triggered = game.autopass_defensive_triggered?? [false, false, false]
+					game.autopass_defensive_triggered[i] = true
+				}
+			}
+		}
+	}
+}
 
 states.autopass = {
 	disable_negotiation: 1,
@@ -5299,12 +5344,15 @@ states.create_autopass = {
 	disable_vault: 1,
 	inactive: "take a government action",
 	prompt() {
-		const f = game.activeNum
+		//const f = game.activeNum
 		if (game.autopass_target === undefined) {
 			view.prompt = "Creating autopass condition: first pick a faction..."
-			if (f !== 0) view.actions.axis = 1
-			if (f !== 1) view.actions.west = 1
-			if (f !== 2) view.actions.ussr = 1
+			// if (f !== 0) view.actions.axis = 1
+			view.actions.axis = 1
+			// if (f !== 1) view.actions.west = 1
+			view.actions.west = 1
+			// if (f !== 2) view.actions.ussr = 1
+			view.actions.ussr = 1
 		}
 		else if (game.autopass_type === undefined) {
 			view.prompt = `${FACTIONS[game.autopass_target]} chosen. Next choose condition - Handsize or Influence?`
@@ -5330,6 +5378,17 @@ states.create_autopass = {
 				if (REGIONS[r].country && !ics.includes(REGIONS[r].country)) gen_action_region(r)
 			}
 		}
+		else if (game.autopass_type === "defensive" && game.autopass_country === undefined ) {
+			view.prompt = "Chose self. Will end autopass if you lose influence in country you currently influence. Which country?"
+			view.actions.any = 1
+			const ics = generate_ineligible_countries()
+			for (let r = 0; r < REGIONS.length; r++){
+				const country = REGIONS[r].country?? null
+				if (country === null || ics.includes(country)) continue
+				const c = COUNTRIES.findIndex(x => x.name === REGIONS[r].country)
+				if (will_have_influence(c, game.activeNum)) gen_action_region(r)
+			}
+		}
 		else {
 			view.prompt = `How much influence should the ${FACTIONS[game.autopass_target]} have in ${game.autopass_country} (at least) to stop auto passing?`
 			view.actions.value = view.actions.value ?? []
@@ -5337,16 +5396,42 @@ states.create_autopass = {
 				view.actions.value.push(i)
 		}
 	},
-	axis(){push_undo(); game.autopass_target = 0},
-	west(){push_undo(); game.autopass_target = 1},
-	ussr(){push_undo(); game.autopass_target = 2},
+	axis(){push_undo(); game.autopass_target = 0; if (game.activeNum === 0) game.autopass_type = "defensive"},
+	west(){push_undo(); game.autopass_target = 1; if (game.activeNum === 1) game.autopass_type = "defensive"},
+	ussr(){push_undo(); game.autopass_target = 2; if (game.activeNum === 2) game.autopass_type = "defensive"},
 	handsize() {
 		push_undo()
 		game.autopass_type = "handsize"
 	},
 	influences() {push_undo(); game.autopass_type = "influence"},
-	any() {push_undo(); game.autopass_country = "any country"},
-	region(r) {push_undo(); game.autopass_country = REGIONS[r].country},
+	any() {
+		push_undo()
+		game.autopass_country = "any country"
+		if (game.autopass_type === "defensive") {
+			game.autopass[game.activeNum].push({
+				type: game.autopass_type,
+				country: game.autopass_country,
+			})
+			delete game.autopass_target
+			delete game.autopass_country
+			delete game.autopass_type
+			game.state = "autopass"
+		}
+	},
+	region(r) {
+		push_undo()
+		game.autopass_country = REGIONS[r].country
+		if (game.autopass_type === "defensive") {
+			game.autopass[game.activeNum].push({
+				type: game.autopass_type,
+				country: game.autopass_country,
+			})
+			delete game.autopass_target
+			delete game.autopass_country
+			delete game.autopass_type
+			game.state = "autopass"
+		}
+	},
 	value(v) {
 		clear_undo()
 		if (game.autopass_type === "handsize") {
