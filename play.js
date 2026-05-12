@@ -186,8 +186,6 @@ function on_init() {
 		register_action(e, "region", i)
 		e.onmouseenter = () => on_focus_region(i)
 		e.onmouseleave = () => on_blur_region(i)
-		//need to add the onmouseenter event to make the related blocks bigger!
-		//and of course the onmouseleave to blur/make the blocks regular size
 	}
 	//reserves
 	for (let i = 0; i <= 41; i++){
