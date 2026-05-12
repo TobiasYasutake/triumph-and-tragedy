@@ -76,21 +76,24 @@ path.network_none {
 }
 
 path.supply {
-	/* display:inline; */
 	fill: rgba(255, 255, 255, 0.836);
 	fill-opacity: 1;
 }
  
-path.some_supply {
+path.adj_supply {
 	/* display:inline; */
 	/* fill: rgba(238, 131, 30, 0.836);
 	fill-opacity: 0.80; */
-		fill: rgba(87, 87, 87, 0.836);
+	fill: rgba(87, 87, 87, 0.836);
+	fill-opacity: 1;
+}
+
+path.TransAfrica {
+	fill: rgba(235, 147, 65, 0.836);
 	fill-opacity: 1;
 }
 
 path.no_supply {
-	/* display:inline; */
 	fill: rgba(8, 8, 8, 0.836);
 	fill-opacity: 1;
 }
@@ -108,7 +111,8 @@ path.action.supply {
     fill-opacity:0.70;
 }
 
-path.action.some_supply {
+path.action.adj_supply, 
+path.action.TransAfrica {
 	fill:#2c7203;
     fill-opacity:0.80;
 }

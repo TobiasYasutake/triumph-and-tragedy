@@ -6013,6 +6013,7 @@ exports.view = function (state, player) {
 /* QUERY */
 
 exports.query = function (state, _current, q) {
+	game = state
 	const f = FACTIONS.indexOf(q.slice(0, 4))
 	const action = q.slice(5)
 	if (action === "supply") return query_supply(f)

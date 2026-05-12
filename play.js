@@ -206,10 +206,12 @@ function set_query(q){
 }
 
 function show_supply(supply) {
+	const trade = query.substring(5) === "trade" 
 	for (let i = 0; i < REGIONS.length; i++){
 		let e = document.getElementById(REGIONS[i].name)
 		e.classList.toggle("supply", supply[0].includes(i))
-		e.classList.toggle("some_supply", supply[1].includes(i))
+		e.classList.toggle("adj_supply", !trade && supply[1].includes(i))
+		e.classList.toggle("TransAfrica", trade && supply[1].includes(i))
 		e.classList.toggle("no_supply", !(supply[0].includes(i) || supply[1].includes(i)))
 	}
 }
@@ -231,7 +233,7 @@ function hide_supply_trade() {
 		e.classList.remove("supply")
 		e.classList.remove("no_supply")
 		e.classList.remove("some_supply")
-		// e.classList.remove("network")
+		e.classList.remove("TransAfrica")
 		// e.classList.remove("network_ta")
 		// e.classList.remove("network_none")
 	}
