@@ -77,14 +77,22 @@ path.network_none {
 
 path.supply {
 	/* display:inline; */
-	fill: rgba(219, 219, 219, 0.836);
-	fill-opacity: 0.60;
+	fill: rgba(255, 255, 255, 0.836);
+	fill-opacity: 1;
+}
+ 
+path.some_supply {
+	/* display:inline; */
+	/* fill: rgba(238, 131, 30, 0.836);
+	fill-opacity: 0.80; */
+		fill: rgba(87, 87, 87, 0.836);
+	fill-opacity: 1;
 }
 
 path.no_supply {
 	/* display:inline; */
 	fill: rgba(8, 8, 8, 0.836);
-	fill-opacity: 0.80;
+	fill-opacity: 1;
 }
 
 path.action {
@@ -97,12 +105,17 @@ path.action {
 
 path.action.supply {
 	fill:#15fad4;
-    fill-opacity:0.60;
+    fill-opacity:0.70;
+}
+
+path.action.some_supply {
+	fill:#2c7203;
+    fill-opacity:0.80;
 }
 
 path.action.no_supply {
-	fill:#a20683;
-    fill-opacity:0.70;
+	fill:#83056a;
+    fill-opacity:0.80;
 }
 
 .initiative.highlight {

@@ -6030,7 +6030,7 @@ function query_supply(f) {
 			if (set_has(supply, adj)) adj_regions.push(i)
 		}
 	}
-	return set_union(supply, adj_regions)
+	return [supply, adj_regions]
 }
 function query_trade(f) {
 	const og_control = game.control
@@ -6039,16 +6039,12 @@ function query_trade(f) {
 	const network_ta = get_trade_network(f, true)
 	const in_nw = []
 	const in_ta = []
-	const in_na = []
 	game.control = og_control
 	for (let i = 0; i < REGIONS.length; i++) {
-		const r = REGIONS[i]
-		if (r.type === "sea" || (r.pop === 0 && r.res === 0)) continue
 		if (set_has(network, i)) in_nw.push(i)
-		else if (!set_has(network, i) && set_has(network_ta, i)) in_ta.push(i)
-		else in_na.push(i)
+		else if (set_has(network_ta, i)) in_ta.push(i)
 	}
-	return [in_nw, in_ta, in_na]
+	return [in_nw, in_ta]
 }
 
 

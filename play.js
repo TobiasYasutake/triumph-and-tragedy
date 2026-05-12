@@ -117,6 +117,7 @@ const ui = {
 	defender: document.getElementById("defender"),
 }
 
+var query
 
 /* ACTION REGISTRATION */
 function register_action(target, action, id) {
@@ -200,38 +201,46 @@ on_init()
 
 /* QUERY */
 
+function set_query(q){
+	query = q
+	send_query(query)
+	// document.getElementById("query").innerText = q
+}
+
 function show_supply(supply) {
 	for (let i = 0; i < REGIONS.length; i++){
 		let e = document.getElementById(REGIONS[i].name)
-		e.classList.toggle("supply", supply.includes(i))
-		e.classList.toggle("no_supply", !supply.includes(i))
+		e.classList.toggle("supply", supply[0].includes(i))
+		e.classList.toggle("some_supply", supply[1].includes(i))
+		e.classList.toggle("no_supply", !(supply[0].includes(i) || supply[1].includes(i)))
 	}
 }
 
-function show_trade(networks) {
-	for (let i = 0; i < REGIONS.length; i++){
-		let e = document.getElementById(REGIONS[i].name)
-		e.classList.toggle("network", networks[0].includes(i))
-		e.classList.toggle("network_ta", networks[1].includes(i))
-		e.classList.toggle("network_none", networks[2].includes(i))
-	}
-}
+// function show_trade(networks) {
+// 	for (let i = 0; i < REGIONS.length; i++){
+// 		let e = document.getElementById(REGIONS[i].name)
+// 		e.classList.toggle("supply", networks[0].includes(i))
+// 		e.classList.toggle("some_supply", networks[1].includes(i))
+// 		e.classList.toggle("no_supply", (!supply[0].includes(i) && !supply[1].includes[i]))
+// 	}
+// }
 
 function hide_supply_trade() {
+	query = null
+	// document.getElementById("query").innerText = ""
 	for (let i = 0; i < REGIONS.length; i++){
 		let e = document.getElementById(REGIONS[i].name)
 		e.classList.remove("supply")
 		e.classList.remove("no_supply")
-		e.classList.remove("network")
-		e.classList.remove("network_ta")
-		e.classList.remove("network_none")
+		e.classList.remove("some_supply")
+		// e.classList.remove("network")
+		// e.classList.remove("network_ta")
+		// e.classList.remove("network_none")
 	}
 }
 
 function on_reply(q, params) {
-	const action = q.slice(5)
-	if (action === "supply") show_supply(params)
-	if (action === "trade") show_trade(params)
+	show_supply(params)
 }
 
 
@@ -1197,6 +1206,7 @@ function on_update(){
 	update_turn_order_display()
 	update_action_menu()
 	update_favicon()
+	if (query) send_query(query)
 }
 
 function update_favicon() {
