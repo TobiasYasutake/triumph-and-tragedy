@@ -358,15 +358,32 @@ function start_player_turns(){
 	}
 }
 
+function draw_von(){
+	clear_undo()
+	let count = game.draw[0].length
+	game.draw[0] = []
+	log(`World Reaction: ${count} Action cards drawn by each Rival.`)
+	if (count*2 > game.deck[0].length) {
+		if (count*2 > (game.deck[0].length + game.discard[0].length)) log("Too many cards to draw! Woohoo! Achievement #3 unlocked! Dealing as many cards as possible...")
+		//reshuffle
+		shuffle_bigint(game.discard[0])
+		game.deck[0].unshift(...game.discard[0])
+		game.discard = [[],[]]
+	}
+	const f1 = (game.activeNum+1) % 3
+	const f2 = (game.activeNum+2) % 3
+	while (count > 0 && game.deck[0].length > 1) {
+		game.hand[f1][0].push(game.deck[0].pop())
+		game.hand[f2][0].push(game.deck[0].pop())
+		count -= 1
+	}
+}
+
 function end_movement_phase(){
 	make_active(game.turn_order_command[0])
 	//VoN draw:
 	if (game.draw[0].length > 0) {
-		game.state = "draw_von"
-		draw()
-		//Needs work: some sort of function to reshuffle cards and reduce draw if there isn't enough action cards
-		next_player()
-		return
+		draw_von()
 	}
 	//resolve battle (look for game.battle for land, and required combat for sea/required)
 	//can also have a battle where escaped sub!
@@ -3459,28 +3476,28 @@ states.draw_production = {
 	}
 }
 
-states.draw_von = {
-	inactive: "draw from VoN",
-	prompt(){
-		view.prompt = `${FACTIONS[game.turn_order_command[0]]} declared VoN, draw cards in outrage!`
-		 view.actions.draw = 1
-		view.draw = game.draw
-	},
-	draw(){
-		//some sort of function that reshuffles if needed
-		const cards = game.draw[0].length
-		game.hand[game.activeNum][0].push(... game.draw[0])
-		game.draw[0] = []
+// states.draw_von = {
+// 	inactive: "draw from VoN",
+// 	prompt(){
+// 		view.prompt = `${FACTIONS[game.turn_order_command[0]]} declared VoN, draw cards in outrage!`
+// 		 view.actions.draw = 1
+// 		view.draw = game.draw
+// 	},
+// 	draw(){
+// 		//some sort of function that reshuffles if needed
+// 		const cards = game.draw[0].length
+// 		game.hand[game.activeNum][0].push(... game.draw[0])
+// 		game.draw[0] = []
 		
-		if( game.turn_order[(game.turn_order.indexOf(game.activeNum) + 1)%3] === game.turn_order_command[0])
-			end_movement_phase()
-		else {
-			for (let i = 0; i < cards; i++)game.draw[0].push(-1)
-			draw()
-			next_player()
-		}
-	}
-}
+// 		if( game.turn_order[(game.turn_order.indexOf(game.activeNum) + 1)%3] === game.turn_order_command[0])
+// 			end_movement_phase()
+// 		else {
+// 			for (let i = 0; i < cards; i++)game.draw[0].push(-1)
+// 			draw()
+// 			next_player()
+// 		}
+// 	}
+// }
 
 
 function command_limit(f){
