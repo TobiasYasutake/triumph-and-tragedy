@@ -394,6 +394,13 @@ body.shift .block.known:hover {
 #USSR_West {background-image: url(tokens/rel_ussr_west_peace.jpeg); transform: rotate(-90deg);}
 #USSR_West.dow {background-image: url(tokens/rel_ussr_west_dow.jpeg); transform: rotate(-90deg);}
 
+#Axis_res_unblockaded {background-image: url(tokens/axis_res_unblocked.jpg);}
+#Axis_pop_unblockaded {background-image: url(tokens/axis_pop_unblocked.jpg);}
+#West_res_unblockaded {background-image: url(tokens/west_res_unblocked.jpg); transform: rotate(-180deg);}
+#West_pop_unblockaded {background-image: url(tokens/west_pop_unblocked.jpg); transform: rotate(-180deg);}
+#USSR_res_unblockaded {background-image: url(tokens/ussr_res_unblocked.jpg); transform: rotate(-90deg);}
+#USSR_pop_unblockaded {background-image: url(tokens/ussr_pop_unblocked.jpg); transform: rotate(-90deg);}
+
 /* Common Tokens */
 .control.Axis {background-image: url(tokens/control_axis.jpeg);}
 .control.West {background-image: url(tokens/control_west.jpeg);}

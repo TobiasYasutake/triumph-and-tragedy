@@ -1175,8 +1175,8 @@ function get_trade_network(f, trans_african){
 				(type === 'sea' && (b === 'p' || b === 'm' || b === 'f' || b === 'r' ))) continue
 			set_add(checked, adj)
 			if (contains_hiding_enemy_sub[adj, f]) continue
-			if (game.control[adj] === f || game.control[adj] === 3 || game.control[adj] === -1 || 
-				(REGIONS[adj].type === 'strait' && !are_enemies(f, game.control[adj]))) {
+			if (game.control[adj] === f || game.control[adj] === 3 || (game.control[adj] === -1 && !is_armed_minor(REGIONS[adj].country)) || 
+				(REGIONS[adj].type === 'strait' && !are_enemies(f, game.control[adj], adj))) {
 				set_add(network, adj)
 				if (type === 'land' || REGIONS[adj].type !== 'land') check_space(adj, type)
 			}
@@ -1210,9 +1210,6 @@ function trade_partner(r){
 }
 
 function check_blockades_still_in_effect (){
-	// if (game.blockade.length === 0 && game.blockade_transafrica === 0) {
-	// 	log("No blockades on the board."); return
-	// }
 	for (let f = 0; f < 3; f++){
 		determine_control(f)
 		const network = get_trade_network(f, false)
@@ -1232,7 +1229,7 @@ function check_blockades_still_in_effect (){
 			} else if (set_has(ta_network, game.blockade[i])) {
 				log(`r${game.blockade[i]} downgraded to MED blockade.`)
 				game.blockade_transafrica.push(game.blockade[i])
-				array_remove_item(game.blockade, game.blockade_transafrica[i])
+				array_remove_item(game.blockade, game.blockade[i])
 			}
 		}
 	}

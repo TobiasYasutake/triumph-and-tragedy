@@ -681,16 +681,22 @@ function update_tokens(){
 			ic = 1
 			count_xy = table[view.count]
 		}
-		let val = [view.pop[i] - view.bpop[i], view.ind[i], view.res[i] - view.bres[i]]
+		let val = [view.pop[i], view.ind[i], view.res[i], view.pop[i] - view.bpop[i], view.res[i] - view.bres[i]]
 		if (val[0] > 26) val[0] = 26
 		if (val[1] > 26) val[1] = 26
 		if (val[2] > 26) val[2] = 26
+		if (val[3] > 26) val[3] = 26; if (val[3] === val[0]) val[3] = "none"
+		if (val[4] > 26) val[4] = 26; if (val[4] === val[2]) val[4] = "none"
 		if (ic) val.push(view.count)
 
 		let pop = document.getElementById(`${FACTIONS[i]}_pop`); let pop_xy = table[val[0]]
 		let ind = document.getElementById(`${FACTIONS[i]}_ind`); let ind_xy = table[val[1]]
 		let res = document.getElementById(`${FACTIONS[i]}_res`); let res_xy = table[val[2]]
+		let bpop = document.getElementById(`${FACTIONS[i]}_pop_unblockaded`); let bpop_xy = table[val[3]]
+		let bres = document.getElementById(`${FACTIONS[i]}_res_unblockaded`); let bres_xy = table[val[4]]
 		res.classList.toggle("pc", view.relationship[i].length === 0)
+		bpop.classList.toggle("hide", val[3] === "none")
+		bres.classList.toggle("hide", val[4] === "none")
 
 		//offset
 		let groups = []
@@ -708,7 +714,7 @@ function update_tokens(){
 			if (group.length > 1) groups.push(group)
 		}
 
-		let o = [[0,0],[0,0],[0,0],[0,0],] //offset
+		let o = [[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],] //offset
 
 		for (let i = 0; i < groups.length; i++) {
 			for (let j = 0; j < groups[i].length; j++) {
@@ -723,10 +729,16 @@ function update_tokens(){
 		ind.style.top = ind_xy["y"]+o[1][1]+"px"
 		res.style.left = res_xy["x"]+o[2][0]+"px"
 		res.style.top = res_xy["y"]+o[2][1]+"px"
+
+		bpop.style.left = bpop_xy["x"]+o[3][0]+"px"
+		bpop.style.top = bpop_xy["y"]+o[3][1]+"px"
+		bres.style.left = bres_xy["x"]+o[4][0]+"px"
+		bres.style.top = bres_xy["y"]+o[4][1]+"px"
+
 		if (ic) {
 			if (count_owner_changed) count.style.transition = 'none'
-			count.style.left = count_xy["x"]+o[3][0]+"px";
-			count.style.top = count_xy["y"]+o[3][1]+"px";
+			count.style.left = count_xy["x"]+o[5][0]+"px";
+			count.style.top = count_xy["y"]+o[5][1]+"px";
 			if (count_owner_changed) {
 				count.offsetHeight;
 				count.style.transition = ''
