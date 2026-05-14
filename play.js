@@ -232,7 +232,7 @@ function hide_supply_trade() {
 		let e = document.getElementById(REGIONS[i].name)
 		e.classList.remove("supply")
 		e.classList.remove("no_supply")
-		e.classList.remove("some_supply")
+		e.classList.remove("adj_supply")
 		e.classList.remove("TransAfrica")
 		// e.classList.remove("network_ta")
 		// e.classList.remove("network_none")
