@@ -3548,7 +3548,7 @@ states.command = {
 		push_undo()
 		game.selected_Icard = game.selected_Icard ?? []
 		game.selected_Icard.push(c)
-		game.command_card[game.activeNum]? game.command_card[game.activeNum].push(c) : game.command_card[game.activeNum] = [c*-1]
+		game.command_card[game.activeNum]? game.command_card[game.activeNum].push(c*-1) : game.command_card[game.activeNum] = [c*-1]
 		array_remove_item(game.hand[game.activeNum][1], c)
 	},
 	pass(){
